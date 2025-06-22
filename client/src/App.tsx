@@ -16,6 +16,7 @@ import WorkOrders from "@/pages/work-orders";
 import Proposals from "@/pages/proposals";
 import PartsRequests from "@/pages/parts-requests";
 import PaymentManager from "@/pages/payment-manager";
+import TechnicianPayments from "@/pages/technician-payments";
 
 import NotFound from "@/pages/not-found";
 
