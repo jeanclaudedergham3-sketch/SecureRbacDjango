@@ -59,6 +59,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isPaymentRequestOpen, setIsPaymentRequestOpen] = useState(false);
   const [isViewProposalModalOpen, setIsViewProposalModalOpen] = useState(false);
+  const [isViewPartsModalOpen, setIsViewPartsModalOpen] = useState(false);
+  const [isViewFilesModalOpen, setIsViewFilesModalOpen] = useState(false);
 
   const { data: technicians = [] } = useQuery<Technician[]>({
     queryKey: ["/api/technicians"],
@@ -71,6 +73,11 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
 
   const { data: partsRequests = [] } = useQuery({
     queryKey: [`/api/work-orders/${workOrder?.id}/parts-requests`],
+    enabled: !!workOrder?.id,
+  });
+
+  const { data: workOrderFiles = [] } = useQuery({
+    queryKey: [`/api/work-orders/${workOrder?.id}/files`],
     enabled: !!workOrder?.id,
   });
 
@@ -662,8 +669,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                   >
                     {workOrder.isLocked ? "Locked" : "Request Parts"}
                   </Button>
-                  <Button variant="outline" onClick={() => window.location.href = '/parts-requests'}>
-                    View All Parts Requests
+                  <Button variant="outline" onClick={() => setIsViewPartsModalOpen(true)}>
+                    View Parts Details
                   </Button>
                 </div>
               </div>
@@ -677,16 +684,21 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <p className="text-gray-600 mb-4">
                 Upload before/after photos, signatures, and documents.
               </p>
-              <Button 
-                onClick={() => workOrder.isLocked ? toast({
-                  title: "Action Blocked",
-                  description: "Cannot upload files - work order is locked due to paid invoice.",
-                  variant: "destructive"
-                }) : setIsFileUploadModalOpen(true)}
-                disabled={workOrder.isLocked}
-              >
-                {workOrder.isLocked ? "Locked" : "Manage Files"}
-              </Button>
+              <div className="space-x-2">
+                <Button 
+                  onClick={() => workOrder.isLocked ? toast({
+                    title: "Action Blocked",
+                    description: "Cannot upload files - work order is locked due to paid invoice.",
+                    variant: "destructive"
+                  }) : setIsFileUploadModalOpen(true)}
+                  disabled={workOrder.isLocked}
+                >
+                  {workOrder.isLocked ? "Locked" : "Manage Files"}
+                </Button>
+                <Button variant="outline" onClick={() => setIsViewFilesModalOpen(true)}>
+                  View Files Details
+                </Button>
+              </div>
             </div>
           </TabsContent>
 
@@ -1134,6 +1146,162 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
             </div>
             <div className="flex justify-end pt-4 border-t">
               <Button onClick={() => setIsViewProposalModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {isViewPartsModalOpen && (
+        <Dialog open={isViewPartsModalOpen} onOpenChange={setIsViewPartsModalOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Parts Requests - {workOrder.workOrderNumber}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {partsRequests.length > 0 ? (
+                <div className="space-y-3">
+                  {partsRequests.map((request: any) => (
+                    <Card key={request.id}>
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-3">
+                              <h4 className="text-xl font-bold text-gray-900">{request.partName}</h4>
+                              <Badge variant={
+                                request.status === "approved" ? "default" : 
+                                request.status === "rejected" ? "destructive" : 
+                                request.status === "ordered" ? "secondary" : "outline"
+                              }>
+                                {request.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-green-600">${parseFloat(request.estimatedCost || "0").toFixed(2)}</div>
+                            <div className="text-sm text-gray-500">Estimated Cost</div>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-6 mb-4">
+                          <div>
+                            <h5 className="font-medium text-gray-700 mb-1">Quantity</h5>
+                            <p className="text-lg font-semibold">{request.quantity}</p>
+                          </div>
+                          <div>
+                            <h5 className="font-medium text-gray-700 mb-1">Supplier</h5>
+                            <p className="text-lg">{request.supplier || "Not specified"}</p>
+                          </div>
+                        </div>
+                        
+                        {request.description && (
+                          <div className="mb-4">
+                            <h5 className="font-medium text-gray-700 mb-2">Description</h5>
+                            <div className="p-3 bg-gray-50 rounded-lg border">
+                              <p className="text-gray-900">{request.description}</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="text-sm text-gray-500 pt-3 border-t">
+                          Requested: {new Date(request.createdAt).toLocaleDateString()}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Receipt className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-medium mb-2">No Parts Requests</h3>
+                  <p className="text-gray-600">No parts have been requested for this work order yet.</p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end pt-4 border-t">
+              <Button onClick={() => setIsViewPartsModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {isViewFilesModalOpen && (
+        <Dialog open={isViewFilesModalOpen} onOpenChange={setIsViewFilesModalOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Files & Documents - {workOrder.workOrderNumber}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {workOrderFiles.length > 0 ? (
+                <div className="space-y-4">
+                  {['before', 'after', 'signature', 'document'].map(category => {
+                    const categoryFiles = workOrderFiles.filter((file: any) => file.category === category);
+                    if (categoryFiles.length === 0) return null;
+                    
+                    return (
+                      <div key={category} className="space-y-3">
+                        <h4 className="text-lg font-semibold capitalize text-gray-800">
+                          {category === 'before' ? 'Before Photos' : 
+                           category === 'after' ? 'After Photos' :
+                           category === 'signature' ? 'Signatures' : 'Documents'}
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {categoryFiles.map((file: any) => (
+                            <Card key={file.id}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start space-x-3">
+                                  <div className="flex-shrink-0">
+                                    {file.fileType?.startsWith('image/') ? (
+                                      <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <Upload className="h-8 w-8 text-blue-600" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <FileText className="h-8 w-8 text-gray-600" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h5 className="font-medium text-gray-900 truncate">{file.fileName}</h5>
+                                    <p className="text-sm text-gray-500 mt-1">{file.fileType}</p>
+                                    {file.description && (
+                                      <p className="text-sm text-gray-600 mt-2">{file.description}</p>
+                                    )}
+                                    <div className="flex items-center justify-between mt-3">
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(file.createdAt).toLocaleDateString()}
+                                      </span>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => window.open(file.filePath, '_blank')}
+                                      >
+                                        View
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-medium mb-2">No Files Uploaded</h3>
+                  <p className="text-gray-600">No files have been uploaded for this work order yet.</p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end pt-4 border-t">
+              <Button onClick={() => setIsViewFilesModalOpen(false)}>
                 Close
               </Button>
             </div>
