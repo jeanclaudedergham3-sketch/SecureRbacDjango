@@ -46,7 +46,9 @@ export function FileUploadModal({ isOpen, onClose, workOrder }: FileUploadModalP
         formData.append('file', fileData.file);
         formData.append('category', fileData.category);
         formData.append('description', fileData.description);
-        formData.append('uploadedBy', user?.id?.toString() || '');
+        formData.append('uploadedBy', user?.id?.toString() || '1');
+
+        console.log('Uploading file:', fileData.file.name, 'Category:', fileData.category);
 
         const response = await fetch(`/api/work-orders/${workOrder.id}/files`, {
           method: 'POST',
@@ -54,7 +56,9 @@ export function FileUploadModal({ isOpen, onClose, workOrder }: FileUploadModalP
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to upload ${fileData.file.name}`);
+          const errorText = await response.text();
+          console.error('Upload error:', errorText);
+          throw new Error(`Failed to upload ${fileData.file.name}: ${errorText}`);
         }
 
         const result = await response.json();
@@ -100,12 +104,15 @@ export function FileUploadModal({ isOpen, onClose, workOrder }: FileUploadModalP
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
+    console.log('Selected files:', files.length, 'for category:', activeCategory);
     const newFileData = files.map(file => ({
       file,
       category: activeCategory,
       description: `${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)} - ${file.name}`,
     }));
     setSelectedFiles([...selectedFiles, ...newFileData]);
+    // Clear the input to allow selecting the same file again
+    event.target.value = '';
   }, [selectedFiles, activeCategory]);
 
   const removeSelectedFile = (index: number) => {
@@ -239,14 +246,16 @@ export function FileUploadModal({ isOpen, onClose, workOrder }: FileUploadModalP
                   <input
                     id="file-upload"
                     type="file"
-                    multiple
-                    accept={activeCategory === 'signature' ? 'image/*' : '*/*'}
+                    multiple={activeCategory !== 'signature'}
+                    accept={activeCategory === 'signature' ? 'image/*' : activeCategory === 'before' || activeCategory === 'after' ? 'image/*' : '*/*'}
                     onChange={handleFileSelect}
                     className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
-                  <p className="mt-1 text-sm text-gray-500 ">
+                  <p className="mt-1 text-sm text-gray-500">
                     {activeCategory === 'signature' 
-                      ? 'Upload signature images (PNG, JPG, JPEG)'
+                      ? 'Upload signature images (PNG, JPG, JPEG) - Single file only'
+                      : activeCategory === 'before' || activeCategory === 'after'
+                      ? 'Upload photos (PNG, JPG, JPEG) - Multiple files allowed'
                       : 'Upload any file type (images, PDFs, documents)'
                     }
                   </p>

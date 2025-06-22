@@ -264,31 +264,11 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <h3 className="text-lg font-medium mb-2">File Management</h3>
               <p className="text-gray-600 mb-4">
-                Upload before/after photos and documents for this work order.
+                Upload before/after photos, signatures, and documents.
               </p>
-              <div className="grid grid-cols-3 gap-4 mt-6">
-                <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 text-center">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                    <p className="font-medium">Before</p>
-                    <p className="text-sm text-gray-500">0 files</p>
-                  </CardContent>
-                </Card>
-                <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 text-center">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                    <p className="font-medium">After</p>
-                    <p className="text-sm text-gray-500">0 files</p>
-                  </CardContent>
-                </Card>
-                <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 text-center">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-purple-600" />
-                    <p className="font-medium">Signature</p>
-                    <p className="text-sm text-gray-500">0 files</p>
-                  </CardContent>
-                </Card>
-              </div>
+              <Button onClick={() => setIsFileUploadModalOpen(true)}>
+                Manage Files
+              </Button>
             </div>
           </TabsContent>
 
