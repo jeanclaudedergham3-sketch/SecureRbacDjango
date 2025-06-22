@@ -80,6 +80,7 @@ function Router() {
       <Route path="/proposals" component={() => <ProtectedRoute component={Proposals} />} />
       <Route path="/parts-requests" component={() => <ProtectedRoute component={PartsRequests} />} />
       <Route path="/payment-manager" component={() => <ProtectedRoute component={PaymentManager} />} />
+      <Route path="/technician-payments" component={() => <ProtectedRoute component={TechnicianPayments} />} />
       <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
     </Switch>
