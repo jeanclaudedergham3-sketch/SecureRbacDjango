@@ -484,8 +484,15 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               </p>
               <PermissionGuard permission="manage_work_orders">
                 <div className="space-x-2">
-                  <Button onClick={() => setIsProposalModalOpen(true)}>
-                    Create/Edit Proposal
+                  <Button 
+                    onClick={() => workOrder.isLocked ? toast({
+                      title: "Action Blocked",
+                      description: "Cannot create/edit proposals - work order is locked due to paid invoice.",
+                      variant: "destructive"
+                    }) : setIsProposalModalOpen(true)}
+                    disabled={workOrder.isLocked}
+                  >
+                    {workOrder.isLocked ? "Locked" : "Create/Edit Proposal"}
                   </Button>
                   <Button variant="outline" onClick={() => {
                     onClose();
@@ -537,8 +544,15 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <p className="text-gray-600 mb-4">
                 Upload before/after photos, signatures, and documents.
               </p>
-              <Button onClick={() => setIsFileUploadModalOpen(true)}>
-                Manage Files
+              <Button 
+                onClick={() => workOrder.isLocked ? toast({
+                  title: "Action Blocked",
+                  description: "Cannot upload files - work order is locked due to paid invoice.",
+                  variant: "destructive"
+                }) : setIsFileUploadModalOpen(true)}
+                disabled={workOrder.isLocked}
+              >
+                {workOrder.isLocked ? "Locked" : "Manage Files"}
               </Button>
             </div>
           </TabsContent>
