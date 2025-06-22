@@ -1,55 +1,55 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true).notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const roles = pgTable("roles", {
-  id: serial("id").primaryKey(),
+export const roles = sqliteTable("roles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
   description: text("description"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const permissions = pgTable("permissions", {
-  id: serial("id").primaryKey(),
+export const permissions = sqliteTable("permissions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
   description: text("description"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const userRoles = pgTable("user_roles", {
-  id: serial("id").primaryKey(),
+export const userRoles = sqliteTable("user_roles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull().references(() => users.id),
   roleId: integer("role_id").notNull().references(() => roles.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const rolePermissions = pgTable("role_permissions", {
-  id: serial("id").primaryKey(),
+export const rolePermissions = sqliteTable("role_permissions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   roleId: integer("role_id").notNull().references(() => roles.id),
   permissionId: integer("permission_id").notNull().references(() => permissions.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const equipment = pgTable("equipment", {
-  id: serial("id").primaryKey(),
+export const equipment = sqliteTable("equipment", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   type: text("type").notNull(),
   description: text("description"),
   status: text("status").notNull().default("online"),
   cpuUsage: integer("cpu_usage").default(0),
   memoryUsage: integer("memory_usage").default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({

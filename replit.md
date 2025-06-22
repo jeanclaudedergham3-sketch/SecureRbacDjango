@@ -17,9 +17,9 @@ This is a full-stack web application built with React, TypeScript, and Express.j
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
-- **Database ORM**: Drizzle ORM with PostgreSQL dialect
-- **Database Provider**: Neon Database (serverless PostgreSQL)
-- **Session Management**: Express sessions with PostgreSQL session store
+- **Database ORM**: Drizzle ORM with SQLite dialect
+- **Database Provider**: SQLite (better-sqlite3)
+- **Session Management**: Express sessions with in-memory store
 - **Authentication**: Session-based authentication with bcrypt password hashing
 - **Authorization**: Role-based access control (RBAC) middleware
 
@@ -120,22 +120,23 @@ The application uses a comprehensive RBAC schema with the following entities:
 - Environment-based configuration
 
 ### Database
-- Drizzle migrations for schema management
-- PostgreSQL connection via Neon serverless
-- Session storage in PostgreSQL
-- Connection pooling for production
+- SQLite database with better-sqlite3
+- Drizzle ORM for type-safe database operations
+- Automatic schema initialization
+- In-memory session storage for development
 
 ### Hosting
 - Configured for Replit deployment
 - Auto-scaling deployment target
 - Port 5000 for application server
-- PostgreSQL 16 module for database
+- SQLite database file storage
 
 ## Changelog
 
 ```
 Changelog:
-- June 22, 2025. Initial setup
+- June 22, 2025. Initial setup with PostgreSQL
+- June 22, 2025. Migrated to SQLite database
 ```
 
 ## User Preferences

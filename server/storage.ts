@@ -1,4 +1,6 @@
+import { db } from "./database";
 import { users, roles, permissions, userRoles, rolePermissions, equipment, type User, type Role, type Permission, type Equipment, type InsertUser, type InsertRole, type InsertPermission, type InsertEquipment, type UserWithRole, type RoleWithPermissions } from "@shared/schema";
+import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 export interface IStorage {
@@ -47,179 +49,167 @@ export interface IStorage {
   getAllEquipment(): Promise<Equipment[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private roles: Map<number, Role>;
-  private permissions: Map<number, Permission>;
-  private userRoles: Map<number, { userId: number; roleId: number }>;
-  private rolePermissions: Map<number, { roleId: number; permissionId: number }>;
-  private equipment: Map<number, Equipment>;
-  private currentUserId: number;
-  private currentRoleId: number;
-  private currentPermissionId: number;
-  private currentUserRoleId: number;
-  private currentRolePermissionId: number;
-  private currentEquipmentId: number;
-
+export class SqliteStorage implements IStorage {
   constructor() {
-    this.users = new Map();
-    this.roles = new Map();
-    this.permissions = new Map();
-    this.userRoles = new Map();
-    this.rolePermissions = new Map();
-    this.equipment = new Map();
-    this.currentUserId = 1;
-    this.currentRoleId = 1;
-    this.currentPermissionId = 1;
-    this.currentUserRoleId = 1;
-    this.currentRolePermissionId = 1;
-    this.currentEquipmentId = 1;
-    
     this.seedData();
   }
 
   private async seedData() {
-    // Create permissions
-    const permissions = [
-      { name: "view_dashboard", description: "View dashboard" },
-      { name: "view_users", description: "View users" },
-      { name: "edit_users", description: "Edit users" },
-      { name: "view_roles", description: "View roles" },
-      { name: "assign_roles", description: "Assign roles" },
-      { name: "view_equipment", description: "View equipment" },
-      { name: "edit_equipment", description: "Edit equipment" },
-    ];
+    try {
+      // Check if data already exists
+      const existingUsers = await db.select().from(users).limit(1);
+      if (existingUsers.length > 0) {
+        return; // Data already seeded
+      }
 
-    for (const perm of permissions) {
-      await this.createPermission(perm);
+      // Create permissions
+      const permissionsList = [
+        { name: "view_dashboard", description: "View dashboard" },
+        { name: "view_users", description: "View users" },
+        { name: "edit_users", description: "Edit users" },
+        { name: "view_roles", description: "View roles" },
+        { name: "assign_roles", description: "Assign roles" },
+        { name: "view_equipment", description: "View equipment" },
+        { name: "edit_equipment", description: "Edit equipment" },
+      ];
+
+      const createdPermissions = [];
+      for (const perm of permissionsList) {
+        const created = await this.createPermission(perm);
+        createdPermissions.push(created);
+      }
+
+      // Create roles
+      const adminRole = await this.createRole({ name: "admin", description: "Administrator with full access" });
+      const managerRole = await this.createRole({ name: "manager", description: "Manager with limited access" });
+      const viewerRole = await this.createRole({ name: "viewer", description: "Viewer with read-only access" });
+
+      // Assign permissions to roles
+      // Admin - all permissions
+      for (const perm of createdPermissions) {
+        await this.assignRolePermission(adminRole.id, perm.id);
+      }
+
+      // Manager - limited permissions
+      await this.assignRolePermission(managerRole.id, createdPermissions[0].id); // view_dashboard
+      await this.assignRolePermission(managerRole.id, createdPermissions[1].id); // view_users
+      await this.assignRolePermission(managerRole.id, createdPermissions[3].id); // view_roles
+      await this.assignRolePermission(managerRole.id, createdPermissions[5].id); // view_equipment
+      await this.assignRolePermission(managerRole.id, createdPermissions[6].id); // edit_equipment
+
+      // Viewer - read-only permissions
+      await this.assignRolePermission(viewerRole.id, createdPermissions[0].id); // view_dashboard
+      await this.assignRolePermission(viewerRole.id, createdPermissions[1].id); // view_users
+
+      // Create default users
+      const adminUser = await this.createUser({
+        username: "admin",
+        email: "admin@example.com",
+        password: await bcrypt.hash("admin123", 10),
+        firstName: "John",
+        lastName: "Doe",
+        isActive: true,
+      });
+
+      const managerUser = await this.createUser({
+        username: "manager",
+        email: "manager@example.com",
+        password: await bcrypt.hash("manager123", 10),
+        firstName: "Sarah",
+        lastName: "Wilson",
+        isActive: true,
+      });
+
+      const viewerUser = await this.createUser({
+        username: "viewer",
+        email: "viewer@example.com",
+        password: await bcrypt.hash("viewer123", 10),
+        firstName: "Mike",
+        lastName: "Johnson",
+        isActive: false,
+      });
+
+      // Assign roles to users
+      await this.assignUserRole(adminUser.id, adminRole.id);
+      await this.assignUserRole(managerUser.id, managerRole.id);
+      await this.assignUserRole(viewerUser.id, viewerRole.id);
+
+      // Create sample equipment
+      await this.createEquipment({
+        name: "Server #01",
+        type: "server",
+        description: "Main Database Server",
+        status: "online",
+        cpuUsage: 45,
+        memoryUsage: 67,
+      });
+
+      await this.createEquipment({
+        name: "Network Switch",
+        type: "network",
+        description: "Core Network Device",
+        status: "online",
+        cpuUsage: 50,
+        memoryUsage: 85,
+      });
+
+      await this.createEquipment({
+        name: "Storage Array",
+        type: "storage",
+        description: "Backup Storage System",
+        status: "offline",
+        cpuUsage: 0,
+        memoryUsage: 0,
+      });
+
+      console.log("Database seeded successfully");
+    } catch (error) {
+      console.error("Error seeding database:", error);
     }
-
-    // Create roles
-    const adminRole = await this.createRole({ name: "admin", description: "Administrator with full access" });
-    const managerRole = await this.createRole({ name: "manager", description: "Manager with limited access" });
-    const viewerRole = await this.createRole({ name: "viewer", description: "Viewer with read-only access" });
-
-    // Assign permissions to roles
-    // Admin - all permissions
-    for (let i = 1; i <= 7; i++) {
-      await this.assignRolePermission(adminRole.id, i);
-    }
-
-    // Manager - limited permissions
-    await this.assignRolePermission(managerRole.id, 1); // view_dashboard
-    await this.assignRolePermission(managerRole.id, 2); // view_users
-    await this.assignRolePermission(managerRole.id, 4); // view_roles
-    await this.assignRolePermission(managerRole.id, 6); // view_equipment
-    await this.assignRolePermission(managerRole.id, 7); // edit_equipment
-
-    // Viewer - read-only permissions
-    await this.assignRolePermission(viewerRole.id, 1); // view_dashboard
-    await this.assignRolePermission(viewerRole.id, 2); // view_users
-
-    // Create default users
-    const adminUser = await this.createUser({
-      username: "admin",
-      email: "admin@example.com",
-      password: await bcrypt.hash("admin123", 10),
-      firstName: "John",
-      lastName: "Doe",
-      isActive: true,
-    });
-
-    const managerUser = await this.createUser({
-      username: "manager",
-      email: "manager@example.com",
-      password: await bcrypt.hash("manager123", 10),
-      firstName: "Sarah",
-      lastName: "Wilson",
-      isActive: true,
-    });
-
-    const viewerUser = await this.createUser({
-      username: "viewer",
-      email: "viewer@example.com",
-      password: await bcrypt.hash("viewer123", 10),
-      firstName: "Mike",
-      lastName: "Johnson",
-      isActive: false,
-    });
-
-    // Assign roles to users
-    await this.assignUserRole(adminUser.id, adminRole.id);
-    await this.assignUserRole(managerUser.id, managerRole.id);
-    await this.assignUserRole(viewerUser.id, viewerRole.id);
-
-    // Create sample equipment
-    await this.createEquipment({
-      name: "Server #01",
-      type: "server",
-      description: "Main Database Server",
-      status: "online",
-      cpuUsage: 45,
-      memoryUsage: 67,
-    });
-
-    await this.createEquipment({
-      name: "Network Switch",
-      type: "network",
-      description: "Core Network Device",
-      status: "online",
-      cpuUsage: 50,
-      memoryUsage: 85,
-    });
-
-    await this.createEquipment({
-      name: "Storage Array",
-      type: "storage",
-      description: "Backup Storage System",
-      status: "offline",
-      cpuUsage: 0,
-      memoryUsage: 0,
-    });
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.email === email);
+    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = {
+    const result = await db.insert(users).values({
       ...insertUser,
       isActive: insertUser.isActive ?? true,
-      id,
       createdAt: new Date(),
-    };
-    this.users.set(id, user);
-    return user;
+    }).returning();
+    return result[0];
   }
 
   async updateUser(id: number, updateData: Partial<InsertUser>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-
-    const updatedUser = { ...user, ...updateData };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    const result = await db.update(users)
+      .set(updateData)
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
   }
 
   async deleteUser(id: number): Promise<boolean> {
-    return this.users.delete(id);
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.changes > 0;
   }
 
   async getAllUsers(): Promise<UserWithRole[]> {
-    const usersArray = Array.from(this.users.values());
+    const allUsers = await db.select().from(users);
     const result: UserWithRole[] = [];
 
-    for (const user of usersArray) {
+    for (const user of allUsers) {
       const role = await this.getUserRole(user.id);
       result.push({ ...user, role });
     }
@@ -236,126 +226,129 @@ export class MemStorage implements IStorage {
   }
 
   async getRole(id: number): Promise<Role | undefined> {
-    return this.roles.get(id);
+    const result = await db.select().from(roles).where(eq(roles.id, id)).limit(1);
+    return result[0];
   }
 
   async getRoleByName(name: string): Promise<Role | undefined> {
-    return Array.from(this.roles.values()).find(role => role.name === name);
+    const result = await db.select().from(roles).where(eq(roles.name, name)).limit(1);
+    return result[0];
   }
 
   async createRole(insertRole: InsertRole): Promise<Role> {
-    const id = this.currentRoleId++;
-    const role: Role = {
+    const result = await db.insert(roles).values({
       ...insertRole,
       description: insertRole.description ?? null,
-      id,
       createdAt: new Date(),
-    };
-    this.roles.set(id, role);
-    return role;
+    }).returning();
+    return result[0];
   }
 
   async updateRole(id: number, updateData: Partial<InsertRole>): Promise<Role | undefined> {
-    const role = this.roles.get(id);
-    if (!role) return undefined;
-
-    const updatedRole = { ...role, ...updateData };
-    this.roles.set(id, updatedRole);
-    return updatedRole;
+    const result = await db.update(roles)
+      .set(updateData)
+      .where(eq(roles.id, id))
+      .returning();
+    return result[0];
   }
 
   async deleteRole(id: number): Promise<boolean> {
-    return this.roles.delete(id);
+    const result = await db.delete(roles).where(eq(roles.id, id));
+    return result.changes > 0;
   }
 
   async getAllRoles(): Promise<RoleWithPermissions[]> {
-    const rolesArray = Array.from(this.roles.values());
+    const allRoles = await db.select().from(roles);
     const result: RoleWithPermissions[] = [];
 
-    for (const role of rolesArray) {
-      const permissions = await this.getRolePermissions(role.id);
-      result.push({ ...role, permissions });
+    for (const role of allRoles) {
+      const rolePermissions = await this.getRolePermissions(role.id);
+      result.push({ ...role, permissions: rolePermissions });
     }
 
     return result;
   }
 
   async getPermission(id: number): Promise<Permission | undefined> {
-    return this.permissions.get(id);
+    const result = await db.select().from(permissions).where(eq(permissions.id, id)).limit(1);
+    return result[0];
   }
 
   async getPermissionByName(name: string): Promise<Permission | undefined> {
-    return Array.from(this.permissions.values()).find(perm => perm.name === name);
+    const result = await db.select().from(permissions).where(eq(permissions.name, name)).limit(1);
+    return result[0];
   }
 
   async createPermission(insertPermission: InsertPermission): Promise<Permission> {
-    const id = this.currentPermissionId++;
-    const permission: Permission = {
+    const result = await db.insert(permissions).values({
       ...insertPermission,
       description: insertPermission.description ?? null,
-      id,
       createdAt: new Date(),
-    };
-    this.permissions.set(id, permission);
-    return permission;
+    }).returning();
+    return result[0];
   }
 
   async getAllPermissions(): Promise<Permission[]> {
-    return Array.from(this.permissions.values());
+    return await db.select().from(permissions);
   }
 
   async assignUserRole(userId: number, roleId: number): Promise<boolean> {
-    const id = this.currentUserRoleId++;
-    this.userRoles.set(id, { userId, roleId });
-    return true;
+    try {
+      await db.insert(userRoles).values({
+        userId,
+        roleId,
+        createdAt: new Date(),
+      });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   async removeUserRole(userId: number, roleId: number): Promise<boolean> {
-    for (const [id, userRole] of Array.from(this.userRoles.entries())) {
-      if (userRole.userId === userId && userRole.roleId === roleId) {
-        this.userRoles.delete(id);
-        return true;
-      }
-    }
-    return false;
+    const result = await db.delete(userRoles)
+      .where(sql`${userRoles.userId} = ${userId} AND ${userRoles.roleId} = ${roleId}`);
+    return result.changes > 0;
   }
 
   async getUserRole(userId: number): Promise<Role | undefined> {
-    for (const userRole of Array.from(this.userRoles.values())) {
-      if (userRole.userId === userId) {
-        return this.roles.get(userRole.roleId);
-      }
-    }
-    return undefined;
+    const result = await db
+      .select({ role: roles })
+      .from(userRoles)
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(eq(userRoles.userId, userId))
+      .limit(1);
+    
+    return result[0]?.role;
   }
 
   async assignRolePermission(roleId: number, permissionId: number): Promise<boolean> {
-    const id = this.currentRolePermissionId++;
-    this.rolePermissions.set(id, { roleId, permissionId });
-    return true;
+    try {
+      await db.insert(rolePermissions).values({
+        roleId,
+        permissionId,
+        createdAt: new Date(),
+      });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   async removeRolePermission(roleId: number, permissionId: number): Promise<boolean> {
-    for (const [id, rolePerm] of Array.from(this.rolePermissions.entries())) {
-      if (rolePerm.roleId === roleId && rolePerm.permissionId === permissionId) {
-        this.rolePermissions.delete(id);
-        return true;
-      }
-    }
-    return false;
+    const result = await db.delete(rolePermissions)
+      .where(sql`${rolePermissions.roleId} = ${roleId} AND ${rolePermissions.permissionId} = ${permissionId}`);
+    return result.changes > 0;
   }
 
   async getRolePermissions(roleId: number): Promise<Permission[]> {
-    const permissions: Permission[] = [];
-    for (const rolePerm of Array.from(this.rolePermissions.values())) {
-      if (rolePerm.roleId === roleId) {
-        const permission = this.permissions.get(rolePerm.permissionId);
-        if (permission) {
-          permissions.push(permission);
-        }
-      }
-    }
-    return permissions;
+    const result = await db
+      .select({ permission: permissions })
+      .from(rolePermissions)
+      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+      .where(eq(rolePermissions.roleId, roleId));
+    
+    return result.map(r => r.permission);
   }
 
   async getUserPermissions(userId: number): Promise<Permission[]> {
@@ -365,40 +358,38 @@ export class MemStorage implements IStorage {
   }
 
   async getEquipment(id: number): Promise<Equipment | undefined> {
-    return this.equipment.get(id);
+    const result = await db.select().from(equipment).where(eq(equipment.id, id)).limit(1);
+    return result[0];
   }
 
   async createEquipment(insertEquipment: InsertEquipment): Promise<Equipment> {
-    const id = this.currentEquipmentId++;
-    const equipment: Equipment = {
+    const result = await db.insert(equipment).values({
       ...insertEquipment,
       status: insertEquipment.status ?? "online",
       description: insertEquipment.description ?? null,
       cpuUsage: insertEquipment.cpuUsage ?? null,
       memoryUsage: insertEquipment.memoryUsage ?? null,
-      id,
       createdAt: new Date(),
-    };
-    this.equipment.set(id, equipment);
-    return equipment;
+    }).returning();
+    return result[0];
   }
 
   async updateEquipment(id: number, updateData: Partial<InsertEquipment>): Promise<Equipment | undefined> {
-    const equipment = this.equipment.get(id);
-    if (!equipment) return undefined;
-
-    const updatedEquipment = { ...equipment, ...updateData };
-    this.equipment.set(id, updatedEquipment);
-    return updatedEquipment;
+    const result = await db.update(equipment)
+      .set(updateData)
+      .where(eq(equipment.id, id))
+      .returning();
+    return result[0];
   }
 
   async deleteEquipment(id: number): Promise<boolean> {
-    return this.equipment.delete(id);
+    const result = await db.delete(equipment).where(eq(equipment.id, id));
+    return result.changes > 0;
   }
 
   async getAllEquipment(): Promise<Equipment[]> {
-    return Array.from(this.equipment.values());
+    return await db.select().from(equipment);
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new SqliteStorage();
