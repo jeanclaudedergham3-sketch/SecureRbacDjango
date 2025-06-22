@@ -533,9 +533,15 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                         const partsData = JSON.parse(proposalData.partsData || "[]");
                         const servicesData = JSON.parse(proposalData.servicesData || "[]");
                         
-                        const laborTotal = laborData.reduce((sum: number, item: any) => sum + (parseFloat(item.cost || "0") * parseFloat(item.hours || "1")), 0);
-                        const partsTotal = partsData.reduce((sum: number, item: any) => sum + (parseFloat(item.cost || "0") * parseInt(item.quantity || "1")), 0);
-                        const servicesTotal = servicesData.reduce((sum: number, item: any) => sum + parseFloat(item.cost || "0"), 0);
+                        const laborTotal = laborData.reduce((sum: number, item: any) => {
+                          const payRate = parseFloat(item.payRate || "0");
+                          const regularHours = parseFloat(item.regularHours || "0");
+                          const otHours = parseFloat(item.otHours || "0");
+                          const otScale = parseFloat(item.otScale || "1.5");
+                          return sum + (payRate * regularHours) + (payRate * otHours * otScale);
+                        }, 0);
+                        const partsTotal = partsData.reduce((sum: number, item: any) => sum + (parseFloat(item.unitCost || "0") * parseInt(item.quantity || "1")), 0);
+                        const servicesTotal = servicesData.reduce((sum: number, item: any) => sum + (parseFloat(item.unitCost || "0") * parseInt(item.quantity || "1")), 0);
                         const grandTotal = laborTotal + partsTotal + servicesTotal;
                         
                         return (
@@ -1201,9 +1207,15 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                         const partsData = JSON.parse(proposalData.partsData || "[]");
                         const servicesData = JSON.parse(proposalData.servicesData || "[]");
                         
-                        const laborTotal = laborData.reduce((sum: number, item: any) => sum + (parseFloat(item.cost || "0") * parseFloat(item.hours || "1")), 0);
-                        const partsTotal = partsData.reduce((sum: number, item: any) => sum + (parseFloat(item.cost || "0") * parseInt(item.quantity || "1")), 0);
-                        const servicesTotal = servicesData.reduce((sum: number, item: any) => sum + parseFloat(item.cost || "0"), 0);
+                        const laborTotal = laborData.reduce((sum: number, item: any) => {
+                          const payRate = parseFloat(item.payRate || "0");
+                          const regularHours = parseFloat(item.regularHours || "0");
+                          const otHours = parseFloat(item.otHours || "0");
+                          const otScale = parseFloat(item.otScale || "1.5");
+                          return sum + (payRate * regularHours) + (payRate * otHours * otScale);
+                        }, 0);
+                        const partsTotal = partsData.reduce((sum: number, item: any) => sum + (parseFloat(item.unitCost || "0") * parseInt(item.quantity || "1")), 0);
+                        const servicesTotal = servicesData.reduce((sum: number, item: any) => sum + (parseFloat(item.unitCost || "0") * parseInt(item.quantity || "1")), 0);
                         const grandTotal = laborTotal + partsTotal + servicesTotal;
                         
                         return (
