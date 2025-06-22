@@ -32,12 +32,7 @@ export default function PaymentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedPayment, setSelectedPayment] = useState<WorkOrderTechnicianPayment | null>(null);
-  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [updateData, setUpdateData] = useState({
-    status: "",
-    amountApproved: "",
-    amountPaid: ""
-  });
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   // Fetch all payment requests
   const { data: payments = [], isLoading } = useQuery<WorkOrderTechnicianPayment[]>({
@@ -54,26 +49,7 @@ export default function PaymentsPage() {
     queryKey: ["/api/work-orders"],
   });
 
-  const updatePaymentMutation = useMutation({
-    mutationFn: (data: { id: number; updateData: any }) => 
-      apiRequest("PATCH", `/api/payments/${data.id}`, data.updateData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
-      toast({
-        title: "Success",
-        description: "Payment request updated successfully",
-      });
-      setIsUpdateModalOpen(false);
-      setSelectedPayment(null);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update payment request",
-        variant: "destructive",
-      });
-    },
-  });
+  // This is a read-only view for all users
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -146,27 +122,9 @@ export default function PaymentsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleUpdatePayment = () => {
-    if (!selectedPayment) return;
-
-    updatePaymentMutation.mutate({
-      id: selectedPayment.id,
-      updateData: {
-        status: updateData.status || selectedPayment.status,
-        amountApproved: updateData.amountApproved || selectedPayment.amountApproved,
-        amountPaid: updateData.amountPaid || selectedPayment.amountPaid,
-      }
-    });
-  };
-
-  const openUpdateModal = (payment: WorkOrderTechnicianPayment) => {
+  const openDetailsModal = (payment: WorkOrderTechnicianPayment) => {
     setSelectedPayment(payment);
-    setUpdateData({
-      status: payment.status,
-      amountApproved: payment.amountApproved || "0",
-      amountPaid: payment.amountPaid || "0"
-    });
-    setIsUpdateModalOpen(true);
+    setIsDetailsModalOpen(true);
   };
 
   const getTotalStats = () => {
@@ -184,15 +142,23 @@ export default function PaymentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Payment Requests</h1>
-          <p className="text-gray-600 mt-1">Manage technician payment requests across all work orders</p>
+          <h1 className="text-3xl font-bold">Payment Overview</h1>
+          <p className="text-gray-600 mt-1">View all technician payment requests and status</p>
         </div>
-        <PermissionGuard permission="manage_work_orders">
-          <Button onClick={() => window.location.href = '/work-orders'}>
-            <DollarSign className="h-4 w-4 mr-2" />
-            Create New Request
-          </Button>
-        </PermissionGuard>
+        <div className="space-x-2">
+          <PermissionGuard permission="manage_work_orders">
+            <Button onClick={() => window.location.href = '/admin-payments'} variant="outline">
+              <Edit className="h-4 w-4 mr-2" />
+              Manage Payments
+            </Button>
+          </PermissionGuard>
+          <PermissionGuard permission="view_work_orders">
+            <Button onClick={() => window.location.href = '/work-orders'}>
+              <DollarSign className="h-4 w-4 mr-2" />
+              Create New Request
+            </Button>
+          </PermissionGuard>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -343,15 +309,14 @@ export default function PaymentsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <PermissionGuard permission="manage_work_orders">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openUpdateModal(payment)}
-                        >
-                          Update
-                        </Button>
-                      </PermissionGuard>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openDetailsModal(payment)}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -361,13 +326,13 @@ export default function PaymentsPage() {
         </CardContent>
       </Card>
 
-      {/* Update Payment Modal */}
-      <Dialog open={isUpdateModalOpen} onOpenChange={setIsUpdateModalOpen}>
+      {/* Payment Details Modal */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Update Payment Request</DialogTitle>
+            <DialogTitle>Payment Request Details</DialogTitle>
             <DialogDescription>
-              Update the status and amounts for this payment request.
+              View details of this payment request.
             </DialogDescription>
           </DialogHeader>
           
@@ -388,69 +353,57 @@ export default function PaymentsPage() {
                   <p className="capitalize">{selectedPayment.paymentMethod.replace('_', ' ')}</p>
                 </div>
                 <div>
-                  <span className="font-medium">Amount Requested:</span>
+                  <span className="font-medium">Status:</span>
+                  <Badge className={getStatusColor(selectedPayment.status)}>
+                    <div className="flex items-center gap-1">
+                      {getStatusIcon(selectedPayment.status)}
+                      {selectedPayment.status.replace('_', ' ').toUpperCase()}
+                    </div>
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">Requested:</span>
                   <p className="text-lg font-semibold text-yellow-600">
                     {formatCurrency(selectedPayment.amountRequested)}
                   </p>
                 </div>
-              </div>
-
-              <div className="space-y-4">
                 <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select value={updateData.status} onValueChange={(value) => 
-                    setUpdateData(prev => ({ ...prev, status: value }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="partially_paid">Partially Paid</SelectItem>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <span className="font-medium text-gray-700">Approved:</span>
+                  <p className="text-lg font-semibold text-green-600">
+                    {formatCurrency(selectedPayment.amountApproved || "0")}
+                  </p>
                 </div>
-
                 <div>
-                  <Label htmlFor="amountApproved">Amount Approved</Label>
-                  <Input
-                    id="amountApproved"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={updateData.amountApproved}
-                    onChange={(e) => setUpdateData(prev => ({ ...prev, amountApproved: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="amountPaid">Amount Paid</Label>
-                  <Input
-                    id="amountPaid"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={updateData.amountPaid}
-                    onChange={(e) => setUpdateData(prev => ({ ...prev, amountPaid: e.target.value }))}
-                  />
+                  <span className="font-medium text-gray-700">Paid:</span>
+                  <p className="text-lg font-semibold text-blue-600">
+                    {formatCurrency(selectedPayment.amountPaid || "0")}
+                  </p>
                 </div>
               </div>
+
+              {selectedPayment.description && (
+                <div>
+                  <span className="font-medium">Description/Notes:</span>
+                  <p className="text-sm text-gray-600 mt-1 p-3 bg-gray-50 rounded">
+                    {selectedPayment.description}
+                  </p>
+                </div>
+              )}
 
               <div className="flex justify-end space-x-2 pt-4">
-                <Button variant="outline" onClick={() => setIsUpdateModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleUpdatePayment}
-                  disabled={updatePaymentMutation.isPending}
-                >
-                  {updatePaymentMutation.isPending ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  ) : null}
-                  Update Payment
+                <PermissionGuard permission="manage_work_orders">
+                  <Button variant="outline" onClick={() => {
+                    setIsDetailsModalOpen(false);
+                    window.location.href = '/admin-payments';
+                  }}>
+                    Manage This Payment
+                  </Button>
+                </PermissionGuard>
+                <Button onClick={() => setIsDetailsModalOpen(false)}>
+                  Close
                 </Button>
               </div>
             </div>
