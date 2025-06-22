@@ -5,10 +5,9 @@ import session from "express-session";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
-import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, insertWorkOrderInvoiceSchema, loginSchema, workOrderInvoices } from "@shared/schema";
+import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, loginSchema } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
-import { db } from "./database";
 import bcrypt from "bcrypt";
 import multer from "multer";
 import path from "path";
@@ -995,75 +994,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ message: "Failed to get dashboard stats" });
-    }
-  });
-
-  // Invoice routes
-  app.get("/api/invoices", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
-    try {
-      const invoices = await db.select().from(workOrderInvoices);
-      res.json(invoices);
-    } catch (error) {
-      console.error("Error fetching invoices:", error);
-      res.status(500).json({ message: "Failed to get invoices" });
-    }
-  });
-
-  app.get("/api/work-orders/:id/invoice", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
-    try {
-      const workOrderId = parseInt(req.params.id);
-      const invoice = await storage.getWorkOrderInvoice(workOrderId);
-      res.json(invoice);
-    } catch (error) {
-      console.error("Error fetching work order invoice:", error);
-      res.status(500).json({ message: "Failed to get invoice" });
-    }
-  });
-
-  app.get("/api/work-orders/:id/invoice-calculation", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
-    try {
-      const workOrderId = parseInt(req.params.id);
-      const calculation = await storage.calculateInvoiceTotals(workOrderId);
-      res.json(calculation);
-    } catch (error) {
-      console.error("Error calculating invoice totals:", error);
-      res.status(500).json({ message: "Failed to calculate invoice totals" });
-    }
-  });
-
-  app.post("/api/invoices", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
-    try {
-      const { workOrderId, extraAmount, ...invoiceData } = req.body;
-      
-      // Generate invoice number
-      const invoiceNumber = await storage.generateInvoiceNumber();
-      
-      // Calculate totals
-      const calculation = await storage.calculateInvoiceTotals(workOrderId, parseFloat(extraAmount || "0"));
-      
-      const invoiceToCreate = {
-        ...invoiceData,
-        workOrderId,
-        invoiceNumber,
-        partsSubtotal: calculation.partsSubtotal.toString(),
-        laborSubtotal: calculation.laborSubtotal.toString(),
-        extraAmount: extraAmount || "0",
-        subtotal: calculation.subtotal.toString(),
-        taxRate: "0.08",
-        taxAmount: calculation.taxAmount.toString(),
-        total: calculation.total.toString(),
-        status: "draft",
-      };
-
-      const invoice = await storage.createWorkOrderInvoice(invoiceToCreate);
-      res.status(201).json(invoice);
-    } catch (error: any) {
-      console.error("Error creating invoice:", error);
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ message: fromZodError(error).toString() });
-      } else {
-        res.status(500).json({ message: error.message });
-      }
     }
   });
 

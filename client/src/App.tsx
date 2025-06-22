@@ -17,7 +17,6 @@ import Proposals from "@/pages/proposals";
 import PartsRequests from "@/pages/parts-requests";
 import PaymentManager from "@/pages/payment-manager";
 import TechnicianPayments from "@/pages/technician-payments";
-import Invoices from "@/pages/invoices";
 
 import NotFound from "@/pages/not-found";
 
@@ -82,7 +81,6 @@ function Router() {
       <Route path="/parts-requests" component={() => <ProtectedRoute component={PartsRequests} />} />
       <Route path="/payment-manager" component={() => <ProtectedRoute component={PaymentManager} />} />
       <Route path="/technician-payments" component={() => <ProtectedRoute component={TechnicianPayments} />} />
-      <Route path="/invoices" component={() => <ProtectedRoute component={Invoices} />} />
       <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
     </Switch>
