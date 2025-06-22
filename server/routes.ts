@@ -428,10 +428,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const workOrderId = parseInt(req.params.id);
       const proposal = await storage.getWorkOrderProposal(workOrderId);
       if (!proposal) {
-        return res.status(404).json({ message: "Proposal not found" });
+        // Return empty proposal structure instead of 404 to allow creation
+        return res.json(null);
       }
       res.json(proposal);
     } catch (error) {
+      console.error("Error getting proposal:", error);
       res.status(500).json({ message: "Failed to get proposal" });
     }
   });

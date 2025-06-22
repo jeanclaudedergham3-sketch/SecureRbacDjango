@@ -54,30 +54,37 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
   const [message, setMessage] = useState("");
 
   // Fetch existing proposal
-  const { data: proposal } = useQuery<WorkOrderProposal>({
+  const { data: proposal, isLoading } = useQuery<WorkOrderProposal | null>({
     queryKey: [`/api/work-orders/${workOrder.id}/proposal`],
     enabled: isOpen,
   });
 
   // Load existing proposal data
   useEffect(() => {
-    if (proposal) {
-      try {
-        setLaborEntries(proposal.laborData ? JSON.parse(proposal.laborData) : []);
-        setPartsEntries(proposal.partsData ? JSON.parse(proposal.partsData) : []);
-        setServicesEntries(proposal.servicesData ? JSON.parse(proposal.servicesData) : []);
-        setMessage(proposal.message || "");
-      } catch (error) {
-        console.error("Error parsing proposal data:", error);
+    if (isOpen) {
+      if (proposal) {
+        try {
+          setLaborEntries(proposal.laborData ? JSON.parse(proposal.laborData) : [createEmptyLaborEntry()]);
+          setPartsEntries(proposal.partsData ? JSON.parse(proposal.partsData) : [createEmptyPartsEntry()]);
+          setServicesEntries(proposal.servicesData ? JSON.parse(proposal.servicesData) : [createEmptyServicesEntry()]);
+          setMessage(proposal.message || "");
+        } catch (error) {
+          console.error("Error parsing proposal data:", error);
+          // Initialize with empty entries on error
+          setLaborEntries([createEmptyLaborEntry()]);
+          setPartsEntries([createEmptyPartsEntry()]);
+          setServicesEntries([createEmptyServicesEntry()]);
+          setMessage("");
+        }
+      } else {
+        // Initialize with empty entries for new proposal
+        setLaborEntries([createEmptyLaborEntry()]);
+        setPartsEntries([createEmptyPartsEntry()]);
+        setServicesEntries([createEmptyServicesEntry()]);
+        setMessage("");
       }
-    } else {
-      // Initialize with empty entries
-      setLaborEntries([createEmptyLaborEntry()]);
-      setPartsEntries([createEmptyPartsEntry()]);
-      setServicesEntries([createEmptyServicesEntry()]);
-      setMessage("");
     }
-  }, [proposal]);
+  }, [proposal, isOpen]);
 
   function createEmptyLaborEntry(): LaborEntry {
     return {
@@ -165,6 +172,19 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
   const handleStatusUpdate = (status: string) => {
     updateStatusMutation.mutate(status);
   };
+
+  if (isLoading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[400px]">
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-3">Loading proposal...</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const addLaborEntry = () => {
     setLaborEntries([...laborEntries, createEmptyLaborEntry()]);
@@ -528,14 +548,14 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
                     disabled={updateStatusMutation.isPending}
                     className="bg-green-600 hover:bg-green-700"
                   >
-                    Approve
+                    {updateStatusMutation.isPending ? "Approving..." : "Approve"}
                   </Button>
                   <Button 
                     onClick={() => handleStatusUpdate("cancelled")}
                     disabled={updateStatusMutation.isPending}
                     variant="destructive"
                   >
-                    Cancel
+                    {updateStatusMutation.isPending ? "Cancelling..." : "Cancel"}
                   </Button>
                 </>
               )}
@@ -549,10 +569,10 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
                 onClick={handleSave}
                 disabled={saveProposalMutation.isPending}
               >
-                {saveProposalMutation.isPending ? "Saving..." : "Save Proposal"}
+                {saveProposalMutation.isPending ? "Saving..." : proposal ? "Update Proposal" : "Save Proposal"}
               </Button>
               {proposal && (
-                <Button variant="outline">
+                <Button variant="outline" onClick={() => window.print()}>
                   Print
                 </Button>
               )}

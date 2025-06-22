@@ -222,9 +222,17 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 Create and manage labor, parts, and services proposals for this work order.
               </p>
               <PermissionGuard permission="manage_work_orders">
-                <Button onClick={() => setIsProposalModalOpen(true)}>
-                  Manage Proposal
-                </Button>
+                <div className="space-x-2">
+                  <Button onClick={() => setIsProposalModalOpen(true)}>
+                    Create/Edit Proposal
+                  </Button>
+                  <Button variant="outline" onClick={() => {
+                    onClose();
+                    window.location.href = '/proposals';
+                  }}>
+                    View All Proposals
+                  </Button>
+                </div>
               </PermissionGuard>
             </div>
           </TabsContent>
