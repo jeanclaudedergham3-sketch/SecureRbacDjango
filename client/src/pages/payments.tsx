@@ -21,7 +21,9 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Edit,
+  Eye
 } from "lucide-react";
 import type { WorkOrderTechnicianPayment, Technician, WorkOrder } from "@shared/schema";
 
