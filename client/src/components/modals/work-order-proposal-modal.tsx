@@ -12,6 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Calendar } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { PermissionGuard } from "@/components/rbac/permission-guard";
 import type { WorkOrderWithUsers, WorkOrderProposal } from "@shared/schema";
 
 interface WorkOrderProposalModalProps {
@@ -46,6 +48,7 @@ interface ServicesEntry {
 
 export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrderProposalModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const [laborEntries, setLaborEntries] = useState<LaborEntry[]>([]);
@@ -177,6 +180,9 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Loading Proposal</DialogTitle>
+          </DialogHeader>
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             <span className="ml-3">Loading proposal...</span>
@@ -542,7 +548,7 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
           <div className="flex justify-between pt-4">
             <div className="space-x-2">
               {proposal && proposal.status === "pending" && (
-                <>
+                <PermissionGuard permission="manage_work_orders">
                   <Button 
                     onClick={() => handleStatusUpdate("approved")}
                     disabled={updateStatusMutation.isPending}
@@ -557,7 +563,12 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
                   >
                     {updateStatusMutation.isPending ? "Cancelling..." : "Cancel"}
                   </Button>
-                </>
+                </PermissionGuard>
+              )}
+              {proposal && proposal.status === "pending" && !user?.permissions?.includes("manage_work_orders") && (
+                <div className="text-sm text-gray-500 italic">
+                  Only managers can approve or cancel proposals
+                </div>
               )}
             </div>
             
@@ -565,16 +576,23 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
               <Button variant="outline" onClick={onClose}>
                 Close
               </Button>
-              <Button 
-                onClick={handleSave}
-                disabled={saveProposalMutation.isPending}
-              >
-                {saveProposalMutation.isPending ? "Saving..." : proposal ? "Update Proposal" : "Save Proposal"}
-              </Button>
+              <PermissionGuard permission="manage_work_orders">
+                <Button 
+                  onClick={handleSave}
+                  disabled={saveProposalMutation.isPending}
+                >
+                  {saveProposalMutation.isPending ? "Saving..." : proposal ? "Update Proposal" : "Save Proposal"}
+                </Button>
+              </PermissionGuard>
               {proposal && (
                 <Button variant="outline" onClick={() => window.print()}>
                   Print
                 </Button>
+              )}
+              {!user?.permissions?.includes("manage_work_orders") && (
+                <div className="text-sm text-gray-500 italic">
+                  View-only mode - Only managers can edit proposals
+                </div>
               )}
             </div>
           </div>

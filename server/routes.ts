@@ -483,8 +483,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!proposal) {
         return res.status(404).json({ message: "Proposal not found" });
       }
+      
+      console.log(`Proposal ${proposal.id} status updated to ${status} by user ${req.session.userId}`);
       res.json(proposal);
     } catch (error) {
+      console.error("Error updating proposal status:", error);
       res.status(400).json({ message: "Failed to update proposal status" });
     }
   });

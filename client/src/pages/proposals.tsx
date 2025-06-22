@@ -7,9 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
+import { PermissionGuard } from "@/components/rbac/permission-guard";
+import { useAuth } from "@/hooks/use-auth";
 import type { WorkOrderWithUsers, WorkOrderProposal } from "@shared/schema";
 
 export default function Proposals() {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUsers | null>(null);
@@ -277,7 +280,7 @@ export default function Proposals() {
                         onClick={() => setSelectedWorkOrder(item.workOrder)}
                       >
                         <Eye className="h-4 w-4 mr-2" />
-                        View Details
+                        {user?.permissions?.includes("manage_work_orders") ? "Manage" : "View"} Details
                       </Button>
                     </div>
                   </div>
