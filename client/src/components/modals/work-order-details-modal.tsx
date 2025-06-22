@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, DollarSign, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer } from "lucide-react";
+import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer } from "lucide-react";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { PartsRequestModal } from "@/components/modals/parts-request-modal";
 import { FileUploadModal } from "@/components/modals/file-upload-modal";
 import { ChatModal } from "@/components/modals/chat-modal";
-import { PaymentRequestModal } from "@/components/modals/payment-request-modal";
+
 import { useAuth } from "@/hooks/use-auth";
 import type { WorkOrderWithUsers } from "@shared/schema";
 
@@ -27,7 +27,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [isPartsRequestModalOpen, setIsPartsRequestModalOpen] = useState(false);
   const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
-  const [isPaymentRequestModalOpen, setIsPaymentRequestModalOpen] = useState(false);
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -297,18 +297,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 Create and manage payment requests for technicians working on this order.
               </p>
               <PermissionGuard permission="manage_work_orders">
-                <div className="space-x-2">
-                  <Button onClick={() => setIsPaymentRequestModalOpen(true)}>
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    Create Payment Request
-                  </Button>
-                  <Button variant="outline" onClick={() => {
-                    onClose();
-                    window.location.href = '/payments';
-                  }}>
-                    View All Payments
-                  </Button>
-                </div>
+
               </PermissionGuard>
             </div>
           </TabsContent>
@@ -353,13 +342,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
         />
       )}
 
-      {isPaymentRequestModalOpen && (
-        <PaymentRequestModal
-          isOpen={isPaymentRequestModalOpen}
-          onClose={() => setIsPaymentRequestModalOpen(false)}
-          workOrder={workOrder}
-        />
-      )}
+
     </Dialog>
   );
 }

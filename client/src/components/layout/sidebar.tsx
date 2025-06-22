@@ -24,10 +24,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { name: "Work Orders", href: "/work-orders", icon: ClipboardList, permission: "view_work_orders" },
     { name: "Proposals", href: "/proposals", icon: FileText, permission: "view_work_orders" },
     { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "view_work_orders" },
-    { name: "Payments", href: "/payments", icon: Shield, permission: "view_work_orders" },
-    { name: "Payment Admin", href: "/admin-payments", icon: Shield, permission: "manage_work_orders" },
-    { name: "Technician Profiles", href: "/technician-profile", icon: UserCheck, permission: "view_work_orders" },
-    { name: "My Payments", href: "/technician-payments", icon: Shield, permission: "view_work_orders" },
+
   ];
 
   const getInitials = (firstName: string, lastName: string) => {
