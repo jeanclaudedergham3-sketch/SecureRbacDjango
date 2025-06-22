@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
+import { CreatePaymentRequestModal } from "@/components/modals/create-payment-request-modal";
 import { 
   DollarSign, 
   User, 
@@ -35,6 +36,7 @@ export default function PaymentsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedPayment, setSelectedPayment] = useState<WorkOrderTechnicianPayment | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Fetch all payment requests
   const { data: payments = [], isLoading } = useQuery<WorkOrderTechnicianPayment[]>({
@@ -155,9 +157,9 @@ export default function PaymentsPage() {
             </Button>
           </PermissionGuard>
           <PermissionGuard permission="view_work_orders">
-            <Button onClick={() => window.location.href = '/work-orders'}>
+            <Button onClick={() => setIsCreateModalOpen(true)}>
               <DollarSign className="h-4 w-4 mr-2" />
-              Create New Request
+              Create Payment Request
             </Button>
           </PermissionGuard>
         </div>
@@ -412,6 +414,12 @@ export default function PaymentsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Create Payment Request Modal */}
+      <CreatePaymentRequestModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
     </div>
   );
 }
