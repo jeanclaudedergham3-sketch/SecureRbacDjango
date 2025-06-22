@@ -295,7 +295,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   };
 
   // Check if proposal is approved for invoice eligibility
-  const isInvoiceEligible = workOrder?.status === "proposal_approved" || !!proposal?.approvedAt;
+  const isInvoiceEligible = workOrder?.status === "proposal_approved" || !!workOrderProposal?.approvedAt;
 
   const handleTechnicianChange = (value: string) => {
     const technicianId = parseInt(value);
