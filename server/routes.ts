@@ -4,7 +4,7 @@ import session from "express-session";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
-import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, loginSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 
 declare module 'express-session' {
@@ -419,6 +419,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Work order deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete work order" });
+    }
+  });
+
+  // Work Order Proposal routes
+  app.get("/api/work-orders/:id/proposal", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const proposal = await storage.getWorkOrderProposal(workOrderId);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+      res.json(proposal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get proposal" });
+    }
+  });
+
+  app.post("/api/work-orders/:id/proposal", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const proposalData = insertWorkOrderProposalSchema.parse({
+        ...req.body,
+        workOrderId
+      });
+      const proposal = await storage.createWorkOrderProposal(proposalData);
+      res.status(201).json(proposal);
+    } catch (error) {
+      console.error("Error creating proposal:", error);
+      res.status(400).json({ 
+        message: "Failed to create proposal", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
+  app.put("/api/work-orders/:id/proposal", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const proposalData = insertWorkOrderProposalSchema.partial().parse(req.body);
+      const proposal = await storage.updateWorkOrderProposal(workOrderId, proposalData);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+      res.json(proposal);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update proposal" });
+    }
+  });
+
+  app.put("/api/work-orders/:id/proposal/status", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!["pending", "approved", "cancelled"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const proposal = await storage.updateWorkOrderProposal(workOrderId, { status });
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+      res.json(proposal);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update proposal status" });
+    }
+  });
+
+  // Get all proposals with work order info
+  app.get("/api/proposals", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const workOrders = await storage.getAllWorkOrders();
+      const proposalsWithWorkOrders = [];
+      
+      for (const workOrder of workOrders) {
+        const proposal = await storage.getWorkOrderProposal(workOrder.id);
+        if (proposal) {
+          proposalsWithWorkOrders.push({
+            ...proposal,
+            workOrder
+          });
+        }
+      }
+      
+      res.json(proposalsWithWorkOrders);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get proposals" });
     }
   });
 

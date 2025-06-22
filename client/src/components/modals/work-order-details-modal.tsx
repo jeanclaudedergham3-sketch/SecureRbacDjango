@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, DollarSign, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer } from "lucide-react";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
+import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { useAuth } from "@/hooks/use-auth";
 import type { WorkOrderWithUser } from "@shared/schema";
 
@@ -18,6 +19,7 @@ interface WorkOrderDetailsModalProps {
 export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderDetailsModalProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -200,9 +202,11 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <p className="text-gray-600 mb-4">
                 Create and manage labor, parts, and services proposals for this work order.
               </p>
-              <Button>
-                Create Proposal
-              </Button>
+              <PermissionGuard permission="manage_work_orders">
+                <Button onClick={() => setIsProposalModalOpen(true)}>
+                  Manage Proposal
+                </Button>
+              </PermissionGuard>
             </div>
           </TabsContent>
 
@@ -287,6 +291,14 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           </Button>
         </div>
       </DialogContent>
+
+      {isProposalModalOpen && (
+        <WorkOrderProposalModal
+          isOpen={isProposalModalOpen}
+          onClose={() => setIsProposalModalOpen(false)}
+          workOrder={workOrder}
+        />
+      )}
     </Dialog>
   );
 }
