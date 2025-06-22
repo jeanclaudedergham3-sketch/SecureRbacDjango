@@ -42,8 +42,10 @@ interface CreateInvoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
   workOrderId?: number;
-  onSubmit: (data: InvoiceFormData) => void;
+  onSubmit: (data: any) => void;
   isLoading: boolean;
+  initialData?: any;
+  mode?: "create" | "edit";
 }
 
 export function CreateInvoiceModal({
@@ -52,6 +54,8 @@ export function CreateInvoiceModal({
   workOrderId,
   onSubmit,
   isLoading,
+  initialData,
+  mode = "create",
 }: CreateInvoiceModalProps) {
   const [calculatedValues, setCalculatedValues] = useState({
     taxAmount: 0,

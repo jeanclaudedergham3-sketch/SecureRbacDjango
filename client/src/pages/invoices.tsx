@@ -93,7 +93,10 @@ export default function Invoices() {
 
   const createInvoiceMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/invoices", data);
+      const response = await apiRequest("POST", "/api/invoices", {
+        ...data,
+        workOrderId: 1, // For now, we'll use work order 1 as default
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -379,6 +382,7 @@ export default function Invoices() {
         isLoading={createInvoiceMutation.isPending || updateInvoiceMutation.isPending}
         initialData={editingInvoice}
         mode={editingInvoice ? "edit" : "create"}
+        workOrderId={editingInvoice?.workOrderId}
       />
     </div>
   );

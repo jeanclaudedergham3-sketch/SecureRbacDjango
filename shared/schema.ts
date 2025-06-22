@@ -90,6 +90,7 @@ export const workOrders = sqliteTable("work_orders", {
   endDate: integer("end_date", { mode: 'timestamp' }).notNull(),
   assignedUserIds: text("assigned_user_ids").notNull(), // JSON array of user IDs
   status: text("status").notNull().default("active"), // active, completed, cancelled
+  isLocked: integer("is_locked", { mode: "boolean" }).default(false), // true when invoice is paid
   createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
@@ -203,7 +204,6 @@ export const insertWorkOrderSchema = createInsertSchema(workOrders).omit({
   id: true,
   workOrderNumber: true,
   createdAt: true,
-  isLocked: true,
 }).extend({
   clientName: z.string().min(1, "Client name is required"),
   country: z.string().min(1, "Country is required"),
