@@ -54,6 +54,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [activeTab, setActiveTab] = useState("overview");
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isPaymentRequestModalOpen, setIsPaymentRequestModalOpen] = useState(false);
   const [isPartsRequestModalOpen, setIsPartsRequestModalOpen] = useState(false);
   const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
@@ -847,7 +848,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                       title: "Action Blocked",
                       description: "Cannot create payment requests - work order is locked due to paid invoice.",
                       variant: "destructive"
-                    }) : setIsPaymentRequestOpen(true)} 
+                    }) : setIsPaymentRequestModalOpen(true)} 
                     disabled={workOrder.isLocked}
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -859,194 +860,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 </div>
               </PermissionGuard>
 
-              {isPaymentRequestOpen && (
-                <Card className="mt-4">
-                  <CardHeader>
-                    <CardTitle>New Payment Request</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Form {...paymentForm}>
-                      <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-4">
-                        {/* Technician Selection */}
-                        <FormField
-                          control={paymentForm.control}
-                          name="technicianId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Technician</FormLabel>
-                              <Select onValueChange={handleTechnicianChange}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select technician" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {technicians.map((technician) => (
-                                    <SelectItem key={technician.id} value={technician.id.toString()}>
-                                      <div className="flex items-center space-x-2">
-                                        <span>
-                                          {technician.firstName && technician.lastName 
-                                            ? `${technician.firstName} ${technician.lastName}`
-                                            : technician.name || `Technician #${technician.id}`
-                                          }
-                                        </span>
-                                        {technician.averageRating && (
-                                          <span className="text-sm text-gray-500">⭐ {technician.averageRating}</span>
-                                        )}
-                                      </div>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
 
-                        {/* Payment Methods - Only show when technician is selected */}
-                        {selectedTechnician && (
-                          <FormField
-                            control={paymentForm.control}
-                            name="paymentMethods"
-                            render={() => (
-                              <FormItem>
-                                <FormLabel>Available Payment Methods</FormLabel>
-                                <div className="space-y-3">
-                                  {getAvailablePaymentMethods(selectedTechnician).map((method: string) => {
-                                    const methodInfo = paymentMethodsInfo[method as keyof typeof paymentMethodsInfo];
-                                    const technicianDetails = getPaymentDetails(selectedTechnician);
-                                    const isSelected = selectedPaymentMethods.includes(method);
-                                    
-                                    return (
-                                      <div key={method} className="border rounded-lg p-3">
-                                        <div className="flex items-center space-x-2 mb-2">
-                                          <Checkbox
-                                            id={method}
-                                            checked={isSelected}
-                                            onCheckedChange={(checked) => handlePaymentMethodToggle(method, checked as boolean)}
-                                          />
-                                          <label htmlFor={method} className="flex items-center space-x-2 cursor-pointer">
-                                            <span className="text-lg">{methodInfo?.icon}</span>
-                                            <div>
-                                              <div className="font-medium">{methodInfo?.name}</div>
-                                              <div className="text-sm text-gray-500">{methodInfo?.description}</div>
-                                            </div>
-                                          </label>
-                                        </div>
-                                        
-                                        {isSelected && methodInfo && (
-                                          <div className="ml-6 mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                            <div className="font-medium mb-2 text-blue-800">Payment Details:</div>
-                                            <div className="space-y-2">
-                                              {methodInfo.details.map((detail, idx) => {
-                                                const value = technicianDetails[method]?.[detail];
-                                                if (!value) return null;
-                                                
-                                                return (
-                                                  <div key={idx} className="flex flex-col space-y-1">
-                                                    <div className="text-xs font-medium text-gray-700">{detail}:</div>
-                                                    <div className="text-sm text-gray-900 bg-white p-2 rounded border">
-                                                      {detail === "PayPal Link" || detail === "Venmo" || detail === "CashApp" ? (
-                                                        <a 
-                                                          href={detail === "PayPal Link" ? value : `#`} 
-                                                          target="_blank" 
-                                                          rel="noopener noreferrer"
-                                                          className="text-blue-600 hover:underline font-mono text-sm"
-                                                        >
-                                                          {value}
-                                                        </a>
-                                                      ) : detail === "QR Code" ? (
-                                                        <div className="flex items-center space-x-2">
-                                                          <span className="text-sm">QR Code Available</span>
-                                                          <div className="w-8 h-8 bg-gray-200 border border-gray-300 rounded flex items-center justify-center text-xs">QR</div>
-                                                        </div>
-                                                      ) : (
-                                                        <span className="font-mono text-sm">{value}</span>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        )}
-
-                        {/* Amount */}
-                        <FormField
-                          control={paymentForm.control}
-                          name="amountRequested"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Amount Requested</FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    className="pl-10"
-                                    {...field}
-                                  />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        {/* Description */}
-                        <FormField
-                          control={paymentForm.control}
-                          name="description"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Description (Optional)</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="Additional notes..."
-                                  className="resize-none"
-                                  rows={3}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <div className="flex justify-end space-x-2">
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            onClick={() => setIsPaymentRequestOpen(false)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            type="submit" 
-                            disabled={createPaymentMutation.isPending}
-                          >
-                            {createPaymentMutation.isPending ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            ) : null}
-                            Send Payment Request
-                          </Button>
-                        </div>
-                      </form>
-                    </Form>
-                  </CardContent>
-                </Card>
-              )}
 
               {/* Existing Payment Requests */}
               {existingPayments.length > 0 && (
