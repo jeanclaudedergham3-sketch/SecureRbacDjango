@@ -27,6 +27,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
   const [paymentMethod, setPaymentMethod] = useState("");
   const [amountRequested, setAmountRequested] = useState("");
   const [description, setDescription] = useState("");
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<string[]>([]);
 
   // Fetch technicians
   const { data: technicians = [] } = useQuery<Technician[]>({
@@ -65,6 +66,37 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
     setPaymentMethod("");
     setAmountRequested("");
     setDescription("");
+    setAvailablePaymentMethods([]);
+  };
+
+  const handleTechnicianChange = (technicianId: string) => {
+    setSelectedTechnicianId(technicianId);
+    setPaymentMethod(""); // Reset payment method when technician changes
+    
+    // Find selected technician and extract their payment methods
+    const selectedTechnician = technicians.find(t => t.id.toString() === technicianId);
+    if (selectedTechnician && selectedTechnician.paymentMethods) {
+      try {
+        const methods = JSON.parse(selectedTechnician.paymentMethods) as string[];
+        setAvailablePaymentMethods(methods);
+      } catch (error) {
+        console.error("Error parsing payment methods:", error);
+        setAvailablePaymentMethods([]);
+      }
+    } else {
+      setAvailablePaymentMethods([]);
+    }
+  };
+
+  const getPaymentMethodDisplayName = (method: string) => {
+    const methodNames: Record<string, string> = {
+      paypal: "PayPal",
+      credit_card: "Credit Card", 
+      cash: "Cash",
+      bank_transfer: "Bank Transfer",
+      check: "Check"
+    };
+    return methodNames[method] || method.replace('_', ' ').toUpperCase();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -74,6 +106,15 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
       toast({
         title: "Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (availablePaymentMethods.length === 0) {
+      toast({
+        title: "Error",
+        description: "Selected technician has no payment methods configured",
         variant: "destructive",
       });
       return;
@@ -147,7 +188,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="technician">Technician *</Label>
-                    <Select value={selectedTechnicianId} onValueChange={setSelectedTechnicianId}>
+                    <Select value={selectedTechnicianId} onValueChange={handleTechnicianChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select technician" />
                       </SelectTrigger>
@@ -155,6 +196,9 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                         {technicians.map((technician) => (
                           <SelectItem key={technician.id} value={technician.id.toString()}>
                             {technician.firstName} {technician.lastName}
+                            {technician.phoneNumber && (
+                              <span className="text-gray-500 ml-2">({technician.phoneNumber})</span>
+                            )}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -163,18 +207,35 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
 
                   <div>
                     <Label htmlFor="paymentMethod">Payment Method *</Label>
-                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <Select 
+                      value={paymentMethod} 
+                      onValueChange={setPaymentMethod}
+                      disabled={!selectedTechnicianId || availablePaymentMethods.length === 0}
+                    >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select payment method" />
+                        <SelectValue 
+                          placeholder={
+                            !selectedTechnicianId 
+                              ? "Select technician first" 
+                              : availablePaymentMethods.length === 0
+                              ? "No payment methods available"
+                              : "Select payment method"
+                          } 
+                        />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="credit_card">Credit Card</SelectItem>
-                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                        <SelectItem value="paypal">PayPal</SelectItem>
-                        <SelectItem value="check">Check</SelectItem>
+                        {availablePaymentMethods.map((method) => (
+                          <SelectItem key={method} value={method}>
+                            {getPaymentMethodDisplayName(method)}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {selectedTechnicianId && availablePaymentMethods.length === 0 && (
+                      <p className="text-xs text-orange-600 mt-1">
+                        This technician has no payment methods configured. Please update their profile first.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -203,7 +264,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
 
                 <Button 
                   type="submit" 
-                  disabled={createPaymentRequestMutation.isPending}
+                  disabled={createPaymentRequestMutation.isPending || !selectedTechnicianId || !paymentMethod || !amountRequested || availablePaymentMethods.length === 0}
                   className="w-full"
                 >
                   {createPaymentRequestMutation.isPending ? (
@@ -241,7 +302,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                           <User className="h-5 w-5 text-gray-500" />
                           <div>
                             <p className="font-medium">{getTechnicianName(payment.technicianId)}</p>
-                            <p className="text-sm text-gray-500">{payment.paymentMethod.replace('_', ' ').toUpperCase()}</p>
+                            <p className="text-sm text-gray-500">{getPaymentMethodDisplayName(payment.paymentMethod)}</p>
                           </div>
                         </div>
                         <Badge className={getStatusColor(payment.status)}>
@@ -252,19 +313,19 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div>
                           <span className="font-medium text-gray-700">Requested:</span>
-                          <p className="text-lg font-semibold text-green-600">
+                          <p className="text-lg font-semibold text-yellow-600">
                             {formatCurrency(payment.amountRequested)}
                           </p>
                         </div>
                         <div>
                           <span className="font-medium text-gray-700">Approved:</span>
-                          <p className="text-lg font-semibold text-blue-600">
+                          <p className="text-lg font-semibold text-green-600">
                             {formatCurrency(payment.amountApproved || "0")}
                           </p>
                         </div>
                         <div>
                           <span className="font-medium text-gray-700">Paid:</span>
-                          <p className="text-lg font-semibold text-purple-600">
+                          <p className="text-lg font-semibold text-blue-600">
                             {formatCurrency(payment.amountPaid || "0")}
                           </p>
                         </div>
