@@ -8,7 +8,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   return (
-    <div className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow">
+    <header className="admin-header">
       <Button
         variant="ghost"
         size="sm"
@@ -18,17 +18,17 @@ export function Header({ onMenuClick }: HeaderProps) {
         <Menu className="h-5 w-5" />
       </Button>
       
-      <div className="flex-1 px-4 flex justify-between">
+      <div className="flex-1 px-4 flex justify-between items-center">
         <div className="flex-1 flex">
           <div className="w-full flex md:ml-0">
             <label htmlFor="search-field" className="sr-only">Search</label>
-            <div className="relative w-full text-gray-400 focus-within:text-gray-600">
-              <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none">
+            <div className="relative w-full text-gray-400 focus-within:text-gray-600 max-w-lg">
+              <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none pl-3">
                 <Search className="h-4 w-4" />
               </div>
               <Input
                 id="search-field"
-                className="block w-full h-full pl-8 pr-3 py-2 border-transparent text-gray-900 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-0 focus:border-transparent"
+                className="form-input pl-10 border-gray-300"
                 placeholder="Search users, roles..."
                 type="search"
               />
@@ -42,6 +42,6 @@ export function Header({ onMenuClick }: HeaderProps) {
           </Button>
         </div>
       </div>
-    </div>
+    </header>
   );
 }
