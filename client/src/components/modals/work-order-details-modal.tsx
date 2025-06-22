@@ -10,6 +10,7 @@ import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-
 import { PartsRequestModal } from "@/components/modals/parts-request-modal";
 import { FileUploadModal } from "@/components/modals/file-upload-modal";
 import { ChatModal } from "@/components/modals/chat-modal";
+import { PaymentRequestModal } from "@/components/modals/payment-request-modal";
 import { useAuth } from "@/hooks/use-auth";
 import type { WorkOrderWithUsers } from "@shared/schema";
 
@@ -26,6 +27,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [isPartsRequestModalOpen, setIsPartsRequestModalOpen] = useState(false);
   const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [isPaymentRequestModalOpen, setIsPaymentRequestModalOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -301,6 +303,22 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               </PermissionGuard>
             </div>
           </TabsContent>
+
+          <TabsContent value="payments" className="space-y-4">
+            <div className="text-center py-8">
+              <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-lg font-medium mb-2">Payment Requests</h3>
+              <p className="text-gray-600 mb-4">
+                Create and manage payment requests for technicians working on this order.
+              </p>
+              <PermissionGuard permission="manage_work_orders">
+                <Button onClick={() => setIsPaymentRequestModalOpen(true)}>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Manage Payments
+                </Button>
+              </PermissionGuard>
+            </div>
+          </TabsContent>
         </Tabs>
 
         <div className="flex justify-end pt-4 border-t">
@@ -338,6 +356,14 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
         <ChatModal
           isOpen={isChatModalOpen}
           onClose={() => setIsChatModalOpen(false)}
+          workOrder={workOrder}
+        />
+      )}
+
+      {isPaymentRequestModalOpen && (
+        <PaymentRequestModal
+          isOpen={isPaymentRequestModalOpen}
+          onClose={() => setIsPaymentRequestModalOpen(false)}
           workOrder={workOrder}
         />
       )}

@@ -189,6 +189,7 @@ export function initializeDatabase() {
         amount_approved TEXT DEFAULT '0',
         amount_paid TEXT DEFAULT '0',
         status TEXT DEFAULT 'pending' NOT NULL,
+        description TEXT,
         requested_at INTEGER NOT NULL,
         FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
         FOREIGN KEY (technician_id) REFERENCES technicians(id)

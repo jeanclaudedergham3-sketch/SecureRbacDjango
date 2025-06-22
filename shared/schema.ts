@@ -142,7 +142,8 @@ export const workOrderTechnicianPayments = sqliteTable("work_order_technician_pa
   amountRequested: text("amount_requested").notNull(),
   amountApproved: text("amount_approved").default("0"),
   amountPaid: text("amount_paid").default("0"),
-  status: text("status").notNull().default("pending"), // pending, partially_paid, paid
+  status: text("status").notNull().default("pending"), // pending, approved, partially_paid, paid, rejected
+  description: text("description"),
   requestedAt: integer("requested_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 

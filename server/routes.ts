@@ -5,7 +5,7 @@ import session from "express-session";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
-import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, loginSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import multer from "multer";
 import path from "path";
@@ -773,6 +773,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error creating file message:", error);
       res.status(400).json({ 
         message: "Failed to create file message", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
+  // Work Order Technician Payment routes
+  app.get("/api/work-orders/:id/payments", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const payments = await storage.getWorkOrderTechnicianPayments(workOrderId);
+      res.json(payments);
+    } catch (error) {
+      console.error("Error fetching payment requests:", error);
+      res.status(500).json({ message: "Failed to get payment requests" });
+    }
+  });
+
+  app.post("/api/work-orders/:id/payments", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const paymentData = insertWorkOrderTechnicianPaymentSchema.parse({
+        ...req.body,
+        workOrderId
+      });
+      
+      const payment = await storage.createWorkOrderTechnicianPayment(paymentData);
+      console.log(`Payment request created for work order ${workOrderId} by user ${req.session.userId}`);
+      res.status(201).json(payment);
+    } catch (error) {
+      console.error("Error creating payment request:", error);
+      res.status(400).json({ 
+        message: "Failed to create payment request", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
+  app.patch("/api/work-orders/:workOrderId/payments/:paymentId", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const paymentId = parseInt(req.params.paymentId);
+      const updateData = req.body;
+      
+      const payment = await storage.updateWorkOrderTechnicianPayment(paymentId, updateData);
+      if (!payment) {
+        return res.status(404).json({ message: "Payment request not found" });
+      }
+      
+      console.log(`Payment request ${paymentId} updated by user ${req.session.userId}`);
+      res.json(payment);
+    } catch (error) {
+      console.error("Error updating payment request:", error);
+      res.status(400).json({ 
+        message: "Failed to update payment request", 
         error: error instanceof Error ? error.message : String(error) 
       });
     }
