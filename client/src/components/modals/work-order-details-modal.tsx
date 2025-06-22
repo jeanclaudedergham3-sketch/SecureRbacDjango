@@ -61,7 +61,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   });
 
   const { data: existingPayments = [] } = useQuery({
-    queryKey: ["/api/work-orders", workOrder?.id, "payments"],
+    queryKey: [`/api/work-orders/${workOrder?.id}/payments`],
     enabled: !!workOrder?.id,
   });
 
@@ -150,7 +150,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
       setSelectedPaymentMethods([]);
       // Invalidate payment cache to refresh payment manager and work order payments
       queryClient.invalidateQueries({ queryKey: ["/api/payments/all"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/work-orders", workOrder.id, "payments"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/payments`] });
     },
     onError: (error: any) => {
       toast({

@@ -784,7 +784,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/work-orders/:id/payments", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
+      console.log(`Fetching payments for work order ${workOrderId}`);
       const payments = await storage.getWorkOrderTechnicianPayments(workOrderId);
+      console.log(`Found ${payments.length} payments for work order ${workOrderId}:`, payments);
       res.json(payments);
     } catch (error) {
       console.error("Error fetching payment requests:", error);
