@@ -60,6 +60,11 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
     queryKey: ["/api/technicians"],
   });
 
+  const { data: existingPayments = [] } = useQuery({
+    queryKey: ["/api/work-orders", workOrder?.id, "payments"],
+    enabled: !!workOrder?.id,
+  });
+
   const paymentForm = useForm<PaymentRequestFormData>({
     resolver: zodResolver(paymentRequestSchema),
     defaultValues: {
@@ -143,8 +148,9 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
       paymentForm.reset();
       setSelectedTechnician(null);
       setSelectedPaymentMethods([]);
-      // Invalidate payment cache to refresh payment manager
+      // Invalidate payment cache to refresh payment manager and work order payments
       queryClient.invalidateQueries({ queryKey: ["/api/payments/all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders", workOrder.id, "payments"] });
     },
     onError: (error: any) => {
       toast({
@@ -645,6 +651,69 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                     </Form>
                   </CardContent>
                 </Card>
+              )}
+
+              {/* Existing Payment Requests */}
+              {existingPayments.length > 0 && (
+                <div className="mt-8">
+                  <h3 className="text-lg font-medium mb-4">Existing Payment Requests</h3>
+                  <div className="space-y-3">
+                    {existingPayments.map((payment: any) => {
+                      const technician = technicians.find(t => t.id === payment.technicianId);
+                      const paymentMethods = JSON.parse(payment.paymentMethod || "[]");
+                      const requested = parseFloat(payment.amountRequested || "0");
+                      const paid = parseFloat(payment.amountPaid || "0");
+                      const remaining = Math.max(0, requested - paid);
+                      
+                      const getStatusColor = (status: string) => {
+                        switch (status) {
+                          case "paid": return "bg-green-100 text-green-800";
+                          case "partially_paid": return "bg-yellow-100 text-yellow-800";
+                          case "approved": return "bg-blue-100 text-blue-800";
+                          case "rejected": return "bg-red-100 text-red-800";
+                          default: return "bg-gray-100 text-gray-800";
+                        }
+                      };
+
+                      return (
+                        <Card key={payment.id} className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-2">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">
+                                  {technician?.name || `Technician #${payment.technicianId}`}
+                                </span>
+                                <Badge className={getStatusColor(payment.status)}>
+                                  {payment.status.replace("_", " ")}
+                                </Badge>
+                              </div>
+                              
+                              <div className="text-sm text-gray-600">
+                                <div>Payment Methods: {paymentMethods.join(", ")}</div>
+                                <div>Description: {payment.description || "No description"}</div>
+                                <div>Requested: {new Date(payment.requestedAt).toLocaleDateString()}</div>
+                              </div>
+                            </div>
+                            
+                            <div className="text-right">
+                              <div className="text-lg font-medium">${requested.toFixed(2)}</div>
+                              {payment.amountPaid && (
+                                <div className="text-sm text-gray-600">
+                                  Paid: ${paid.toFixed(2)}
+                                </div>
+                              )}
+                              {remaining > 0 && (
+                                <div className="text-sm text-red-600">
+                                  Remaining: ${remaining.toFixed(2)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           </TabsContent>
