@@ -241,29 +241,70 @@ export function ChatModal({ isOpen, onClose, workOrder }: ChatModalProps) {
                     <Card className={`${isCurrentUser(chat.userId) ? 'bg-blue-600 text-white' : 'bg-white border-gray-200'}`}>
                       <CardContent className="p-3">
                         {chat.messageType === 'file' && chat.fileUrl ? (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             {chat.fileUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                              <div>
-                                <img 
-                                  src={chat.fileUrl} 
-                                  alt={chat.message || "Shared image"} 
-                                  className="max-w-xs max-h-48 rounded cursor-pointer hover:opacity-80"
-                                  onClick={() => window.open(chat.fileUrl, '_blank')}
-                                />
-                                {chat.message && (
-                                  <p className="text-sm mt-1">{chat.message}</p>
+                              <div className="space-y-2">
+                                <div className="relative group">
+                                  <img 
+                                    src={chat.fileUrl} 
+                                    alt={chat.message || "Shared image"} 
+                                    className="max-w-sm max-h-64 rounded-lg shadow-md cursor-pointer hover:opacity-90 transition-opacity border"
+                                    onClick={() => window.open(chat.fileUrl, '_blank')}
+                                  />
+                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded-lg transition-all flex items-center justify-center">
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <div className="bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs">
+                                        Click to view full size
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                {chat.message && chat.message !== chat.fileUrl.split('/').pop() && (
+                                  <p className={`text-sm ${isCurrentUser(chat.userId) ? 'text-blue-100' : 'text-gray-700'} bg-black bg-opacity-10 p-2 rounded`}>
+                                    {chat.message}
+                                  </p>
                                 )}
                               </div>
                             ) : (
-                              <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded border">
-                                <FileText className="h-4 w-4" />
-                                <span className="text-sm flex-1">{chat.message}</span>
+                              <div className={`flex items-center space-x-3 p-3 rounded-lg border ${
+                                isCurrentUser(chat.userId) 
+                                  ? 'bg-blue-500 border-blue-400' 
+                                  : 'bg-gray-50 border-gray-200'
+                              }`}>
+                                <div className={`p-2 rounded-full ${
+                                  isCurrentUser(chat.userId) 
+                                    ? 'bg-blue-400' 
+                                    : 'bg-blue-100'
+                                }`}>
+                                  <FileText className={`h-5 w-5 ${
+                                    isCurrentUser(chat.userId) 
+                                      ? 'text-white' 
+                                      : 'text-blue-600'
+                                  }`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium truncate ${
+                                    isCurrentUser(chat.userId) 
+                                      ? 'text-white' 
+                                      : 'text-gray-900'
+                                  }`}>
+                                    {chat.message}
+                                  </p>
+                                  <p className={`text-xs ${
+                                    isCurrentUser(chat.userId) 
+                                      ? 'text-blue-100' 
+                                      : 'text-gray-500'
+                                  }`}>
+                                    Click to download
+                                  </p>
+                                </div>
                                 <Button
                                   size="sm"
-                                  variant="outline"
+                                  variant={isCurrentUser(chat.userId) ? "secondary" : "outline"}
                                   onClick={() => window.open(chat.fileUrl, '_blank')}
+                                  className="flex-shrink-0"
                                 >
-                                  <Download className="h-3 w-3" />
+                                  <Download className="h-4 w-4" />
                                 </Button>
                               </div>
                             )}
@@ -293,36 +334,63 @@ export function ChatModal({ isOpen, onClose, workOrder }: ChatModalProps) {
         <div className="flex-shrink-0 border-t pt-4">
           {/* File Preview */}
           {selectedFile && (
-            <div className="mb-3 p-3 bg-blue-50 rounded-lg border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  {selectedFile.type.startsWith('image/') ? (
-                    <Image className="h-4 w-4 text-blue-600" />
-                  ) : (
-                    <Paperclip className="h-4 w-4 text-blue-600" />
-                  )}
-                  <span className="text-sm font-medium text-blue-900">{selectedFile.name}</span>
-                  <span className="text-xs text-blue-600">
-                    ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                  </span>
+            <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
+              <div className="flex items-center space-x-3">
+                <div className="flex-shrink-0">
+                  <div className="p-2 bg-blue-100 rounded-full">
+                    {selectedFile.type.startsWith('image/') ? (
+                      <Image className="h-5 w-5 text-blue-600" />
+                    ) : (
+                      <Paperclip className="h-5 w-5 text-blue-600" />
+                    )}
+                  </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={removeSelectedFile}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-blue-900 truncate">{selectedFile.name}</p>
+                  <div className="flex items-center space-x-2 text-xs text-blue-600">
+                    <span>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                    <span>•</span>
+                    <span className="capitalize">{selectedFile.type.split('/')[0]} file</span>
+                  </div>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={removeSelectedFile}
+                  className="flex-shrink-0 border-blue-300 text-blue-700 hover:bg-blue-100"
+                >
                   Remove
                 </Button>
               </div>
+              {selectedFile.type.startsWith('image/') && (
+                <div className="mt-3 relative">
+                  <img 
+                    src={URL.createObjectURL(selectedFile)} 
+                    alt="Preview" 
+                    className="w-full max-h-32 object-cover rounded border"
+                  />
+                  <div className="absolute bottom-1 right-1 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded">
+                    Preview
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Emoji Picker */}
           {showEmojiPicker && (
-            <div className="mb-3 p-3 bg-white border rounded-lg shadow-lg">
-              <div className="text-sm text-gray-600 mb-2">Quick Emojis:</div>
-              <div className="grid grid-cols-8 gap-2">
+            <div className="mb-4 p-4 bg-white border rounded-xl shadow-lg border-gray-200">
+              <div className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                <Smile className="h-4 w-4 mr-1" />
+                Quick Reactions:
+              </div>
+              <div className="grid grid-cols-8 gap-1">
                 {['😊', '👍', '👎', '❤️', '😂', '😢', '😮', '😡', '🎉', '🔥', '💯', '✅', '❌', '⚠️', '💡', '🚀'].map((emoji) => (
                   <button
                     key={emoji}
                     onClick={() => addEmoji(emoji)}
-                    className="text-lg hover:bg-gray-100 rounded p-1"
+                    className="text-xl hover:bg-gray-100 rounded-lg p-2 transition-colors hover:scale-110 transform"
+                    title={`Add ${emoji}`}
                   >
                     {emoji}
                   </button>
