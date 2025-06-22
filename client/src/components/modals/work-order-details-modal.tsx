@@ -83,7 +83,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
     },
     cash: {
       name: "Cash",
-      description: "Cash payment on-site",
+      description: "Cash payment on-site", 
       icon: "💵",
       details: ["On-site pickup location"]
     },
@@ -95,12 +95,12 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
     },
     digital_wallet: {
       name: "Digital Wallet",
-      description: "PayPal, Venmo, etc.",
+      description: "PayPal, Venmo, CashApp, etc.",
       icon: "📱",
-      details: ["Wallet ID/Email", "Preferred platform"]
+      details: ["PayPal Link", "Venmo", "CashApp", "Zelle", "QR Code"]
     },
     wire_transfer: {
-      name: "Wire Transfer",
+      name: "Wire Transfer", 
       description: "International wire transfer",
       icon: "🌐",
       details: ["SWIFT Code", "Account Details", "Bank Address"]
@@ -528,13 +528,39 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                                         </div>
                                         
                                         {isSelected && methodInfo && (
-                                          <div className="ml-6 mt-2 p-2 bg-gray-50 rounded text-xs">
-                                            <div className="font-medium mb-1">Required Details:</div>
-                                            {methodInfo.details.map((detail, idx) => (
-                                              <div key={idx} className="text-gray-600">
-                                                • {detail}: {technicianDetails[method]?.[detail] || "Contact technician"}
-                                              </div>
-                                            ))}
+                                          <div className="ml-6 mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                            <div className="font-medium mb-2 text-blue-800">Payment Details:</div>
+                                            <div className="space-y-2">
+                                              {methodInfo.details.map((detail, idx) => {
+                                                const value = technicianDetails[method]?.[detail];
+                                                if (!value) return null;
+                                                
+                                                return (
+                                                  <div key={idx} className="flex flex-col space-y-1">
+                                                    <div className="text-xs font-medium text-gray-700">{detail}:</div>
+                                                    <div className="text-sm text-gray-900 bg-white p-2 rounded border">
+                                                      {detail === "PayPal Link" || detail === "Venmo" || detail === "CashApp" ? (
+                                                        <a 
+                                                          href={detail === "PayPal Link" ? value : `#`} 
+                                                          target="_blank" 
+                                                          rel="noopener noreferrer"
+                                                          className="text-blue-600 hover:underline font-mono text-sm"
+                                                        >
+                                                          {value}
+                                                        </a>
+                                                      ) : detail === "QR Code" ? (
+                                                        <div className="flex items-center space-x-2">
+                                                          <span className="text-sm">QR Code Available</span>
+                                                          <div className="w-8 h-8 bg-gray-200 border border-gray-300 rounded flex items-center justify-center text-xs">QR</div>
+                                                        </div>
+                                                      ) : (
+                                                        <span className="font-mono text-sm">{value}</span>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
                                           </div>
                                         )}
                                       </div>

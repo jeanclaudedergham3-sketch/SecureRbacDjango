@@ -777,12 +777,7 @@ export class SqliteStorage implements IStorage {
   }
 
   async createWorkOrderTechnicianPayment(insertPayment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment> {
-    const result = await db.insert(workOrderTechnicianPayments).values({
-      ...insertPayment,
-      paymentMethods: typeof insertPayment.paymentMethods === 'string' 
-        ? insertPayment.paymentMethods 
-        : JSON.stringify(insertPayment.paymentMethods)
-    }).returning();
+    const result = await db.insert(workOrderTechnicianPayments).values(insertPayment).returning();
     return result[0];
   }
 
