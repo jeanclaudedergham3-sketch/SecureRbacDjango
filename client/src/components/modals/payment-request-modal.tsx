@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { DollarSign, CreditCard, User, Clock } from "lucide-react";
+import { DollarSign, CreditCard, User, Clock, MapPin } from "lucide-react";
 import type { WorkOrderWithUsers, Technician, WorkOrderTechnicianPayment } from "@shared/schema";
 
 interface PaymentRequestModalProps {
@@ -207,35 +207,52 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder, preSelectedTec
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="technician">Technician *</Label>
-                    <Select value={selectedTechnicianId} onValueChange={handleTechnicianChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select technician" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {technicians.map((technician) => (
-                          <SelectItem 
-                            key={technician.id} 
-                            value={technician.id.toString()}
-                            className={preSelectedTechnicians.includes(technician.id) ? "bg-blue-50" : ""}
-                          >
-                            <div className="flex flex-col">
-                              <div className="flex items-center">
-                                <span>{technician.firstName} {technician.lastName}</span>
-                                {preSelectedTechnicians.includes(technician.id) && (
-                                  <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                                    Pre-selected
-                                  </span>
-                                )}
+                    <div className="flex space-x-2">
+                      <Select value={selectedTechnicianId} onValueChange={handleTechnicianChange}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Select technician" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {technicians.map((technician) => (
+                            <SelectItem 
+                              key={technician.id} 
+                              value={technician.id.toString()}
+                              className={preSelectedTechnicians.includes(technician.id) ? "bg-blue-50" : ""}
+                            >
+                              <div className="flex flex-col">
+                                <div className="flex items-center">
+                                  <span>{technician.firstName} {technician.lastName}</span>
+                                  {preSelectedTechnicians.includes(technician.id) && (
+                                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                      Pre-selected
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-sm text-gray-500">
+                                  ⭐ {technician.averageRating ? parseFloat(technician.averageRating).toFixed(1) : 'No ratings'} 
+                                  {technician.phoneNumber && ` • ${technician.phoneNumber}`}
+                                </span>
                               </div>
-                              <span className="text-sm text-gray-500">
-                                ⭐ {technician.averageRating ? parseFloat(technician.averageRating).toFixed(1) : 'No ratings'} 
-                                {technician.phoneNumber && ` • ${technician.phoneNumber}`}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          onClose();
+                          window.location.href = '/technician-map';
+                        }}
+                        className="px-3"
+                        title="Select technicians from map"
+                      >
+                        <MapPin className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Click the map icon to select technicians from the map view
+                    </p>
                   </div>
 
                   <div>
