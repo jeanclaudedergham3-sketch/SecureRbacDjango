@@ -791,15 +791,19 @@ export class SqliteStorage implements IStorage {
 
   // Work Order Invoice operations
   async getWorkOrderInvoice(workOrderId: number): Promise<WorkOrderInvoice | undefined> {
+    console.log(`Storage: Getting invoice for work order ${workOrderId}`);
     const result = await db.select().from(workOrderInvoices).where(eq(workOrderInvoices.workOrderId, workOrderId));
+    console.log(`Storage: Found invoice result:`, result);
     return result[0];
   }
 
   async createWorkOrderInvoice(insertInvoice: InsertWorkOrderInvoice): Promise<WorkOrderInvoice> {
+    console.log("Storage: Creating invoice with data:", insertInvoice);
     const result = await db.insert(workOrderInvoices).values({
       ...insertInvoice,
       createdAt: new Date(),
     }).returning();
+    console.log("Storage: Created invoice result:", result[0]);
     return result[0];
   }
 
