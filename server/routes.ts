@@ -790,6 +790,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Global payment manager routes
+  app.get("/api/payments/all", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      // Get all payments with work order and technician details
+      const allPayments = await storage.getWorkOrderTechnicianPayments(0); // 0 = all
+      const workOrders = await storage.getAllWorkOrders();
+      const technicians = await storage.getAllTechnicians();
+      
+      const paymentsWithDetails = allPayments.map(payment => {
+        const workOrder = workOrders.find(wo => wo.id === payment.workOrderId);
+        const technician = technicians.find(t => t.id === payment.technicianId);
+        
+        return {
+          ...payment,
+          workOrderNumber: workOrder?.workOrderNumber || "Unknown",
+          technicianName: technician?.name || "Unknown"
+        };
+      });
+      
+      res.json(paymentsWithDetails);
+    } catch (error) {
+      console.error("Error fetching all payments:", error);
+      res.status(500).json({ message: "Failed to get payments" });
+    }
+  });
+
+  app.get("/api/payments/technician/:technicianId", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const technicianId = parseInt(req.params.technicianId);
+      const allPayments = await storage.getWorkOrderTechnicianPayments(0);
+      const workOrders = await storage.getAllWorkOrders();
+      
+      const technicianPayments = allPayments
+        .filter(payment => payment.technicianId === technicianId)
+        .map(payment => {
+          const workOrder = workOrders.find(wo => wo.id === payment.workOrderId);
+          return {
+            ...payment,
+            workOrderNumber: workOrder?.workOrderNumber || "Unknown"
+          };
+        })
+        .sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+      
+      res.json(technicianPayments);
+    } catch (error) {
+      console.error("Error fetching technician payments:", error);
+      res.status(500).json({ message: "Failed to get technician payments" });
+    }
+  });
+
+  app.patch("/api/payments/:id", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const paymentId = parseInt(req.params.id);
+      const updates = req.body;
+      
+      const payment = await storage.updateWorkOrderTechnicianPayment(paymentId, updates);
+      if (!payment) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+      
+      res.json(payment);
+    } catch (error) {
+      console.error("Error updating payment:", error);
+      res.status(500).json({ message: "Failed to update payment" });
+    }
+  });
+
   app.post("/api/work-orders/:id/payments", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
