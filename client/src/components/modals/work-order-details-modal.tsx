@@ -527,42 +527,101 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="font-medium text-sm text-gray-700">Labor Cost</h4>
-                        <p className="text-lg font-semibold">${parseFloat(proposalData.laborCost || "0").toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm text-gray-700">Parts Cost</h4>
-                        <p className="text-lg font-semibold">${parseFloat(proposalData.partsCost || "0").toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm text-gray-700">Total Cost</h4>
-                        <p className="text-xl font-bold text-blue-600">
-                          ${(parseFloat(proposalData.laborCost || "0") + parseFloat(proposalData.partsCost || "0")).toFixed(2)}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm text-gray-700">Estimated Hours</h4>
-                        <p className="text-lg font-semibold">{proposalData.estimatedHours || "0"} hours</p>
-                      </div>
-                    </div>
+                    {(() => {
+                      try {
+                        const laborData = JSON.parse(proposalData.laborData || "[]");
+                        const partsData = JSON.parse(proposalData.partsData || "[]");
+                        const servicesData = JSON.parse(proposalData.servicesData || "[]");
+                        
+                        const laborTotal = laborData.reduce((sum: number, item: any) => sum + (parseFloat(item.cost || "0") * parseFloat(item.hours || "1")), 0);
+                        const partsTotal = partsData.reduce((sum: number, item: any) => sum + (parseFloat(item.cost || "0") * parseInt(item.quantity || "1")), 0);
+                        const servicesTotal = servicesData.reduce((sum: number, item: any) => sum + parseFloat(item.cost || "0"), 0);
+                        const grandTotal = laborTotal + partsTotal + servicesTotal;
+                        
+                        return (
+                          <div>
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <h4 className="font-medium text-sm text-gray-700">Labor Total</h4>
+                                <p className="text-lg font-semibold text-blue-600">${laborTotal.toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-sm text-gray-700">Parts Total</h4>
+                                <p className="text-lg font-semibold text-green-600">${partsTotal.toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-sm text-gray-700">Services Total</h4>
+                                <p className="text-lg font-semibold text-purple-600">${servicesTotal.toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-sm text-gray-700">Grand Total</h4>
+                                <p className="text-xl font-bold text-gray-900">${grandTotal.toFixed(2)}</p>
+                              </div>
+                            </div>
+                            
+                            {/* Labor Table */}
+                            {laborData.length > 0 && (
+                              <div className="mb-4">
+                                <h4 className="font-medium text-gray-700 mb-2 text-sm">Labor Details</h4>
+                                <div className="bg-blue-50 rounded-lg p-3 space-y-2">
+                                  {laborData.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between text-sm">
+                                      <span>{item.description} ({item.hours}h)</span>
+                                      <span className="font-medium">${(parseFloat(item.cost || "0") * parseFloat(item.hours || "1")).toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Parts Table */}
+                            {partsData.length > 0 && (
+                              <div className="mb-4">
+                                <h4 className="font-medium text-gray-700 mb-2 text-sm">Parts Details</h4>
+                                <div className="bg-green-50 rounded-lg p-3 space-y-2">
+                                  {partsData.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between text-sm">
+                                      <span>{item.description} (Qty: {item.quantity})</span>
+                                      <span className="font-medium">${(parseFloat(item.cost || "0") * parseInt(item.quantity || "1")).toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Services Table */}
+                            {servicesData.length > 0 && (
+                              <div className="mb-4">
+                                <h4 className="font-medium text-gray-700 mb-2 text-sm">Services Details</h4>
+                                <div className="bg-purple-50 rounded-lg p-3 space-y-2">
+                                  {servicesData.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between text-sm">
+                                      <span>{item.description}</span>
+                                      <span className="font-medium">${parseFloat(item.cost || "0").toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      } catch {
+                        return (
+                          <div className="text-center py-4">
+                            <p className="text-gray-500 text-sm">Unable to parse proposal data</p>
+                          </div>
+                        );
+                      }
+                    })()}
                     
-                    {proposalData.description && (
+                    {proposalData.message && (
                       <div>
-                        <h4 className="font-medium text-sm text-gray-700 mb-2">Description</h4>
-                        <p className="text-gray-900 bg-gray-50 p-3 rounded border">{proposalData.description}</p>
+                        <h4 className="font-medium text-sm text-gray-700 mb-2">Message</h4>
+                        <p className="text-gray-900 bg-gray-50 p-3 rounded border text-sm">{proposalData.message}</p>
                       </div>
                     )}
                     
-                    {proposalData.notes && (
-                      <div>
-                        <h4 className="font-medium text-sm text-gray-700 mb-2">Notes</h4>
-                        <p className="text-gray-900 bg-gray-50 p-3 rounded border">{proposalData.notes}</p>
-                      </div>
-                    )}
-                    
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs text-gray-500 pt-2 border-t">
                       Created: {new Date(proposalData.createdAt).toLocaleDateString()}
                       {proposalData.updatedAt && proposalData.updatedAt !== proposalData.createdAt && (
                         <span> • Updated: {new Date(proposalData.updatedAt).toLocaleDateString()}</span>
