@@ -564,16 +564,24 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                   Create a proposal with labor, parts, and services for this work order.
                 </p>
                 <PermissionGuard permission="manage_work_orders">
-                  <Button 
-                    onClick={() => workOrder.isLocked ? toast({
-                      title: "Action Blocked",
-                      description: "Cannot create proposals - work order is locked due to paid invoice.",
-                      variant: "destructive"
-                    }) : setIsProposalModalOpen(true)}
-                    disabled={workOrder.isLocked}
-                  >
-                    {workOrder.isLocked ? "Locked" : "Create Proposal"}
-                  </Button>
+                  <div className="space-x-2">
+                    <Button 
+                      onClick={() => workOrder.isLocked ? toast({
+                        title: "Action Blocked",
+                        description: "Cannot create proposals - work order is locked due to paid invoice.",
+                        variant: "destructive"
+                      }) : setIsProposalModalOpen(true)}
+                      disabled={workOrder.isLocked}
+                    >
+                      {workOrder.isLocked ? "Locked" : "Create Proposal"}
+                    </Button>
+                    <Button variant="outline" onClick={() => {
+                      onClose();
+                      window.location.href = '/proposals';
+                    }}>
+                      View All Proposals
+                    </Button>
+                  </div>
                 </PermissionGuard>
               </div>
             )}
@@ -645,16 +653,21 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 <p className="text-gray-600 mb-4">
                   Request parts and materials needed for this work order.
                 </p>
-                <Button 
-                  onClick={() => workOrder.isLocked ? toast({
-                    title: "Action Blocked",
-                    description: "Cannot request parts - work order is locked due to paid invoice.",
-                    variant: "destructive"
-                  }) : setIsPartsRequestModalOpen(true)}
-                  disabled={workOrder.isLocked}
-                >
-                  {workOrder.isLocked ? "Locked" : "Request Parts"}
-                </Button>
+                <div className="space-x-2">
+                  <Button 
+                    onClick={() => workOrder.isLocked ? toast({
+                      title: "Action Blocked",
+                      description: "Cannot request parts - work order is locked due to paid invoice.",
+                      variant: "destructive"
+                    }) : setIsPartsRequestModalOpen(true)}
+                    disabled={workOrder.isLocked}
+                  >
+                    {workOrder.isLocked ? "Locked" : "Request Parts"}
+                  </Button>
+                  <Button variant="outline" onClick={() => window.location.href = '/parts-requests'}>
+                    View All Parts Requests
+                  </Button>
+                </div>
               </div>
             )}
           </TabsContent>
