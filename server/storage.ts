@@ -109,6 +109,14 @@ export interface IStorage {
   getWorkOrderInvoice(workOrderId: number): Promise<WorkOrderInvoice | undefined>;
   createWorkOrderInvoice(invoice: InsertWorkOrderInvoice): Promise<WorkOrderInvoice>;
   updateWorkOrderInvoice(workOrderId: number, invoice: Partial<InsertWorkOrderInvoice>): Promise<WorkOrderInvoice | undefined>;
+  generateInvoiceNumber(): Promise<string>;
+  calculateInvoiceTotals(workOrderId: number, extraAmount?: number): Promise<{
+    partsSubtotal: number;
+    laborSubtotal: number;
+    subtotal: number;
+    taxAmount: number;
+    total: number;
+  }>;
 }
 
 export class SqliteStorage implements IStorage {
