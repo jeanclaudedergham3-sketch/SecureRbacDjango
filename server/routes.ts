@@ -1040,6 +1040,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Global invoice management routes
+  app.get("/api/invoices/all", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      console.log("Fetching all invoices with work order details...");
+      const allInvoices = await storage.getAllInvoices();
+      const workOrders = await storage.getAllWorkOrders();
+      
+      const invoicesWithDetails = allInvoices.map(invoice => {
+        const workOrder = workOrders.find(wo => wo.id === invoice.workOrderId);
+        const isLocked = invoice.status === "paid";
+        
+        return {
+          ...invoice,
+          workOrderNumber: workOrder?.workOrderNumber || "Unknown",
+          clientName: workOrder?.clientName || "Unknown",
+          isLocked
+        };
+      });
+      
+      console.log("Invoices with details:", invoicesWithDetails);
+      res.json(invoicesWithDetails);
+    } catch (error) {
+      console.error("Error fetching all invoices:", error);
+      res.status(500).json({ message: "Failed to get invoices" });
+    }
+  });
+
+  app.post("/api/invoices", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      console.log("Creating new invoice:", req.body);
+      const invoice = await storage.createWorkOrderInvoice(req.body);
+      res.status(201).json(invoice);
+    } catch (error) {
+      console.error("Error creating invoice:", error);
+      res.status(400).json({ message: "Failed to create invoice" });
+    }
+  });
+
+  app.patch("/api/invoices/:id", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      console.log(`Updating invoice ${invoiceId}:`, req.body);
+      
+      // Get the invoice to find the work order
+      const invoice = await storage.getInvoiceById(invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      const updatedInvoice = await storage.updateWorkOrderInvoice(invoice.workOrderId, req.body);
+      
+      // If status changed to "paid", lock the work order by updating the work order status
+      if (req.body.status === "paid") {
+        // We'll implement work order locking through the work order management
+        console.log(`Work order ${invoice.workOrderId} should be locked due to paid invoice`);
+      }
+      
+      res.json(updatedInvoice);
+    } catch (error) {
+      console.error("Error updating invoice:", error);
+      res.status(400).json({ message: "Failed to update invoice" });
+    }
+  });
+
+  app.delete("/api/invoices/:id", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      console.log(`Deleting invoice ${invoiceId}`);
+      
+      // Get the invoice to find the work order
+      const invoice = await storage.getInvoiceById(invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Check if invoice is locked (paid status)
+      if (invoice.status === "paid") {
+        return res.status(403).json({ message: "Cannot delete paid invoice - work order is locked" });
+      }
+      
+      const deleted = await storage.deleteInvoice(invoiceId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      res.json({ message: "Invoice deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting invoice:", error);
+      res.status(400).json({ message: "Failed to delete invoice" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

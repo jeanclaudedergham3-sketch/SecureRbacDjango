@@ -109,6 +109,9 @@ export interface IStorage {
   getWorkOrderInvoice(workOrderId: number): Promise<WorkOrderInvoice | undefined>;
   createWorkOrderInvoice(invoice: InsertWorkOrderInvoice): Promise<WorkOrderInvoice>;
   updateWorkOrderInvoice(workOrderId: number, invoice: Partial<InsertWorkOrderInvoice>): Promise<WorkOrderInvoice | undefined>;
+  getAllInvoices(): Promise<WorkOrderInvoice[]>;
+  getInvoiceById(id: number): Promise<WorkOrderInvoice | undefined>;
+  deleteInvoice(id: number): Promise<boolean>;
 }
 
 export class SqliteStorage implements IStorage {
@@ -813,6 +816,21 @@ export class SqliteStorage implements IStorage {
       .where(eq(workOrderInvoices.workOrderId, workOrderId))
       .returning();
     return result[0];
+  }
+
+  async getAllInvoices(): Promise<WorkOrderInvoice[]> {
+    const result = await db.select().from(workOrderInvoices);
+    return result;
+  }
+
+  async getInvoiceById(id: number): Promise<WorkOrderInvoice | undefined> {
+    const result = await db.select().from(workOrderInvoices).where(eq(workOrderInvoices.id, id));
+    return result[0];
+  }
+
+  async deleteInvoice(id: number): Promise<boolean> {
+    const result = await db.delete(workOrderInvoices).where(eq(workOrderInvoices.id, id));
+    return result.changes > 0;
   }
 }
 

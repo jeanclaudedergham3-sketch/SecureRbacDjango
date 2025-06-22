@@ -112,8 +112,12 @@ export function CreateInvoiceModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>ABC Corporation - Invoice Management</DialogTitle>
-          <p className="text-sm text-gray-600">Create or edit invoice for work order</p>
+          <DialogTitle>
+            ABC Corporation - {mode === "edit" ? "Edit Invoice" : "Create Invoice"}
+          </DialogTitle>
+          <p className="text-sm text-gray-600">
+            {mode === "edit" ? "Edit invoice details" : "Create or edit invoice for work order"}
+          </p>
         </DialogHeader>
 
         <Form {...form}>

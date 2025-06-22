@@ -129,7 +129,8 @@ export function initializeDatabase() {
         start_date INTEGER NOT NULL,
         end_date INTEGER NOT NULL,
         assigned_user_ids TEXT NOT NULL,
-        status TEXT DEFAULT 'active' NOT NULL,
+        status TEXT DEFAULT 'pending' NOT NULL,
+        is_locked INTEGER DEFAULT 0,
         created_at INTEGER NOT NULL
       );
 

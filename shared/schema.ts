@@ -203,6 +203,7 @@ export const insertWorkOrderSchema = createInsertSchema(workOrders).omit({
   id: true,
   workOrderNumber: true,
   createdAt: true,
+  isLocked: true,
 }).extend({
   clientName: z.string().min(1, "Client name is required"),
   country: z.string().min(1, "Country is required"),
