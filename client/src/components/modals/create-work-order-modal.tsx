@@ -125,8 +125,8 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     const submitData = {
       ...formData,
       assignedUserIds: JSON.stringify(formData.assignedUserIds),
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
+      startDate: formData.startDate,
+      endDate: formData.endDate,
     };
 
     createWorkOrderMutation.mutate(submitData);

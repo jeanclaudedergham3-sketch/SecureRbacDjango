@@ -211,6 +211,8 @@ export const insertWorkOrderSchema = createInsertSchema(workOrders).omit({
   nte: z.string().min(1, "NTE amount is required"),
   tnte: z.string().min(1, "TNTE amount is required"),
   assignedUserIds: z.string().min(1, "At least one user must be assigned"),
+  startDate: z.union([z.string(), z.date()]).transform((val) => typeof val === 'string' ? new Date(val) : val),
+  endDate: z.union([z.string(), z.date()]).transform((val) => typeof val === 'string' ? new Date(val) : val),
 });
 
 export const insertWorkOrderProposalSchema = createInsertSchema(workOrderProposals).omit({
