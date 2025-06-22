@@ -194,6 +194,7 @@ export class MemStorage implements IStorage {
     const id = this.currentUserId++;
     const user: User = {
       ...insertUser,
+      isActive: insertUser.isActive ?? true,
       id,
       createdAt: new Date(),
     };
@@ -246,6 +247,7 @@ export class MemStorage implements IStorage {
     const id = this.currentRoleId++;
     const role: Role = {
       ...insertRole,
+      description: insertRole.description ?? null,
       id,
       createdAt: new Date(),
     };
@@ -290,6 +292,7 @@ export class MemStorage implements IStorage {
     const id = this.currentPermissionId++;
     const permission: Permission = {
       ...insertPermission,
+      description: insertPermission.description ?? null,
       id,
       createdAt: new Date(),
     };
@@ -308,7 +311,7 @@ export class MemStorage implements IStorage {
   }
 
   async removeUserRole(userId: number, roleId: number): Promise<boolean> {
-    for (const [id, userRole] of this.userRoles.entries()) {
+    for (const [id, userRole] of Array.from(this.userRoles.entries())) {
       if (userRole.userId === userId && userRole.roleId === roleId) {
         this.userRoles.delete(id);
         return true;
@@ -318,7 +321,7 @@ export class MemStorage implements IStorage {
   }
 
   async getUserRole(userId: number): Promise<Role | undefined> {
-    for (const userRole of this.userRoles.values()) {
+    for (const userRole of Array.from(this.userRoles.values())) {
       if (userRole.userId === userId) {
         return this.roles.get(userRole.roleId);
       }
@@ -333,7 +336,7 @@ export class MemStorage implements IStorage {
   }
 
   async removeRolePermission(roleId: number, permissionId: number): Promise<boolean> {
-    for (const [id, rolePerm] of this.rolePermissions.entries()) {
+    for (const [id, rolePerm] of Array.from(this.rolePermissions.entries())) {
       if (rolePerm.roleId === roleId && rolePerm.permissionId === permissionId) {
         this.rolePermissions.delete(id);
         return true;
@@ -344,7 +347,7 @@ export class MemStorage implements IStorage {
 
   async getRolePermissions(roleId: number): Promise<Permission[]> {
     const permissions: Permission[] = [];
-    for (const rolePerm of this.rolePermissions.values()) {
+    for (const rolePerm of Array.from(this.rolePermissions.values())) {
       if (rolePerm.roleId === roleId) {
         const permission = this.permissions.get(rolePerm.permissionId);
         if (permission) {
@@ -369,6 +372,10 @@ export class MemStorage implements IStorage {
     const id = this.currentEquipmentId++;
     const equipment: Equipment = {
       ...insertEquipment,
+      status: insertEquipment.status ?? "online",
+      description: insertEquipment.description ?? null,
+      cpuUsage: insertEquipment.cpuUsage ?? null,
+      memoryUsage: insertEquipment.memoryUsage ?? null,
       id,
       createdAt: new Date(),
     };

@@ -7,6 +7,12 @@ import { requirePermission } from "./middleware/rbac";
 import { insertUserSchema, loginSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 
+declare module 'express-session' {
+  interface SessionData {
+    userId: number;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session configuration
   app.use(session({

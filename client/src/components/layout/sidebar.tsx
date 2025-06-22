@@ -92,9 +92,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 return (
                   <PermissionGuard key={item.name} permission={item.permission}>
                     <Link href={item.href}>
-                      <a
+                      <button
                         className={cn(
-                          "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
+                          "w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors text-left",
                           isActive
                             ? "bg-slate-700 text-white"
                             : "text-slate-300 hover:bg-slate-700 hover:text-white"
@@ -103,7 +103,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       >
                         <Icon className="mr-3 h-4 w-4" />
                         {item.name}
-                      </a>
+                      </button>
                     </Link>
                   </PermissionGuard>
                 );
@@ -111,9 +111,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
               return (
                 <Link key={item.name} href={item.href}>
-                  <a
+                  <button
                     className={cn(
-                      "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
+                      "w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors text-left",
                       isActive
                         ? "bg-slate-700 text-white"
                         : "text-slate-300 hover:bg-slate-700 hover:text-white"
@@ -122,7 +122,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   >
                     <Icon className="mr-3 h-4 w-4" />
                     {item.name}
-                  </a>
+                  </button>
                 </Link>
               );
             })}

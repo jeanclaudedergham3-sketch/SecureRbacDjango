@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { Plus, Edit, Check, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
+import { EditRoleModal } from "@/components/modals/edit-role-modal";
 import type { RoleWithPermissions, Permission } from "@shared/schema";
 
 export default function Roles() {
+  const [editingRole, setEditingRole] = useState<RoleWithPermissions | null>(null);
+  
   const { data: roles = [] } = useQuery<RoleWithPermissions[]>({
     queryKey: ["/api/roles"],
   });
@@ -98,7 +102,11 @@ export default function Roles() {
               </CardContent>
               <div className="px-6 py-3 bg-gray-50 border-t">
                 <PermissionGuard permission="assign_roles">
-                  <Button variant="ghost" size="sm">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setEditingRole(role)}
+                  >
                     <Edit className="h-3 w-3 mr-1" />
                     Edit Permissions
                   </Button>
@@ -156,6 +164,12 @@ export default function Roles() {
           </Card>
         </div>
       </div>
+
+      <EditRoleModal
+        isOpen={!!editingRole}
+        onClose={() => setEditingRole(null)}
+        role={editingRole}
+      />
     </div>
   );
 }

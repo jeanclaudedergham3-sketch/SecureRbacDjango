@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ export function EditRoleModal({ isOpen, onClose, role }: EditRoleModalProps) {
   });
 
   // Initialize selected permissions when role changes
-  useState(() => {
+  React.useEffect(() => {
     if (role) {
       setSelectedPermissions(role.permissions.map(p => p.id));
     }
