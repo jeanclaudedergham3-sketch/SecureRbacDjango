@@ -61,6 +61,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [isViewProposalModalOpen, setIsViewProposalModalOpen] = useState(false);
   const [isViewPartsModalOpen, setIsViewPartsModalOpen] = useState(false);
   const [isViewFilesModalOpen, setIsViewFilesModalOpen] = useState(false);
+  const [isViewChatModalOpen, setIsViewChatModalOpen] = useState(false);
+  const [isViewPaymentModalOpen, setIsViewPaymentModalOpen] = useState(false);
 
   const { data: technicians = [] } = useQuery<Technician[]>({
     queryKey: ["/api/technicians"],
@@ -78,6 +80,11 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
 
   const { data: workOrderFiles = [] } = useQuery({
     queryKey: [`/api/work-orders/${workOrder?.id}/files`],
+    enabled: !!workOrder?.id,
+  });
+
+  const { data: workOrderChats = [] } = useQuery({
+    queryKey: [`/api/work-orders/${workOrder?.id}/chats`],
     enabled: !!workOrder?.id,
   });
 
@@ -709,16 +716,21 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <p className="text-gray-600 mb-4">
                 Communicate with team members about this work order.
               </p>
-              <Button 
-                onClick={() => workOrder.isLocked ? toast({
-                  title: "Action Blocked",
-                  description: "Cannot access chat - work order is locked due to paid invoice.",
-                  variant: "destructive"
-                }) : setIsChatModalOpen(true)}
-                disabled={workOrder.isLocked}
-              >
-                {workOrder.isLocked ? "Locked" : "Open Chat"}
-              </Button>
+              <div className="space-x-2">
+                <Button 
+                  onClick={() => workOrder.isLocked ? toast({
+                    title: "Action Blocked",
+                    description: "Cannot access chat - work order is locked due to paid invoice.",
+                    variant: "destructive"
+                  }) : setIsChatModalOpen(true)}
+                  disabled={workOrder.isLocked}
+                >
+                  {workOrder.isLocked ? "Locked" : "Open Chat"}
+                </Button>
+                <Button variant="outline" onClick={() => setIsViewChatModalOpen(true)}>
+                  View Chat History
+                </Button>
+              </div>
             </div>
           </TabsContent>
 
@@ -731,18 +743,22 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               </p>
               
               <PermissionGuard permission="view_work_orders">
-                <Button 
-                  onClick={() => workOrder.isLocked ? toast({
-                    title: "Action Blocked",
-                    description: "Cannot create payment requests - work order is locked due to paid invoice.",
-                    variant: "destructive"
-                  }) : setIsPaymentRequestOpen(true)} 
-                  className="mb-4"
-                  disabled={workOrder.isLocked}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  {workOrder.isLocked ? "Locked" : "Create Payment Request"}
-                </Button>
+                <div className="space-x-2 mb-4">
+                  <Button 
+                    onClick={() => workOrder.isLocked ? toast({
+                      title: "Action Blocked",
+                      description: "Cannot create payment requests - work order is locked due to paid invoice.",
+                      variant: "destructive"
+                    }) : setIsPaymentRequestOpen(true)} 
+                    disabled={workOrder.isLocked}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {workOrder.isLocked ? "Locked" : "Create Payment Request"}
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsViewPaymentModalOpen(true)}>
+                    View Payment Details
+                  </Button>
+                </div>
               </PermissionGuard>
 
               {isPaymentRequestOpen && (
@@ -1302,6 +1318,166 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
             </div>
             <div className="flex justify-end pt-4 border-t">
               <Button onClick={() => setIsViewFilesModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {isViewChatModalOpen && (
+        <Dialog open={isViewChatModalOpen} onOpenChange={setIsViewChatModalOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Chat History - {workOrder.workOrderNumber}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {workOrderChats.length > 0 ? (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {workOrderChats.map((chat: any) => (
+                    <Card key={chat.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <MessageSquare className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <span className="font-medium text-gray-900">User #{chat.userId}</span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(chat.createdAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <p className="text-gray-900 whitespace-pre-wrap">{chat.message}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-medium mb-2">No Chat Messages</h3>
+                  <p className="text-gray-600">No messages have been sent for this work order yet.</p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end pt-4 border-t">
+              <Button onClick={() => setIsViewChatModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {isViewPaymentModalOpen && (
+        <Dialog open={isViewPaymentModalOpen} onOpenChange={setIsViewPaymentModalOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Payment Requests - {workOrder.workOrderNumber}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {existingPayments.length > 0 ? (
+                <div className="space-y-4">
+                  {existingPayments.map((payment: any) => {
+                    const technician = technicians.find(t => t.id === payment.technicianId);
+                    const paymentMethods = JSON.parse(payment.paymentMethod || "[]");
+                    const requested = parseFloat(payment.amountRequested || "0");
+                    const paid = parseFloat(payment.amountPaid || "0");
+                    const remaining = Math.max(0, requested - paid);
+                    
+                    const getStatusColor = (status: string) => {
+                      switch (status) {
+                        case "paid": return "bg-green-100 text-green-800";
+                        case "partially_paid": return "bg-yellow-100 text-yellow-800";
+                        case "approved": return "bg-blue-100 text-blue-800";
+                        case "rejected": return "bg-red-100 text-red-800";
+                        default: return "bg-gray-100 text-gray-800";
+                      }
+                    };
+
+                    return (
+                      <Card key={payment.id}>
+                        <CardContent className="p-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center space-x-3">
+                                <h4 className="text-xl font-bold text-gray-900">
+                                  {technician?.name || `Technician #${payment.technicianId}`}
+                                </h4>
+                                <Badge className={getStatusColor(payment.status)}>
+                                  {payment.status.replace("_", " ")}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-green-600">${requested.toFixed(2)}</div>
+                              <div className="text-sm text-gray-500">Requested</div>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                            <div>
+                              <h5 className="font-medium text-gray-700 mb-2">Payment Methods</h5>
+                              <div className="flex flex-wrap gap-2">
+                                {paymentMethods.map((method: string, idx: number) => (
+                                  <Badge key={idx} variant="outline">{method}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <h5 className="font-medium text-gray-700 mb-2">Payment Status</h5>
+                              {payment.amountPaid && (
+                                <div className="space-y-1">
+                                  <div className="text-sm text-gray-600">
+                                    Paid: ${paid.toFixed(2)}
+                                  </div>
+                                  {remaining > 0 && (
+                                    <div className="text-sm text-red-600">
+                                      Remaining: ${remaining.toFixed(2)}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {payment.description && (
+                            <div className="mb-4">
+                              <h5 className="font-medium text-gray-700 mb-2">Description</h5>
+                              <div className="p-3 bg-gray-50 rounded-lg border">
+                                <p className="text-gray-900">{payment.description}</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="text-sm text-gray-500 pt-3 border-t">
+                            <div className="flex justify-between">
+                              <span>Requested: {new Date(payment.requestedAt).toLocaleDateString()}</span>
+                              {payment.updatedAt && payment.updatedAt !== payment.requestedAt && (
+                                <span>Updated: {new Date(payment.updatedAt).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-medium mb-2">No Payment Requests</h3>
+                  <p className="text-gray-600">No payment requests have been created for this work order yet.</p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end pt-4 border-t">
+              <Button onClick={() => setIsViewPaymentModalOpen(false)}>
                 Close
               </Button>
             </div>
