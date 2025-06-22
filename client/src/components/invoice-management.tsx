@@ -25,6 +25,14 @@ export function InvoiceManagement({ workOrder, onOpenInvoiceModal }: InvoiceMana
   console.log("Invoice data:", invoice);
 
   const handleCreateOrEdit = () => {
+    if (workOrder.isLocked) {
+      toast({
+        title: "Action Blocked",
+        description: "Cannot modify invoice - work order is locked due to paid invoice.",
+        variant: "destructive",
+      });
+      return;
+    }
     onOpenInvoiceModal();
   };
 
@@ -48,8 +56,17 @@ export function InvoiceManagement({ workOrder, onOpenInvoiceModal }: InvoiceMana
       {/* Header with Create/Edit Button */}
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium">ABC Corporation - Invoice Management</h3>
-        <Button onClick={handleCreateOrEdit} className="bg-blue-600 hover:bg-blue-700">
-          {invoice ? (
+        <Button 
+          onClick={handleCreateOrEdit} 
+          className="bg-blue-600 hover:bg-blue-700"
+          disabled={workOrder.isLocked}
+        >
+          {workOrder.isLocked ? (
+            <>
+              <Receipt className="h-4 w-4 mr-2" />
+              Locked
+            </>
+          ) : invoice ? (
             <>
               <Edit className="h-4 w-4 mr-2" />
               Edit Invoice
@@ -170,9 +187,13 @@ export function InvoiceManagement({ workOrder, onOpenInvoiceModal }: InvoiceMana
 
             {/* Action Buttons */}
             <div className="border-t pt-4 flex justify-end space-x-2">
-              <Button variant="outline" onClick={handleCreateOrEdit}>
+              <Button 
+                variant="outline" 
+                onClick={handleCreateOrEdit}
+                disabled={workOrder.isLocked}
+              >
                 <Edit className="h-4 w-4 mr-2" />
-                Edit Invoice
+                {workOrder.isLocked ? "Locked" : "Edit Invoice"}
               </Button>
               <Button onClick={handleDownloadPDF} className="bg-green-600 hover:bg-green-700">
                 <Download className="h-4 w-4 mr-2" />
@@ -193,9 +214,10 @@ export function InvoiceManagement({ workOrder, onOpenInvoiceModal }: InvoiceMana
             <Button 
               onClick={handleCreateOrEdit}
               className="bg-blue-600 hover:bg-blue-700"
+              disabled={workOrder.isLocked}
             >
               <Plus className="h-4 w-4 mr-2" />
-              Create ABC Corporation Invoice
+              {workOrder.isLocked ? "Locked - Cannot Create" : "Create ABC Corporation Invoice"}
             </Button>
           </CardContent>
         </Card>
