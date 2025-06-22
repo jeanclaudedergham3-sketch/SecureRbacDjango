@@ -12,12 +12,12 @@ import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Calendar } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { WorkOrderWithUser, WorkOrderProposal } from "@shared/schema";
+import type { WorkOrderWithUsers, WorkOrderProposal } from "@shared/schema";
 
 interface WorkOrderProposalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  workOrder: WorkOrderWithUser;
+  workOrder: WorkOrderWithUsers;
 }
 
 interface LaborEntry {

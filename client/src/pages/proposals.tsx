@@ -7,18 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
-import type { WorkOrderWithUser, WorkOrderProposal } from "@shared/schema";
+import type { WorkOrderWithUsers, WorkOrderProposal } from "@shared/schema";
 
 export default function Proposals() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUser | null>(null);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUsers | null>(null);
 
-  const { data: workOrders = [] } = useQuery<WorkOrderWithUser[]>({
+  const { data: workOrders = [] } = useQuery<WorkOrderWithUsers[]>({
     queryKey: ["/api/work-orders"],
   });
 
-  const { data: allProposals = [] } = useQuery<(WorkOrderProposal & { workOrder: WorkOrderWithUser })[]>({
+  const { data: allProposals = [] } = useQuery<(WorkOrderProposal & { workOrder: WorkOrderWithUsers })[]>({
     queryKey: ["/api/proposals"],
   });
 

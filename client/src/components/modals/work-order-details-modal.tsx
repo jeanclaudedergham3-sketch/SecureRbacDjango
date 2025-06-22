@@ -8,12 +8,12 @@ import { Calendar, DollarSign, MapPin, User, FileText, MessageSquare, CreditCard
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { useAuth } from "@/hooks/use-auth";
-import type { WorkOrderWithUser } from "@shared/schema";
+import type { WorkOrderWithUsers } from "@shared/schema";
 
 interface WorkOrderDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  workOrder: WorkOrderWithUser;
+  workOrder: WorkOrderWithUsers;
 }
 
 export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderDetailsModalProps) {
@@ -46,7 +46,16 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   };
 
   // Check if user can access this work order (assigned user or has manage permission)
-  const canAccess = workOrder.assignedUserId === user?.id || user?.permissions?.includes("manage_work_orders");
+  const canAccess = (() => {
+    if (user?.permissions?.includes("manage_work_orders")) return true;
+    
+    try {
+      const assignedUserIds = workOrder.assignedUserIds ? JSON.parse(workOrder.assignedUserIds) : [];
+      return assignedUserIds.includes(user?.id);
+    } catch {
+      return false;
+    }
+  })();
 
   if (!canAccess) {
     return (
@@ -143,12 +152,22 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 <CardContent className="space-y-2">
                   <div>
                     <span className="font-medium">Assigned to:</span>
-                    <p className="text-gray-600">
-                      {workOrder.assignedUser?.firstName} {workOrder.assignedUser?.lastName}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      ({workOrder.assignedUser?.email})
-                    </p>
+                    {workOrder.assignedUsers && workOrder.assignedUsers.length > 0 ? (
+                      <div className="space-y-1">
+                        {workOrder.assignedUsers.map((user) => (
+                          <div key={user.id}>
+                            <p className="text-gray-600">
+                              {user.firstName} {user.lastName}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              ({user.email})
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-400">No users assigned</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

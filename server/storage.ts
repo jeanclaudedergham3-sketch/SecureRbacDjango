@@ -10,7 +10,7 @@ import {
   type InsertTechnician, type InsertRating, type InsertWorkOrder, type InsertWorkOrderProposal,
   type InsertWorkOrderPartsRequest, type InsertWorkOrderFile, type InsertWorkOrderChat,
   type InsertWorkOrderTechnicianPayment, type InsertWorkOrderInvoice,
-  type UserWithRole, type RoleWithPermissions, type WorkOrderWithUser
+  type UserWithRole, type RoleWithPermissions, type WorkOrderWithUsers
 } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -77,8 +77,8 @@ export interface IStorage {
   createWorkOrder(workOrder: InsertWorkOrder): Promise<WorkOrder>;
   updateWorkOrder(id: number, workOrder: Partial<InsertWorkOrder>): Promise<WorkOrder | undefined>;
   deleteWorkOrder(id: number): Promise<boolean>;
-  getAllWorkOrders(): Promise<WorkOrderWithUser[]>;
-  getUserWorkOrders(userId: number): Promise<WorkOrderWithUser[]>;
+  getAllWorkOrders(): Promise<WorkOrderWithUsers[]>;
+  getUserWorkOrders(userId: number): Promise<WorkOrderWithUsers[]>;
   generateWorkOrderNumber(): Promise<string>;
   
   // Work Order Proposal operations
@@ -292,7 +292,7 @@ export class SqliteStorage implements IStorage {
         tnte: "5500.00",
         startDate: new Date("2025-01-15"),
         endDate: new Date("2025-02-15"),
-        assignedUserId: adminUser.id,
+        assignedUserIds: JSON.stringify([adminUser.id, managerUser.id]),
         status: "active",
       });
 
@@ -305,7 +305,7 @@ export class SqliteStorage implements IStorage {
         tnte: "8800.00",
         startDate: new Date("2025-01-20"),
         endDate: new Date("2025-03-20"),
-        assignedUserId: managerUser.id,
+        assignedUserIds: JSON.stringify([managerUser.id]),
         status: "active",
       });
 
@@ -635,33 +635,41 @@ export class SqliteStorage implements IStorage {
     return result.changes > 0;
   }
 
-  async getAllWorkOrders(): Promise<WorkOrderWithUser[]> {
-    const result = await db.select({
-      workOrder: workOrders,
-      assignedUser: users
-    })
-    .from(workOrders)
-    .leftJoin(users, eq(workOrders.assignedUserId, users.id));
+  async getAllWorkOrders(): Promise<WorkOrderWithUsers[]> {
+    const workOrdersData = await db.select().from(workOrders);
+    const allUsers = await db.select().from(users);
     
-    return result.map(row => ({
-      ...row.workOrder,
-      assignedUser: row.assignedUser || undefined
-    }));
+    return workOrdersData.map(workOrder => {
+      try {
+        const assignedUserIds = JSON.parse(workOrder.assignedUserIds || "[]");
+        const assignedUsers = allUsers.filter(user => assignedUserIds.includes(user.id));
+        
+        return {
+          ...workOrder,
+          assignedUsers
+        };
+      } catch (error) {
+        console.error("Error parsing assigned user IDs:", error);
+        return {
+          ...workOrder,
+          assignedUsers: []
+        };
+      }
+    });
   }
 
-  async getUserWorkOrders(userId: number): Promise<WorkOrderWithUser[]> {
-    const result = await db.select({
-      workOrder: workOrders,
-      assignedUser: users
-    })
-    .from(workOrders)
-    .leftJoin(users, eq(workOrders.assignedUserId, users.id))
-    .where(eq(workOrders.assignedUserId, userId));
+  async getUserWorkOrders(userId: number): Promise<WorkOrderWithUsers[]> {
+    const allWorkOrders = await this.getAllWorkOrders();
     
-    return result.map(row => ({
-      ...row.workOrder,
-      assignedUser: row.assignedUser || undefined
-    }));
+    return allWorkOrders.filter(workOrder => {
+      try {
+        const assignedUserIds = JSON.parse(workOrder.assignedUserIds || "[]");
+        return assignedUserIds.includes(userId);
+      } catch (error) {
+        console.error("Error parsing assigned user IDs:", error);
+        return false;
+      }
+    });
   }
 
   async generateWorkOrderNumber(): Promise<string> {

@@ -6,14 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { WorkOrderWithUser, User } from "@shared/schema";
+import type { WorkOrderWithUsers, User } from "@shared/schema";
 
 interface CreateWorkOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
-  workOrder: WorkOrderWithUser | null;
+  workOrder: WorkOrderWithUsers | null;
 }
 
 export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkOrderModalProps) {
@@ -30,7 +33,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     tnte: "",
     startDate: "",
     endDate: "",
-    assignedUserId: "",
+    assignedUserIds: [] as number[],
     status: "active",
   });
 
@@ -51,7 +54,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         tnte: workOrder.tnte || "",
         startDate: workOrder.startDate ? new Date(workOrder.startDate).toISOString().split('T')[0] : "",
         endDate: workOrder.endDate ? new Date(workOrder.endDate).toISOString().split('T')[0] : "",
-        assignedUserId: workOrder.assignedUserId?.toString() || "",
+        assignedUserIds: workOrder.assignedUsers?.map(user => user.id) || [],
         status: workOrder.status || "active",
       });
     } else {
@@ -64,7 +67,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         tnte: "",
         startDate: "",
         endDate: "",
-        assignedUserId: "",
+        assignedUserIds: [],
         status: "active",
       });
     }
@@ -98,10 +101,10 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     // Basic validation
     if (!formData.clientName.trim() || !formData.country.trim() || !formData.city.trim() || 
         !formData.street.trim() || !formData.nte.trim() || !formData.tnte.trim() ||
-        !formData.startDate || !formData.endDate || !formData.assignedUserId) {
+        !formData.startDate || !formData.endDate || formData.assignedUserIds.length === 0) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields and assign at least one user",
         variant: "destructive",
       });
       return;
@@ -121,7 +124,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
 
     const submitData = {
       ...formData,
-      assignedUserId: parseInt(formData.assignedUserId),
+      assignedUserIds: JSON.stringify(formData.assignedUserIds),
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
     };
@@ -253,25 +256,71 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Assignment</h3>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div>
-                <Label htmlFor="assignedUserId">Assigned User *</Label>
-                <Select
-                  value={formData.assignedUserId}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, assignedUserId: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.firstName} {user.lastName} ({user.username})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Assigned Users * (Select multiple users)</Label>
+                <Card className="mt-2">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">
+                      Selected Users ({formData.assignedUserIds.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {formData.assignedUserIds.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {formData.assignedUserIds.map((userId) => {
+                          const user = users.find(u => u.id === userId);
+                          return user ? (
+                            <div key={userId} className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm">
+                              <span>{user.firstName} {user.lastName}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    assignedUserIds: prev.assignedUserIds.filter(id => id !== userId)
+                                  }));
+                                }}
+                                className="ml-2 text-blue-600 hover:text-blue-800"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm">No users selected</p>
+                    )}
+                    
+                    <div className="border-t pt-3 space-y-2">
+                      <h4 className="text-sm font-medium">Available Users:</h4>
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {users.filter(user => !formData.assignedUserIds.includes(user.id)).map((user) => (
+                          <div key={user.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`user-${user.id}`}
+                              checked={false}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    assignedUserIds: [...prev.assignedUserIds, user.id]
+                                  }));
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`user-${user.id}`} className="text-sm cursor-pointer">
+                              {user.firstName} {user.lastName} ({user.username})
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
+              
               <div>
                 <Label htmlFor="status">Status</Label>
                 <Select

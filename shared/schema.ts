@@ -88,7 +88,7 @@ export const workOrders = sqliteTable("work_orders", {
   tnte: text("tnte").notNull(), // amount including tax
   startDate: integer("start_date", { mode: 'timestamp' }).notNull(),
   endDate: integer("end_date", { mode: 'timestamp' }).notNull(),
-  assignedUserId: integer("assigned_user_id").notNull(),
+  assignedUserIds: text("assigned_user_ids").notNull(), // JSON array of user IDs
   status: text("status").notNull().default("active"), // active, completed, cancelled
   createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
@@ -210,6 +210,7 @@ export const insertWorkOrderSchema = createInsertSchema(workOrders).omit({
   street: z.string().min(1, "Street is required"),
   nte: z.string().min(1, "NTE amount is required"),
   tnte: z.string().min(1, "TNTE amount is required"),
+  assignedUserIds: z.string().min(1, "At least one user must be assigned"),
 });
 
 export const insertWorkOrderProposalSchema = createInsertSchema(workOrderProposals).omit({
@@ -286,6 +287,6 @@ export type RoleWithPermissions = Role & {
   permissions: Permission[];
 };
 
-export type WorkOrderWithUser = WorkOrder & {
-  assignedUser?: User;
+export type WorkOrderWithUsers = WorkOrder & {
+  assignedUsers?: User[];
 };

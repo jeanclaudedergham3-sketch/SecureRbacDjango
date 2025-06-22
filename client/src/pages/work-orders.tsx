@@ -8,15 +8,15 @@ import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { CreateWorkOrderModal } from "@/components/modals/create-work-order-modal";
 import { WorkOrderDetailsModal } from "@/components/modals/work-order-details-modal";
 import { useAuth } from "@/hooks/use-auth";
-import type { WorkOrderWithUser } from "@shared/schema";
+import type { WorkOrderWithUsers } from "@shared/schema";
 
 export default function WorkOrders() {
   const { user } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
-  const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUser | null>(null);
-  const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrderWithUser | null>(null);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUsers | null>(null);
+  const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrderWithUsers | null>(null);
 
-  const { data: workOrders = [] } = useQuery<WorkOrderWithUser[]>({
+  const { data: workOrders = [] } = useQuery<WorkOrderWithUsers[]>({
     queryKey: ["/api/work-orders"],
   });
 
@@ -51,7 +51,12 @@ export default function WorkOrders() {
       return true;
     }
     // Regular users can only see work orders assigned to them
-    return workOrder.assignedUserId === user?.id;
+    try {
+      const assignedUserIds = workOrder.assignedUserIds ? JSON.parse(workOrder.assignedUserIds) : [];
+      return assignedUserIds.includes(user?.id);
+    } catch {
+      return false;
+    }
   });
 
   return (
@@ -102,9 +107,19 @@ export default function WorkOrders() {
                 
                 <div className="flex items-center text-sm text-gray-600">
                   <User className="h-4 w-4 mr-2" />
-                  <span>
-                    Assigned to: {workOrder.assignedUser?.firstName} {workOrder.assignedUser?.lastName}
-                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    <span>Assigned to:</span>
+                    {workOrder.assignedUsers && workOrder.assignedUsers.length > 0 ? (
+                      workOrder.assignedUsers.map((user, index) => (
+                        <span key={user.id}>
+                          {user.firstName} {user.lastName}
+                          {index < workOrder.assignedUsers!.length - 1 && ", "}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-400">No users assigned</span>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="flex items-center text-sm text-gray-600">

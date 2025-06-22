@@ -128,10 +128,9 @@ export function initializeDatabase() {
         tnte TEXT NOT NULL,
         start_date INTEGER NOT NULL,
         end_date INTEGER NOT NULL,
-        assigned_user_id INTEGER NOT NULL,
+        assigned_user_ids TEXT NOT NULL,
         status TEXT DEFAULT 'active' NOT NULL,
-        created_at INTEGER NOT NULL,
-        FOREIGN KEY (assigned_user_id) REFERENCES users(id)
+        created_at INTEGER NOT NULL
       );
 
       CREATE TABLE IF NOT EXISTS work_order_proposals (
