@@ -10,6 +10,7 @@ import type { RoleWithPermissions, Permission } from "@shared/schema";
 
 export default function Roles() {
   const [editingRole, setEditingRole] = useState<RoleWithPermissions | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   
   const { data: roles = [] } = useQuery<RoleWithPermissions[]>({
     queryKey: ["/api/roles"],
@@ -60,7 +61,7 @@ export default function Roles() {
             </p>
           </div>
           <PermissionGuard permission="assign_roles">
-            <Button>
+            <Button onClick={() => setIsCreating(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Create Role
             </Button>
@@ -169,6 +170,12 @@ export default function Roles() {
         isOpen={!!editingRole}
         onClose={() => setEditingRole(null)}
         role={editingRole}
+      />
+      
+      <EditRoleModal
+        isOpen={isCreating}
+        onClose={() => setIsCreating(false)}
+        role={null}
       />
     </div>
   );

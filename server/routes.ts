@@ -187,6 +187,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/roles", requireAuth, requirePermission("assign_roles"), async (req, res) => {
+    try {
+      const { name, description, permissionIds = [] } = req.body;
+      
+      // Create the role
+      const role = await storage.createRole({ name, description });
+      
+      // Assign permissions to the role
+      for (const permissionId of permissionIds) {
+        await storage.assignRolePermission(role.id, permissionId);
+      }
+      
+      // Return the role with permissions
+      const roleWithPermissions = await storage.getAllRoles();
+      const createdRole = roleWithPermissions.find(r => r.id === role.id);
+      
+      res.status(201).json(createdRole);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to create role" });
+    }
+  });
+
   app.get("/api/permissions", requireAuth, requirePermission("view_roles"), async (req, res) => {
     try {
       const permissions = await storage.getAllPermissions();

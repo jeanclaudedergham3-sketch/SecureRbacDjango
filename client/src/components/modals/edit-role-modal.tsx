@@ -5,6 +5,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Permission, RoleWithPermissions } from "@shared/schema";
@@ -19,18 +21,46 @@ export function EditRoleModal({ isOpen, onClose, role }: EditRoleModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPermissions, setSelectedPermissions] = useState<number[]>([]);
+  const [roleName, setRoleName] = useState("");
+  const [roleDescription, setRoleDescription] = useState("");
 
   const { data: allPermissions = [] } = useQuery<Permission[]>({
     queryKey: ["/api/permissions"],
     enabled: isOpen,
   });
 
-  // Initialize selected permissions when role changes
+  // Initialize form data when role changes
   React.useEffect(() => {
     if (role) {
       setSelectedPermissions(role.permissions.map(p => p.id));
+      setRoleName(role.name);
+      setRoleDescription(role.description || "");
+    } else {
+      setSelectedPermissions([]);
+      setRoleName("");
+      setRoleDescription("");
     }
   }, [role]);
+
+  const createRoleMutation = useMutation({
+    mutationFn: (data: { name: string; description: string; permissionIds: number[] }) =>
+      apiRequest("POST", "/api/roles", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/roles"] });
+      toast({
+        title: "Success",
+        description: "Role created successfully",
+      });
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create role",
+        variant: "destructive",
+      });
+    },
+  });
 
   const updatePermissionsMutation = useMutation({
     mutationFn: (data: { roleId: number; permissionIds: number[] }) =>
@@ -62,24 +92,66 @@ export function EditRoleModal({ isOpen, onClose, role }: EditRoleModalProps) {
 
   const handleSave = () => {
     if (role) {
+      // Update existing role permissions
       updatePermissionsMutation.mutate({
         roleId: role.id,
+        permissionIds: selectedPermissions,
+      });
+    } else {
+      // Create new role
+      if (!roleName.trim()) {
+        toast({
+          title: "Error",
+          description: "Role name is required",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      createRoleMutation.mutate({
+        name: roleName.trim(),
+        description: roleDescription.trim(),
         permissionIds: selectedPermissions,
       });
     }
   };
 
-  if (!role) return null;
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Edit Role Permissions</DialogTitle>
+          <DialogTitle>{role ? "Edit Role Permissions" : "Create New Role"}</DialogTitle>
           <DialogDescription>
-            Configure permissions for the {role.name} role.
+            {role 
+              ? `Configure permissions for the ${role.name} role.`
+              : "Create a new role and assign permissions."
+            }
           </DialogDescription>
         </DialogHeader>
+
+        {!role && (
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="roleName">Role Name</Label>
+              <Input
+                id="roleName"
+                value={roleName}
+                onChange={(e) => setRoleName(e.target.value)}
+                placeholder="Enter role name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="roleDescription">Description</Label>
+              <Textarea
+                id="roleDescription"
+                value={roleDescription}
+                onChange={(e) => setRoleDescription(e.target.value)}
+                placeholder="Enter role description"
+                rows={2}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div>
@@ -114,8 +186,14 @@ export function EditRoleModal({ isOpen, onClose, role }: EditRoleModalProps) {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={updatePermissionsMutation.isPending}>
-              {updatePermissionsMutation.isPending ? "Saving..." : "Save Changes"}
+            <Button 
+              onClick={handleSave} 
+              disabled={updatePermissionsMutation.isPending || createRoleMutation.isPending}
+            >
+              {updatePermissionsMutation.isPending || createRoleMutation.isPending 
+                ? "Saving..." 
+                : role ? "Save Changes" : "Create Role"
+              }
             </Button>
           </div>
         </div>
