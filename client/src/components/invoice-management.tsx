@@ -95,27 +95,15 @@ export function InvoiceManagement({ workOrder, onOpenInvoiceModal }: InvoiceMana
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Company & Client Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 text-blue-800">From: ABC Corporation</h4>
-                <div className="text-sm space-y-1">
-                  <p className="font-medium">Work Order #{workOrder.workOrderNumber}</p>
-                  <p>Service Provider: ABC Corporation</p>
-                  <p>Status: {workOrder.status}</p>
-                  <p>Priority: {workOrder.priority}</p>
-                  <p>Assigned To: {workOrder.assignedUsers?.map((u: any) => u.username).join(', ') || 'Unassigned'}</p>
-                </div>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 text-gray-800">Bill To:</h4>
-                <div className="text-sm space-y-1">
-                  <p className="font-medium">{workOrder.clientName}</p>
-                  <p>{workOrder.street}</p>
-                  <p>{workOrder.city}, {workOrder.state} {workOrder.zipCode}</p>
-                  <p>{workOrder.phoneNumber}</p>
-                  {workOrder.clientEmail && <p>Email: {workOrder.clientEmail}</p>}
-                </div>
+            {/* Company Information */}
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-semibold mb-2 text-blue-800">From: ABC Corporation</h4>
+              <div className="text-sm space-y-1">
+                <p className="font-medium">Work Order #{workOrder.workOrderNumber}</p>
+                <p>Service Provider: ABC Corporation</p>
+                <p>Status: {workOrder.status}</p>
+                <p>Priority: {workOrder.priority}</p>
+                <p>Assigned To: {workOrder.assignedUsers?.map((u: any) => u.username).join(', ') || 'Unassigned'}</p>
               </div>
             </div>
 
