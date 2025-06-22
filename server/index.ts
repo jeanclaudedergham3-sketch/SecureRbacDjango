@@ -3,6 +3,9 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeDatabase } from "./database";
 
+// Initialize database before anything else
+initializeDatabase();
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

@@ -16,8 +16,14 @@ export const db = drizzle(sqlite, { schema });
 // Run migrations
 export function runMigrations() {
   try {
-    migrate(db, { migrationsFolder: "./drizzle" });
-    console.log("Database migrations completed successfully");
+    // Check if migrations folder exists first
+    const fs = require("fs");
+    if (fs.existsSync("./drizzle")) {
+      migrate(db, { migrationsFolder: "./drizzle" });
+      console.log("Database migrations completed successfully");
+    } else {
+      console.log("No migration folder found, using manual table creation");
+    }
   } catch (error) {
     console.error("Database migration failed:", error);
   }
@@ -26,7 +32,9 @@ export function runMigrations() {
 // Initialize database and create tables if they don't exist
 export function initializeDatabase() {
   try {
-    // Create tables manually if migrations don't exist
+    console.log("Initializing SQLite database...");
+    
+    // Create tables manually
     sqlite.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,7 +91,12 @@ export function initializeDatabase() {
       );
     `);
     
-    console.log("Database initialized successfully");
+    console.log("Database tables created successfully");
+    
+    // Verify tables exist
+    const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+    console.log("Created tables:", tables.map(t => t.name));
+    
   } catch (error) {
     console.error("Database initialization failed:", error);
   }

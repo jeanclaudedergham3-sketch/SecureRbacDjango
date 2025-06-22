@@ -50,15 +50,25 @@ export interface IStorage {
 }
 
 export class SqliteStorage implements IStorage {
+  private initialized = false;
+
   constructor() {
+    // Seed data immediately since database should be initialized by now
     this.seedData();
   }
 
   private async seedData() {
     try {
+      if (this.initialized) return;
+      
+      // Add a small delay to ensure database is ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Check if data already exists
       const existingUsers = await db.select().from(users).limit(1);
       if (existingUsers.length > 0) {
+        console.log("Database already seeded");
+        this.initialized = true;
         return; // Data already seeded
       }
 
@@ -163,8 +173,14 @@ export class SqliteStorage implements IStorage {
       });
 
       console.log("Database seeded successfully");
+      this.initialized = true;
     } catch (error) {
       console.error("Error seeding database:", error);
+      // Retry after a delay if tables don't exist
+      if (error instanceof Error && error.message?.includes('no such table')) {
+        console.log("Tables don't exist yet, retrying in 2 seconds...");
+        setTimeout(() => this.seedData(), 2000);
+      }
     }
   }
 
