@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus } from "lucide-react";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
+import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
 import { PartsRequestModal } from "@/components/modals/parts-request-modal";
 import { FileUploadModal } from "@/components/modals/file-upload-modal";
 import { ChatModal } from "@/components/modals/chat-modal";
@@ -140,6 +141,26 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
       return {};
     }
   };
+
+  const createInvoiceMutation = useMutation({
+    mutationFn: (data: any) => 
+      apiRequest("POST", `/api/work-orders/${workOrder?.id}/invoice`, data),
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Invoice created successfully",
+      });
+      setIsInvoiceModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder?.id}/invoice`] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create invoice",
+        variant: "destructive",
+      });
+    },
+  });
 
   const createPaymentMutation = useMutation({
     mutationFn: (data: PaymentRequestFormData) => 
@@ -278,24 +299,24 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               Overview
             </TabsTrigger>
             <TabsTrigger value="proposal" className="flex items-center gap-1">
-              <Hammer className="h-3 w-3" />
+              <Receipt className="h-3 w-3" />
               Proposal
             </TabsTrigger>
+            <TabsTrigger value="invoice" className="flex items-center gap-1">
+              <DollarSign className="h-3 w-3" />
+              Invoice
+            </TabsTrigger>
             <TabsTrigger value="parts" className="flex items-center gap-1">
-              <Receipt className="h-3 w-3" />
+              <Hammer className="h-3 w-3" />
               Parts
             </TabsTrigger>
             <TabsTrigger value="files" className="flex items-center gap-1">
               <Upload className="h-3 w-3" />
               Files
             </TabsTrigger>
-            <TabsTrigger value="chat" className="flex items-center gap-1">
-              <MessageSquare className="h-3 w-3" />
-              Chat
-            </TabsTrigger>
-            <TabsTrigger value="payments" className="flex items-center gap-1">
+            <TabsTrigger value="payment" className="flex items-center gap-1">
               <CreditCard className="h-3 w-3" />
-              Payments
+              Payment
             </TabsTrigger>
           </TabsList>
 
@@ -819,6 +840,16 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           isOpen={isProposalModalOpen}
           onClose={() => setIsProposalModalOpen(false)}
           workOrder={workOrder}
+        />
+      )}
+
+      {isInvoiceModalOpen && (
+        <CreateInvoiceModal
+          isOpen={isInvoiceModalOpen}
+          onClose={() => setIsInvoiceModalOpen(false)}
+          workOrderId={workOrder?.id}
+          onSubmit={(data) => createInvoiceMutation.mutate(data)}
+          isLoading={createInvoiceMutation.isPending}
         />
       )}
 

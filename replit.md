@@ -147,6 +147,8 @@ Changelog:
 - June 22, 2025. Removed all payment-related functionality per user request
 - June 22, 2025. Rebuilt integrated payment request system within work orders with technician-specific payment methods
 - June 22, 2025. Created comprehensive Payment Manager page for administrative payment tracking and approval
+- June 22, 2025. Added Technician Payments Overview page showing payment summaries and totals for all technicians
+- June 22, 2025. Implemented Invoice Management system within work orders with automatic tax calculations and status tracking
 ```
 
 ## User Preferences
