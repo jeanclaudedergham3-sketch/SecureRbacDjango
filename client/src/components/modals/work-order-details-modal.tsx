@@ -564,12 +564,19 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                               <div className="mb-4">
                                 <h4 className="font-medium text-gray-700 mb-2 text-sm">Labor Details</h4>
                                 <div className="bg-blue-50 rounded-lg p-3 space-y-2">
-                                  {laborData.map((item: any, idx: number) => (
-                                    <div key={idx} className="flex justify-between text-sm">
-                                      <span>{item.description} ({item.hours}h)</span>
-                                      <span className="font-medium">${(parseFloat(item.cost || "0") * parseFloat(item.hours || "1")).toFixed(2)}</span>
-                                    </div>
-                                  ))}
+                                  {laborData.map((item: any, idx: number) => {
+                                    const payRate = parseFloat(item.payRate || "0");
+                                    const regularHours = parseFloat(item.regularHours || "0");
+                                    const otHours = parseFloat(item.otHours || "0");
+                                    const otScale = parseFloat(item.otScale || "1.5");
+                                    const total = (payRate * regularHours) + (payRate * otHours * otScale);
+                                    return (
+                                      <div key={idx} className="flex justify-between text-sm">
+                                        <span>{item.remark || `Labor ${idx + 1}`} ({regularHours}h reg + {otHours}h OT)</span>
+                                        <span className="font-medium">${total.toFixed(2)}</span>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}
@@ -581,8 +588,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                                 <div className="bg-green-50 rounded-lg p-3 space-y-2">
                                   {partsData.map((item: any, idx: number) => (
                                     <div key={idx} className="flex justify-between text-sm">
-                                      <span>{item.description} (Qty: {item.quantity})</span>
-                                      <span className="font-medium">${(parseFloat(item.cost || "0") * parseInt(item.quantity || "1")).toFixed(2)}</span>
+                                      <span>{item.remark || `Part ${idx + 1}`} (Qty: {item.quantity})</span>
+                                      <span className="font-medium">${(parseFloat(item.unitCost || "0") * parseInt(item.quantity || "1")).toFixed(2)}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -596,8 +603,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                                 <div className="bg-purple-50 rounded-lg p-3 space-y-2">
                                   {servicesData.map((item: any, idx: number) => (
                                     <div key={idx} className="flex justify-between text-sm">
-                                      <span>{item.description}</span>
-                                      <span className="font-medium">${parseFloat(item.cost || "0").toFixed(2)}</span>
+                                      <span>{item.remark || item.transactionType || `Service ${idx + 1}`} (Qty: {item.quantity || 1})</span>
+                                      <span className="font-medium">${(parseFloat(item.unitCost || "0") * parseInt(item.quantity || "1")).toFixed(2)}</span>
                                     </div>
                                   ))}
                                 </div>
