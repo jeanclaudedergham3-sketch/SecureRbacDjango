@@ -1,17 +1,52 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
-import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, loginSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 declare module 'express-session' {
   interface SessionData {
     userId: number;
   }
 }
+
+// Setup file upload middleware
+const storage_multer = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const workOrderId = req.params.id;
+    const uploadPath = path.join(process.cwd(), 'uploads', workOrderId);
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage_multer,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow all file types but validate size
+    cb(null, true);
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session configuration
@@ -602,6 +637,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to get parts requests" });
     }
   });
+
+  // Work Order File Management routes
+  app.get("/api/work-orders/:id/files", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const category = req.query.category as string;
+      const files = await storage.getWorkOrderFiles(workOrderId, category);
+      res.json(files);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get files" });
+    }
+  });
+
+  app.post("/api/work-orders/:id/files", requireAuth, requirePermission("view_work_orders"), upload.single('file'), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      
+      const { category, description, uploadedBy } = req.body;
+      
+      const fileData = {
+        workOrderId,
+        fileName: req.file.originalname,
+        filePath: `/uploads/${workOrderId}/${req.file.filename}`,
+        fileType: req.file.mimetype,
+        category: category || "document",
+        description: description || "",
+        uploadedBy: uploadedBy ? parseInt(uploadedBy) : req.session.userId || 1,
+      };
+      
+      const file = await storage.createWorkOrderFile(fileData);
+      res.status(201).json(file);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      res.status(400).json({ 
+        message: "Failed to upload file", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
+  app.delete("/api/work-orders/files/:id", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const fileId = parseInt(req.params.id);
+      const success = await storage.deleteWorkOrderFile(fileId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "File not found" });
+      }
+      
+      res.json({ message: "File deleted successfully" });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete file" });
+    }
+  });
+
+  // Serve uploaded files
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Dashboard stats
   app.get("/api/dashboard/stats", requireAuth, requirePermission("view_dashboard"), async (req, res) => {

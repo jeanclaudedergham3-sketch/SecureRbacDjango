@@ -141,6 +141,8 @@ Changelog:
 - June 22, 2025. Implemented technician map view and rating system with RBAC integration
 - June 22, 2025. Built comprehensive Work Order Management system with RBAC permissions
 - June 22, 2025. Added work order creation, tracking, and multi-tab detail views
+- June 22, 2025. Completed Parts Request Management system with approval workflow and RBAC
+- June 22, 2025. Implemented File Upload system for before/after photos, signatures, and documents with Multer
 ```
 
 ## User Preferences

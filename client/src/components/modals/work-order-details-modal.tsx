@@ -8,6 +8,7 @@ import { Calendar, DollarSign, MapPin, User, FileText, MessageSquare, CreditCard
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { PartsRequestModal } from "@/components/modals/parts-request-modal";
+import { FileUploadModal } from "@/components/modals/file-upload-modal";
 import { useAuth } from "@/hooks/use-auth";
 import type { WorkOrderWithUsers } from "@shared/schema";
 
@@ -22,6 +23,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [activeTab, setActiveTab] = useState("overview");
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [isPartsRequestModalOpen, setIsPartsRequestModalOpen] = useState(false);
+  const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -338,6 +340,14 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
         <PartsRequestModal
           isOpen={isPartsRequestModalOpen}
           onClose={() => setIsPartsRequestModalOpen(false)}
+          workOrder={workOrder}
+        />
+      )}
+
+      {isFileUploadModalOpen && (
+        <FileUploadModal
+          isOpen={isFileUploadModalOpen}
+          onClose={() => setIsFileUploadModalOpen(false)}
           workOrder={workOrder}
         />
       )}
