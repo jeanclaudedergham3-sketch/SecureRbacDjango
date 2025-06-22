@@ -4,7 +4,7 @@ import session from "express-session";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
-import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, loginSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 
 declare module 'express-session' {
@@ -371,6 +371,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Work Order routes
+  app.get("/api/work-orders", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const workOrders = await storage.getAllWorkOrders();
+      res.json(workOrders);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get work orders" });
+    }
+  });
+
+  app.post("/api/work-orders", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const workOrderData = insertWorkOrderSchema.parse(req.body);
+      const workOrder = await storage.createWorkOrder(workOrderData);
+      res.status(201).json(workOrder);
+    } catch (error) {
+      console.error("Error creating work order:", error);
+      res.status(400).json({ 
+        message: "Failed to create work order", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
+  app.put("/api/work-orders/:id", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const workOrderData = insertWorkOrderSchema.partial().parse(req.body);
+      const workOrder = await storage.updateWorkOrder(id, workOrderData);
+      if (!workOrder) {
+        return res.status(404).json({ message: "Work order not found" });
+      }
+      res.json(workOrder);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update work order" });
+    }
+  });
+
+  app.delete("/api/work-orders/:id", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteWorkOrder(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Work order not found" });
+      }
+      res.json({ message: "Work order deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete work order" });
+    }
+  });
+
   // Dashboard stats
   app.get("/api/dashboard/stats", requireAuth, requirePermission("view_dashboard"), async (req, res) => {
     try {
@@ -378,12 +429,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const roles = await storage.getAllRoles();
       const equipment = await storage.getAllEquipment();
       const technicians = await storage.getAllTechnicians();
+      const workOrders = await storage.getAllWorkOrders();
       
       const stats = {
         totalUsers: users.length,
         activeRoles: roles.length,
         equipment: equipment.length,
         technicians: technicians.length,
+        workOrders: workOrders.length,
         securityEvents: 0,
       };
       

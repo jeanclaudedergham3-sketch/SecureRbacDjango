@@ -1,9 +1,16 @@
 import { db } from "./database";
 import { 
   users, roles, permissions, userRoles, rolePermissions, equipment, technicians, technicianRatings,
+  workOrders, workOrderProposals, workOrderPartsRequests, workOrderFiles, workOrderChats, 
+  workOrderTechnicianPayments, workOrderInvoices,
   type User, type Role, type Permission, type Equipment, type Technician, type TechnicianRating,
+  type WorkOrder, type WorkOrderProposal, type WorkOrderPartsRequest, type WorkOrderFile, 
+  type WorkOrderChat, type WorkOrderTechnicianPayment, type WorkOrderInvoice,
   type InsertUser, type InsertRole, type InsertPermission, type InsertEquipment, 
-  type InsertTechnician, type InsertRating, type UserWithRole, type RoleWithPermissions 
+  type InsertTechnician, type InsertRating, type InsertWorkOrder, type InsertWorkOrderProposal,
+  type InsertWorkOrderPartsRequest, type InsertWorkOrderFile, type InsertWorkOrderChat,
+  type InsertWorkOrderTechnicianPayment, type InsertWorkOrderInvoice,
+  type UserWithRole, type RoleWithPermissions, type WorkOrderWithUser
 } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -64,6 +71,44 @@ export interface IStorage {
   createRating(rating: InsertRating): Promise<TechnicianRating>;
   getTechnicianRatings(technicianId: number): Promise<TechnicianRating[]>;
   updateTechnicianAverageRating(technicianId: number): Promise<void>;
+  
+  // Work Order operations
+  getWorkOrder(id: number): Promise<WorkOrder | undefined>;
+  createWorkOrder(workOrder: InsertWorkOrder): Promise<WorkOrder>;
+  updateWorkOrder(id: number, workOrder: Partial<InsertWorkOrder>): Promise<WorkOrder | undefined>;
+  deleteWorkOrder(id: number): Promise<boolean>;
+  getAllWorkOrders(): Promise<WorkOrderWithUser[]>;
+  getUserWorkOrders(userId: number): Promise<WorkOrderWithUser[]>;
+  generateWorkOrderNumber(): Promise<string>;
+  
+  // Work Order Proposal operations
+  getWorkOrderProposal(workOrderId: number): Promise<WorkOrderProposal | undefined>;
+  createWorkOrderProposal(proposal: InsertWorkOrderProposal): Promise<WorkOrderProposal>;
+  updateWorkOrderProposal(workOrderId: number, proposal: Partial<InsertWorkOrderProposal>): Promise<WorkOrderProposal | undefined>;
+  
+  // Work Order Parts Request operations
+  getWorkOrderPartsRequests(workOrderId: number): Promise<WorkOrderPartsRequest[]>;
+  createWorkOrderPartsRequest(partsRequest: InsertWorkOrderPartsRequest): Promise<WorkOrderPartsRequest>;
+  updateWorkOrderPartsRequestStatus(id: number, status: string): Promise<boolean>;
+  
+  // Work Order File operations
+  getWorkOrderFiles(workOrderId: number, category?: string): Promise<WorkOrderFile[]>;
+  createWorkOrderFile(file: InsertWorkOrderFile): Promise<WorkOrderFile>;
+  deleteWorkOrderFile(id: number): Promise<boolean>;
+  
+  // Work Order Chat operations
+  getWorkOrderChats(workOrderId: number): Promise<WorkOrderChat[]>;
+  createWorkOrderChat(chat: InsertWorkOrderChat): Promise<WorkOrderChat>;
+  
+  // Work Order Technician Payment operations
+  getWorkOrderTechnicianPayments(workOrderId: number): Promise<WorkOrderTechnicianPayment[]>;
+  createWorkOrderTechnicianPayment(payment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment>;
+  updateWorkOrderTechnicianPayment(id: number, payment: Partial<InsertWorkOrderTechnicianPayment>): Promise<WorkOrderTechnicianPayment | undefined>;
+  
+  // Work Order Invoice operations
+  getWorkOrderInvoice(workOrderId: number): Promise<WorkOrderInvoice | undefined>;
+  createWorkOrderInvoice(invoice: InsertWorkOrderInvoice): Promise<WorkOrderInvoice>;
+  updateWorkOrderInvoice(workOrderId: number, invoice: Partial<InsertWorkOrderInvoice>): Promise<WorkOrderInvoice | undefined>;
 }
 
 export class SqliteStorage implements IStorage {
@@ -100,6 +145,9 @@ export class SqliteStorage implements IStorage {
         { name: "edit_equipment", description: "Edit equipment" },
         { name: "manage_technicians", description: "Manage technicians" },
         { name: "rate_technicians", description: "Rate technicians" },
+        { name: "manage_work_orders", description: "Manage work orders" },
+        { name: "view_work_orders", description: "View work orders" },
+        { name: "manage_payments", description: "Manage technician payments" },
       ];
 
       const createdPermissions = [];
@@ -127,6 +175,9 @@ export class SqliteStorage implements IStorage {
       await this.assignRolePermission(managerRole.id, createdPermissions[6].id); // edit_equipment
       await this.assignRolePermission(managerRole.id, createdPermissions[7].id); // manage_technicians
       await this.assignRolePermission(managerRole.id, createdPermissions[8].id); // rate_technicians
+      await this.assignRolePermission(managerRole.id, createdPermissions[9].id); // manage_work_orders
+      await this.assignRolePermission(managerRole.id, createdPermissions[10].id); // view_work_orders
+      await this.assignRolePermission(managerRole.id, createdPermissions[11].id); // manage_payments
 
       // Viewer - read-only permissions
       await this.assignRolePermission(viewerRole.id, createdPermissions[0].id); // view_dashboard
@@ -134,6 +185,7 @@ export class SqliteStorage implements IStorage {
       await this.assignRolePermission(viewerRole.id, createdPermissions[3].id); // view_roles
       await this.assignRolePermission(viewerRole.id, createdPermissions[5].id); // view_equipment
       await this.assignRolePermission(viewerRole.id, createdPermissions[8].id); // rate_technicians
+      await this.assignRolePermission(viewerRole.id, createdPermissions[10].id); // view_work_orders
 
       // Create default users
       const adminUser = await this.createUser({
@@ -228,6 +280,33 @@ export class SqliteStorage implements IStorage {
         }),
         averageRating: "4.8",
         totalRatings: 8,
+      });
+
+      // Create sample work orders
+      await this.createWorkOrder({
+        clientName: "ABC Corporation",
+        country: "United States",
+        city: "New York",
+        street: "123 Business Ave",
+        nte: "5000.00",
+        tnte: "5500.00",
+        startDate: new Date("2025-01-15"),
+        endDate: new Date("2025-02-15"),
+        assignedUserId: adminUser.id,
+        status: "active",
+      });
+
+      await this.createWorkOrder({
+        clientName: "XYZ Industries",
+        country: "Canada",
+        city: "Toronto",
+        street: "789 Tech Boulevard",
+        nte: "8000.00",
+        tnte: "8800.00",
+        startDate: new Date("2025-01-20"),
+        endDate: new Date("2025-03-20"),
+        assignedUserId: managerUser.id,
+        status: "active",
       });
 
       console.log("Database seeded successfully");
@@ -525,6 +604,206 @@ export class SqliteStorage implements IStorage {
         totalRatings: ratings.length,
       })
       .where(eq(technicians.id, technicianId));
+  }
+
+  // Work Order operations
+  async getWorkOrder(id: number): Promise<WorkOrder | undefined> {
+    const result = await db.select().from(workOrders).where(eq(workOrders.id, id));
+    return result[0];
+  }
+
+  async createWorkOrder(insertWorkOrder: InsertWorkOrder): Promise<WorkOrder> {
+    const workOrderNumber = await this.generateWorkOrderNumber();
+    const result = await db.insert(workOrders).values({
+      ...insertWorkOrder,
+      workOrderNumber,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async updateWorkOrder(id: number, updateData: Partial<InsertWorkOrder>): Promise<WorkOrder | undefined> {
+    const result = await db.update(workOrders)
+      .set(updateData)
+      .where(eq(workOrders.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteWorkOrder(id: number): Promise<boolean> {
+    const result = await db.delete(workOrders).where(eq(workOrders.id, id));
+    return result.changes > 0;
+  }
+
+  async getAllWorkOrders(): Promise<WorkOrderWithUser[]> {
+    const result = await db.select({
+      workOrder: workOrders,
+      assignedUser: users
+    })
+    .from(workOrders)
+    .leftJoin(users, eq(workOrders.assignedUserId, users.id));
+    
+    return result.map(row => ({
+      ...row.workOrder,
+      assignedUser: row.assignedUser || undefined
+    }));
+  }
+
+  async getUserWorkOrders(userId: number): Promise<WorkOrderWithUser[]> {
+    const result = await db.select({
+      workOrder: workOrders,
+      assignedUser: users
+    })
+    .from(workOrders)
+    .leftJoin(users, eq(workOrders.assignedUserId, users.id))
+    .where(eq(workOrders.assignedUserId, userId));
+    
+    return result.map(row => ({
+      ...row.workOrder,
+      assignedUser: row.assignedUser || undefined
+    }));
+  }
+
+  async generateWorkOrderNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `WO-${year}-`;
+    
+    // Get the latest work order number for this year
+    const latestWorkOrder = await db.select()
+      .from(workOrders)
+      .where(sql`${workOrders.workOrderNumber} LIKE ${prefix + '%'}`)
+      .orderBy(sql`${workOrders.workOrderNumber} DESC`)
+      .limit(1);
+    
+    let nextNumber = 1;
+    if (latestWorkOrder.length > 0) {
+      const lastNumber = latestWorkOrder[0].workOrderNumber.split('-').pop();
+      nextNumber = parseInt(lastNumber || '0') + 1;
+    }
+    
+    return `${prefix}${nextNumber.toString().padStart(3, '0')}`;
+  }
+
+  // Work Order Proposal operations
+  async getWorkOrderProposal(workOrderId: number): Promise<WorkOrderProposal | undefined> {
+    const result = await db.select().from(workOrderProposals).where(eq(workOrderProposals.workOrderId, workOrderId));
+    return result[0];
+  }
+
+  async createWorkOrderProposal(insertProposal: InsertWorkOrderProposal): Promise<WorkOrderProposal> {
+    const result = await db.insert(workOrderProposals).values({
+      ...insertProposal,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async updateWorkOrderProposal(workOrderId: number, updateData: Partial<InsertWorkOrderProposal>): Promise<WorkOrderProposal | undefined> {
+    const result = await db.update(workOrderProposals)
+      .set(updateData)
+      .where(eq(workOrderProposals.workOrderId, workOrderId))
+      .returning();
+    return result[0];
+  }
+
+  // Work Order Parts Request operations
+  async getWorkOrderPartsRequests(workOrderId: number): Promise<WorkOrderPartsRequest[]> {
+    return await db.select().from(workOrderPartsRequests).where(eq(workOrderPartsRequests.workOrderId, workOrderId));
+  }
+
+  async createWorkOrderPartsRequest(insertPartsRequest: InsertWorkOrderPartsRequest): Promise<WorkOrderPartsRequest> {
+    const result = await db.insert(workOrderPartsRequests).values({
+      ...insertPartsRequest,
+      requestedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async updateWorkOrderPartsRequestStatus(id: number, status: string): Promise<boolean> {
+    const result = await db.update(workOrderPartsRequests)
+      .set({ status })
+      .where(eq(workOrderPartsRequests.id, id));
+    return result.changes > 0;
+  }
+
+  // Work Order File operations
+  async getWorkOrderFiles(workOrderId: number, category?: string): Promise<WorkOrderFile[]> {
+    if (category) {
+      return await db.select().from(workOrderFiles)
+        .where(sql`${workOrderFiles.workOrderId} = ${workOrderId} AND ${workOrderFiles.category} = ${category}`);
+    }
+    return await db.select().from(workOrderFiles).where(eq(workOrderFiles.workOrderId, workOrderId));
+  }
+
+  async createWorkOrderFile(insertFile: InsertWorkOrderFile): Promise<WorkOrderFile> {
+    const result = await db.insert(workOrderFiles).values({
+      ...insertFile,
+      uploadedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async deleteWorkOrderFile(id: number): Promise<boolean> {
+    const result = await db.delete(workOrderFiles).where(eq(workOrderFiles.id, id));
+    return result.changes > 0;
+  }
+
+  // Work Order Chat operations
+  async getWorkOrderChats(workOrderId: number): Promise<WorkOrderChat[]> {
+    return await db.select().from(workOrderChats)
+      .where(eq(workOrderChats.workOrderId, workOrderId))
+      .orderBy(workOrderChats.sentAt);
+  }
+
+  async createWorkOrderChat(insertChat: InsertWorkOrderChat): Promise<WorkOrderChat> {
+    const result = await db.insert(workOrderChats).values({
+      ...insertChat,
+      sentAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  // Work Order Technician Payment operations
+  async getWorkOrderTechnicianPayments(workOrderId: number): Promise<WorkOrderTechnicianPayment[]> {
+    return await db.select().from(workOrderTechnicianPayments).where(eq(workOrderTechnicianPayments.workOrderId, workOrderId));
+  }
+
+  async createWorkOrderTechnicianPayment(insertPayment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment> {
+    const result = await db.insert(workOrderTechnicianPayments).values({
+      ...insertPayment,
+      requestedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async updateWorkOrderTechnicianPayment(id: number, updateData: Partial<InsertWorkOrderTechnicianPayment>): Promise<WorkOrderTechnicianPayment | undefined> {
+    const result = await db.update(workOrderTechnicianPayments)
+      .set(updateData)
+      .where(eq(workOrderTechnicianPayments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Work Order Invoice operations
+  async getWorkOrderInvoice(workOrderId: number): Promise<WorkOrderInvoice | undefined> {
+    const result = await db.select().from(workOrderInvoices).where(eq(workOrderInvoices.workOrderId, workOrderId));
+    return result[0];
+  }
+
+  async createWorkOrderInvoice(insertInvoice: InsertWorkOrderInvoice): Promise<WorkOrderInvoice> {
+    const result = await db.insert(workOrderInvoices).values({
+      ...insertInvoice,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async updateWorkOrderInvoice(workOrderId: number, updateData: Partial<InsertWorkOrderInvoice>): Promise<WorkOrderInvoice | undefined> {
+    const result = await db.update(workOrderInvoices)
+      .set(updateData)
+      .where(eq(workOrderInvoices.workOrderId, workOrderId))
+      .returning();
+    return result[0];
   }
 }
 

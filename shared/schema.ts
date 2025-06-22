@@ -201,6 +201,7 @@ export const insertRatingSchema = createInsertSchema(technicianRatings).omit({
 
 export const insertWorkOrderSchema = createInsertSchema(workOrders).omit({
   id: true,
+  workOrderNumber: true,
   createdAt: true,
 }).extend({
   clientName: z.string().min(1, "Client name is required"),
