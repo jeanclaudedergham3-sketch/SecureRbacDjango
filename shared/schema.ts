@@ -131,7 +131,7 @@ export const workOrderChats = sqliteTable("work_order_chats", {
   message: text("message"),
   fileUrl: text("file_url"),
   messageType: text("message_type").notNull().default("text"), // text, file, image
-  sentAt: integer("sent_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
 export const workOrderTechnicianPayments = sqliteTable("work_order_technician_payments", {
