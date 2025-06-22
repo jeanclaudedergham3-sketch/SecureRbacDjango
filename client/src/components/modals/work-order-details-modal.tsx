@@ -58,6 +58,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isPaymentRequestOpen, setIsPaymentRequestOpen] = useState(false);
+  const [isViewProposalModalOpen, setIsViewProposalModalOpen] = useState(false);
 
   const { data: technicians = [] } = useQuery<Technician[]>({
     queryKey: ["/api/technicians"],
@@ -575,11 +576,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                     >
                       {workOrder.isLocked ? "Locked" : "Create Proposal"}
                     </Button>
-                    <Button variant="outline" onClick={() => {
-                      onClose();
-                      window.location.href = '/proposals';
-                    }}>
-                      View All Proposals
+                    <Button variant="outline" onClick={() => setIsViewProposalModalOpen(true)}>
+                      View Proposal Details
                     </Button>
                   </div>
                 </PermissionGuard>
@@ -1058,6 +1056,90 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
         />
       )}
 
+      {isViewProposalModalOpen && (
+        <Dialog open={isViewProposalModalOpen} onOpenChange={setIsViewProposalModalOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Proposal Details - {workOrder.workOrderNumber}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {proposalData ? (
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <CardTitle>Work Order Proposal</CardTitle>
+                      <Badge variant={proposalData.status === "approved" ? "default" : 
+                                   proposalData.status === "rejected" ? "destructive" : "secondary"}>
+                        {proposalData.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-sm text-gray-700">Labor Cost</h4>
+                        <p className="text-2xl font-bold text-blue-600">${parseFloat(proposalData.laborCost || "0").toFixed(2)}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-sm text-gray-700">Parts Cost</h4>
+                        <p className="text-2xl font-bold text-green-600">${parseFloat(proposalData.partsCost || "0").toFixed(2)}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-sm text-gray-700">Total Cost</h4>
+                        <p className="text-3xl font-bold text-gray-900">
+                          ${(parseFloat(proposalData.laborCost || "0") + parseFloat(proposalData.partsCost || "0")).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-sm text-gray-700">Estimated Hours</h4>
+                        <p className="text-2xl font-bold text-purple-600">{proposalData.estimatedHours || "0"} hours</p>
+                      </div>
+                    </div>
+                    
+                    {proposalData.description && (
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-gray-700">Description</h4>
+                        <div className="p-4 bg-gray-50 rounded-lg border">
+                          <p className="text-gray-900 whitespace-pre-wrap">{proposalData.description}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {proposalData.notes && (
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-gray-700">Notes</h4>
+                        <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <p className="text-gray-900 whitespace-pre-wrap">{proposalData.notes}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="pt-4 border-t">
+                      <div className="flex justify-between text-sm text-gray-500">
+                        <span>Created: {new Date(proposalData.createdAt).toLocaleDateString()}</span>
+                        {proposalData.updatedAt && proposalData.updatedAt !== proposalData.createdAt && (
+                          <span>Updated: {new Date(proposalData.updatedAt).toLocaleDateString()}</span>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="text-center py-8">
+                  <Hammer className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-medium mb-2">No Proposal Available</h3>
+                  <p className="text-gray-600">No proposal has been created for this work order yet.</p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end pt-4 border-t">
+              <Button onClick={() => setIsViewProposalModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
     </Dialog>
   );
