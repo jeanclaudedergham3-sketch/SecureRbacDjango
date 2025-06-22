@@ -272,6 +272,83 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           </div>
         </DialogHeader>
 
+        {/* Lock notification if work order is locked */}
+        {workOrder.isLocked && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-2 text-red-800">
+              <Receipt className="h-5 w-5" />
+              <span className="font-medium">Work Order Locked</span>
+            </div>
+            <p className="text-red-700 text-sm mt-1">
+              This work order is locked because its invoice has been marked as paid. 
+              All editing, creation, and modification functions are disabled. Data is read-only.
+            </p>
+          </div>
+        )}
+
+        {/* Action Buttons - Disabled when locked */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <PermissionGuard permission="manage_work_orders">
+            <Button
+              onClick={() => workOrder.isLocked ? toast({
+                title: "Action Blocked",
+                description: "Cannot create proposals - work order is locked due to paid invoice.",
+                variant: "destructive"
+              }) : setIsProposalModalOpen(true)}
+              className="flex items-center justify-center gap-2"
+              disabled={workOrder.isLocked}
+            >
+              <FileText className="h-4 w-4" />
+              {workOrder.isLocked ? "Locked" : "Create Proposal"}
+            </Button>
+          </PermissionGuard>
+          
+          <PermissionGuard permission="manage_work_orders">
+            <Button
+              onClick={() => workOrder.isLocked ? toast({
+                title: "Action Blocked", 
+                description: "Cannot modify invoices - work order is locked due to paid invoice.",
+                variant: "destructive"
+              }) : setIsInvoiceModalOpen(true)}
+              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700"
+              disabled={workOrder.isLocked}
+            >
+              <Receipt className="h-4 w-4" />
+              {workOrder.isLocked ? "Locked" : "Create Invoice"}
+            </Button>
+          </PermissionGuard>
+          
+          <PermissionGuard permission="manage_work_orders">
+            <Button
+              onClick={() => workOrder.isLocked ? toast({
+                title: "Action Blocked",
+                description: "Cannot request parts - work order is locked due to paid invoice.",
+                variant: "destructive"
+              }) : setIsPartsRequestModalOpen(true)}
+              className="flex items-center justify-center gap-2"
+              disabled={workOrder.isLocked}
+            >
+              <Hammer className="h-4 w-4" />
+              {workOrder.isLocked ? "Locked" : "Request Parts"}
+            </Button>
+          </PermissionGuard>
+          
+          <PermissionGuard permission="manage_work_orders">
+            <Button
+              onClick={() => workOrder.isLocked ? toast({
+                title: "Action Blocked",
+                description: "Cannot upload files - work order is locked due to paid invoice.",
+                variant: "destructive"
+              }) : setIsFileUploadModalOpen(true)}
+              className="flex items-center justify-center gap-2"
+              disabled={workOrder.isLocked}
+            >
+              <Upload className="h-4 w-4" />
+              {workOrder.isLocked ? "Locked" : "Upload Files"}
+            </Button>
+          </PermissionGuard>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview" className="flex items-center gap-1">
@@ -436,8 +513,15 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 Request parts and materials for this work order.
               </p>
               <div className="space-x-2">
-                <Button onClick={() => setIsPartsRequestModalOpen(true)}>
-                  Request Parts
+                <Button 
+                  onClick={() => workOrder.isLocked ? toast({
+                    title: "Action Blocked",
+                    description: "Cannot request parts - work order is locked due to paid invoice.",
+                    variant: "destructive"
+                  }) : setIsPartsRequestModalOpen(true)}
+                  disabled={workOrder.isLocked}
+                >
+                  {workOrder.isLocked ? "Locked" : "Request Parts"}
                 </Button>
                 <Button variant="outline" onClick={() => window.location.href = '/parts-requests'}>
                   View All Parts Requests
