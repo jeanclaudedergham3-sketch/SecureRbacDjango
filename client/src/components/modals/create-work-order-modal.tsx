@@ -129,7 +129,13 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
       endDate: formData.endDate,
     };
 
-    createWorkOrderMutation.mutate(submitData);
+    createWorkOrderMutation.mutate(submitData, {
+      onSuccess: () => {
+        // Force refresh of work orders list
+        queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+        onClose();
+      }
+    });
   };
 
   return (

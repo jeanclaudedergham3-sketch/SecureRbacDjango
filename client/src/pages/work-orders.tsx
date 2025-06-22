@@ -16,8 +16,10 @@ export default function WorkOrders() {
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUsers | null>(null);
   const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrderWithUsers | null>(null);
 
-  const { data: workOrders = [] } = useQuery<WorkOrderWithUsers[]>({
+  const { data: workOrders = [], isLoading, refetch } = useQuery<WorkOrderWithUsers[]>({
     queryKey: ["/api/work-orders"],
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   const getStatusColor = (status: string) => {
@@ -70,10 +72,15 @@ export default function WorkOrders() {
             </p>
           </div>
           <PermissionGuard permission="manage_work_orders">
-            <Button onClick={() => setIsCreating(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Work Order
-            </Button>
+            <div className="space-x-2">
+              <Button onClick={() => setIsCreating(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Work Order
+              </Button>
+              <Button variant="outline" onClick={() => refetch()}>
+                Refresh
+              </Button>
+            </div>
           </PermissionGuard>
         </div>
 
