@@ -2,14 +2,14 @@ import { db } from "./database";
 import { 
   users, roles, permissions, userRoles, rolePermissions, equipment, technicians, technicianRatings,
   workOrders, workOrderProposals, workOrderPartsRequests, workOrderFiles, workOrderChats, 
-  workOrderInvoices,
+  workOrderTechnicianPayments, workOrderInvoices,
   type User, type Role, type Permission, type Equipment, type Technician, type TechnicianRating,
   type WorkOrder, type WorkOrderProposal, type WorkOrderPartsRequest, type WorkOrderFile, 
-  type WorkOrderChat, type WorkOrderInvoice,
+  type WorkOrderChat, type WorkOrderTechnicianPayment, type WorkOrderInvoice,
   type InsertUser, type InsertRole, type InsertPermission, type InsertEquipment, 
   type InsertTechnician, type InsertRating, type InsertWorkOrder, type InsertWorkOrderProposal,
   type InsertWorkOrderPartsRequest, type InsertWorkOrderFile, type InsertWorkOrderChat,
-  type InsertWorkOrderInvoice,
+  type InsertWorkOrderTechnicianPayment, type InsertWorkOrderInvoice,
   type UserWithRole, type RoleWithPermissions, type WorkOrderWithUsers
 } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
@@ -100,7 +100,10 @@ export interface IStorage {
   getWorkOrderChats(workOrderId: number): Promise<WorkOrderChat[]>;
   createWorkOrderChat(chat: InsertWorkOrderChat): Promise<WorkOrderChat>;
   
-
+  // Work Order Technician Payment operations
+  getWorkOrderTechnicianPayments(workOrderId: number): Promise<WorkOrderTechnicianPayment[]>;
+  createWorkOrderTechnicianPayment(payment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment>;
+  updateWorkOrderTechnicianPayment(id: number, payment: Partial<InsertWorkOrderTechnicianPayment>): Promise<WorkOrderTechnicianPayment | undefined>;
   
   // Work Order Invoice operations
   getWorkOrderInvoice(workOrderId: number): Promise<WorkOrderInvoice | undefined>;
@@ -762,7 +765,32 @@ export class SqliteStorage implements IStorage {
     return result[0];
   }
 
+  // Work Order Technician Payment operations
+  async getWorkOrderTechnicianPayments(workOrderId: number): Promise<WorkOrderTechnicianPayment[]> {
+    await this.ensureInitialized();
+    if (workOrderId === 0) {
+      // Get all payments
+      return await db.select().from(workOrderTechnicianPayments);
+    }
+    return await db.select()
+      .from(workOrderTechnicianPayments)
+      .where(eq(workOrderTechnicianPayments.workOrderId, workOrderId));
+  }
 
+  async createWorkOrderTechnicianPayment(insertPayment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment> {
+    await this.ensureInitialized();
+    const result = await db.insert(workOrderTechnicianPayments).values(insertPayment).returning();
+    return result[0];
+  }
+
+  async updateWorkOrderTechnicianPayment(id: number, updateData: Partial<InsertWorkOrderTechnicianPayment>): Promise<WorkOrderTechnicianPayment | undefined> {
+    await this.ensureInitialized();
+    const result = await db.update(workOrderTechnicianPayments)
+      .set(updateData)
+      .where(eq(workOrderTechnicianPayments.id, id))
+      .returning();
+    return result[0];
+  }
 
   // Work Order Invoice operations
   async getWorkOrderInvoice(workOrderId: number): Promise<WorkOrderInvoice | undefined> {

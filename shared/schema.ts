@@ -235,6 +235,13 @@ export const insertWorkOrderChatSchema = createInsertSchema(workOrderChats).omit
 
 
 
+export const insertWorkOrderTechnicianPaymentSchema = createInsertSchema(workOrderTechnicianPayments).omit({
+  id: true,
+  requestedAt: true,
+  approvedAt: true,
+  paidAt: true
+});
+
 export const insertWorkOrderInvoiceSchema = createInsertSchema(workOrderInvoices).omit({
   id: true,
   createdAt: true,
@@ -258,7 +265,7 @@ export type WorkOrderProposal = typeof workOrderProposals.$inferSelect;
 export type WorkOrderPartsRequest = typeof workOrderPartsRequests.$inferSelect;
 export type WorkOrderFile = typeof workOrderFiles.$inferSelect;
 export type WorkOrderChat = typeof workOrderChats.$inferSelect;
-
+export type WorkOrderTechnicianPayment = typeof workOrderTechnicianPayments.$inferSelect;
 export type WorkOrderInvoice = typeof workOrderInvoices.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -272,7 +279,7 @@ export type InsertWorkOrderProposal = z.infer<typeof insertWorkOrderProposalSche
 export type InsertWorkOrderPartsRequest = z.infer<typeof insertWorkOrderPartsRequestSchema>;
 export type InsertWorkOrderFile = z.infer<typeof insertWorkOrderFileSchema>;
 export type InsertWorkOrderChat = z.infer<typeof insertWorkOrderChatSchema>;
-
+export type InsertWorkOrderTechnicianPayment = z.infer<typeof insertWorkOrderTechnicianPaymentSchema>;
 export type InsertWorkOrderInvoice = z.infer<typeof insertWorkOrderInvoiceSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
 

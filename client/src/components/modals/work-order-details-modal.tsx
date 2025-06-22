@@ -4,12 +4,23 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer } from "lucide-react";
+import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus } from "lucide-react";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { PartsRequestModal } from "@/components/modals/parts-request-modal";
 import { FileUploadModal } from "@/components/modals/file-upload-modal";
 import { ChatModal } from "@/components/modals/chat-modal";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import type { Technician } from "@shared/schema";
 
 import { useAuth } from "@/hooks/use-auth";
 import type { WorkOrderWithUsers } from "@shared/schema";
@@ -20,13 +31,71 @@ interface WorkOrderDetailsModalProps {
   workOrder: WorkOrderWithUsers;
 }
 
+const paymentRequestSchema = z.object({
+  technicianId: z.number().min(1, "Technician is required"),
+  paymentMethod: z.enum(["bank_transfer", "cash", "check", "digital_wallet"]),
+  amountRequested: z.string().min(1, "Amount is required").refine(
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+    "Amount must be a positive number"
+  ),
+  description: z.string().optional(),
+});
+
+type PaymentRequestFormData = z.infer<typeof paymentRequestSchema>;
+
 export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderDetailsModalProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
   const [activeTab, setActiveTab] = useState("overview");
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [isPartsRequestModalOpen, setIsPartsRequestModalOpen] = useState(false);
   const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [isPaymentRequestOpen, setIsPaymentRequestOpen] = useState(false);
+
+  const { data: technicians = [] } = useQuery<Technician[]>({
+    queryKey: ["/api/technicians"],
+  });
+
+  const paymentForm = useForm<PaymentRequestFormData>({
+    resolver: zodResolver(paymentRequestSchema),
+    defaultValues: {
+      technicianId: 0,
+      paymentMethod: "bank_transfer",
+      amountRequested: "",
+      description: "",
+    },
+  });
+
+  const createPaymentMutation = useMutation({
+    mutationFn: (data: PaymentRequestFormData) => 
+      apiRequest("POST", "/api/payments", {
+        workOrderId: workOrder.id,
+        ...data,
+        amountRequested: parseFloat(data.amountRequested),
+      }),
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Payment request created successfully",
+      });
+      setIsPaymentRequestOpen(false);
+      paymentForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create payment request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handlePaymentSubmit = (data: PaymentRequestFormData) => {
+    createPaymentMutation.mutate(data);
+  };
 
 
   const getStatusColor = (status: string) => {
@@ -293,12 +362,148 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
             <div className="text-center py-8">
               <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <h3 className="text-lg font-medium mb-2">Payment Requests</h3>
-              <p className="text-gray-600 mb-4">
-                Create and manage payment requests for technicians working on this order.
+              <p className="text-gray-600 mb-6">
+                Create payment requests for technicians working on this order.
               </p>
-              <PermissionGuard permission="manage_work_orders">
-
+              
+              <PermissionGuard permission="view_work_orders">
+                <Button onClick={() => setIsPaymentRequestOpen(true)} className="mb-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Payment Request
+                </Button>
               </PermissionGuard>
+
+              {isPaymentRequestOpen && (
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle>New Payment Request</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Form {...paymentForm}>
+                      <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-4">
+                        {/* Technician Selection */}
+                        <FormField
+                          control={paymentForm.control}
+                          name="technicianId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Technician</FormLabel>
+                              <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select technician" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {technicians.map((technician) => (
+                                    <SelectItem key={technician.id} value={technician.id.toString()}>
+                                      <div className="flex items-center space-x-2">
+                                        <span>{technician.firstName || 'Unknown'} {technician.lastName || 'Technician'}</span>
+                                        {technician.averageRating && (
+                                          <span className="text-sm text-gray-500">⭐ {technician.averageRating}</span>
+                                        )}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Payment Method */}
+                        <FormField
+                          control={paymentForm.control}
+                          name="paymentMethod"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Payment Method</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select payment method" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                  <SelectItem value="cash">Cash</SelectItem>
+                                  <SelectItem value="check">Check</SelectItem>
+                                  <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Amount */}
+                        <FormField
+                          control={paymentForm.control}
+                          name="amountRequested"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Amount Requested</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    className="pl-10"
+                                    {...field}
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Description */}
+                        <FormField
+                          control={paymentForm.control}
+                          name="description"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Description (Optional)</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="Additional notes..."
+                                  className="resize-none"
+                                  rows={3}
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="flex justify-end space-x-2">
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={() => setIsPaymentRequestOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            type="submit" 
+                            disabled={createPaymentMutation.isPending}
+                          >
+                            {createPaymentMutation.isPending ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            ) : null}
+                            Send Payment Request
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
         </Tabs>

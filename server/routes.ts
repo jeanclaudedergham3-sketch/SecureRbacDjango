@@ -5,7 +5,7 @@ import session from "express-session";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
-import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, loginSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import multer from "multer";
 import path from "path";
