@@ -15,7 +15,6 @@ import TechnicianMap from "@/pages/technician-map";
 import WorkOrders from "@/pages/work-orders";
 import Proposals from "@/pages/proposals";
 import PartsRequests from "@/pages/parts-requests";
-import Payments from "@/pages/payments";
 import AdminPayments from "@/pages/admin-payments";
 import TechnicianProfile from "@/pages/technician-profile";
 import TechnicianPayments from "@/pages/technician-payments";
@@ -80,8 +79,7 @@ function Router() {
       <Route path="/work-orders" component={() => <ProtectedRoute component={WorkOrders} />} />
       <Route path="/proposals" component={() => <ProtectedRoute component={Proposals} />} />
       <Route path="/parts-requests" component={() => <ProtectedRoute component={PartsRequests} />} />
-      <Route path="/payments" component={() => <ProtectedRoute component={Payments} />} />
-      <Route path="/admin-payments" component={() => <ProtectedRoute component={AdminPayments} />} />
+      <Route path="/payments" component={() => <ProtectedRoute component={AdminPayments} />} />
       <Route path="/technician-profile" component={() => <ProtectedRoute component={TechnicianProfile} />} />
       <Route path="/technician-payments" component={() => <ProtectedRoute component={TechnicianPayments} />} />
       <Route path="/" component={() => <Redirect to="/dashboard" />} />

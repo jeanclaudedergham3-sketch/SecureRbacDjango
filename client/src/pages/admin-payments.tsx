@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
+import { CreatePaymentRequestModal } from "@/components/modals/create-payment-request-modal";
 import { 
   DollarSign, 
   User, 
@@ -460,6 +461,12 @@ export default function AdminPaymentsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Create Payment Request Modal */}
+      <CreatePaymentRequestModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
     </div>
   );
 }
