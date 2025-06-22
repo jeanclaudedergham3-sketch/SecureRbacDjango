@@ -476,33 +476,102 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           </TabsContent>
 
           <TabsContent value="proposal" className="space-y-4">
-            <div className="text-center py-8">
-              <Hammer className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium mb-2">Proposal Management</h3>
-              <p className="text-gray-600 mb-4">
-                Create and manage labor, parts, and services proposals for this work order.
-              </p>
-              <PermissionGuard permission="manage_work_orders">
-                <div className="space-x-2">
+            {proposalData ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Work Order Proposal</h3>
+                  <PermissionGuard permission="manage_work_orders">
+                    <Button 
+                      onClick={() => workOrder.isLocked ? toast({
+                        title: "Action Blocked",
+                        description: "Cannot edit proposals - work order is locked due to paid invoice.",
+                        variant: "destructive"
+                      }) : setIsProposalModalOpen(true)}
+                      disabled={workOrder.isLocked}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {workOrder.isLocked ? "Locked" : "Edit Proposal"}
+                    </Button>
+                  </PermissionGuard>
+                </div>
+                
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <CardTitle>Proposal Details</CardTitle>
+                      <Badge variant={proposalData.status === "approved" ? "default" : 
+                                   proposalData.status === "rejected" ? "destructive" : "secondary"}>
+                        {proposalData.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium text-sm text-gray-700">Labor Cost</h4>
+                        <p className="text-lg font-semibold">${parseFloat(proposalData.laborCost || "0").toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm text-gray-700">Parts Cost</h4>
+                        <p className="text-lg font-semibold">${parseFloat(proposalData.partsCost || "0").toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm text-gray-700">Total Cost</h4>
+                        <p className="text-xl font-bold text-blue-600">
+                          ${(parseFloat(proposalData.laborCost || "0") + parseFloat(proposalData.partsCost || "0")).toFixed(2)}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm text-gray-700">Estimated Hours</h4>
+                        <p className="text-lg font-semibold">{proposalData.estimatedHours || "0"} hours</p>
+                      </div>
+                    </div>
+                    
+                    {proposalData.description && (
+                      <div>
+                        <h4 className="font-medium text-sm text-gray-700 mb-2">Description</h4>
+                        <p className="text-gray-900 bg-gray-50 p-3 rounded border">{proposalData.description}</p>
+                      </div>
+                    )}
+                    
+                    {proposalData.notes && (
+                      <div>
+                        <h4 className="font-medium text-sm text-gray-700 mb-2">Notes</h4>
+                        <p className="text-gray-900 bg-gray-50 p-3 rounded border">{proposalData.notes}</p>
+                      </div>
+                    )}
+                    
+                    <div className="text-sm text-gray-500">
+                      Created: {new Date(proposalData.createdAt).toLocaleDateString()}
+                      {proposalData.updatedAt && proposalData.updatedAt !== proposalData.createdAt && (
+                        <span> • Updated: {new Date(proposalData.updatedAt).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Hammer className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-medium mb-2">No Proposal Created</h3>
+                <p className="text-gray-600 mb-4">
+                  Create a proposal with labor, parts, and services for this work order.
+                </p>
+                <PermissionGuard permission="manage_work_orders">
                   <Button 
                     onClick={() => workOrder.isLocked ? toast({
                       title: "Action Blocked",
-                      description: "Cannot create/edit proposals - work order is locked due to paid invoice.",
+                      description: "Cannot create proposals - work order is locked due to paid invoice.",
                       variant: "destructive"
                     }) : setIsProposalModalOpen(true)}
                     disabled={workOrder.isLocked}
                   >
-                    {workOrder.isLocked ? "Locked" : "Create/Edit Proposal"}
+                    {workOrder.isLocked ? "Locked" : "Create Proposal"}
                   </Button>
-                  <Button variant="outline" onClick={() => {
-                    onClose();
-                    window.location.href = '/proposals';
-                  }}>
-                    View All Proposals
-                  </Button>
-                </div>
-              </PermissionGuard>
-            </div>
+                </PermissionGuard>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="invoice" className="space-y-4">
