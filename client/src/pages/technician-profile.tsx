@@ -114,7 +114,8 @@ export default function TechnicianProfilePage() {
   };
 
   const filteredTechnicians = technicians.filter(technician => {
-    const matchesSearch = `${technician.firstName} ${technician.lastName}`
+    const fullName = `${technician.firstName || ''} ${technician.lastName || ''}`.trim();
+    const matchesSearch = fullName
       .toLowerCase()
       .includes(searchTerm.toLowerCase()) ||
       (technician.phoneNumber && technician.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -169,7 +170,7 @@ export default function TechnicianProfilePage() {
                     }`}></div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{technician.firstName} {technician.lastName}</h3>
+                    <h3 className="font-semibold text-lg">{technician.firstName || 'Unknown'} {technician.lastName || 'Technician'}</h3>
                     <p className="text-sm text-gray-600">{technician.specialization}</p>
                     {technician.averageRating && (
                       <div className="flex items-center mt-1">
@@ -240,7 +241,7 @@ export default function TechnicianProfilePage() {
         <DialogContent className="sm:max-w-[900px] max-h-[80vh]">
           <DialogHeader>
             <DialogTitle>
-              {selectedTechnician && `${selectedTechnician.firstName} ${selectedTechnician.lastName} Profile`}
+              {selectedTechnician && `${selectedTechnician.firstName || 'Unknown'} ${selectedTechnician.lastName || 'Technician'} Profile`}
             </DialogTitle>
             <DialogDescription>
               Complete work history and payment details
