@@ -145,6 +145,8 @@ Changelog:
 - June 22, 2025. Implemented File Upload system for before/after photos, signatures, and documents with Multer
 - June 22, 2025. Built real-time Chat system for work order communication with message history
 - June 22, 2025. Removed all payment-related functionality per user request
+- June 22, 2025. Rebuilt integrated payment request system within work orders with technician-specific payment methods
+- June 22, 2025. Created comprehensive Payment Manager page for administrative payment tracking and approval
 ```
 
 ## User Preferences

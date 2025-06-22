@@ -15,6 +15,7 @@ import TechnicianMap from "@/pages/technician-map";
 import WorkOrders from "@/pages/work-orders";
 import Proposals from "@/pages/proposals";
 import PartsRequests from "@/pages/parts-requests";
+import PaymentManager from "@/pages/payment-manager";
 
 import NotFound from "@/pages/not-found";
 
@@ -77,6 +78,7 @@ function Router() {
       <Route path="/work-orders" component={() => <ProtectedRoute component={WorkOrders} />} />
       <Route path="/proposals" component={() => <ProtectedRoute component={Proposals} />} />
       <Route path="/parts-requests" component={() => <ProtectedRoute component={PartsRequests} />} />
+      <Route path="/payment-manager" component={() => <ProtectedRoute component={PaymentManager} />} />
       <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
     </Switch>
