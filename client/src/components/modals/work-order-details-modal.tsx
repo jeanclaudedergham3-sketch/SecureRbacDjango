@@ -642,15 +642,41 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                               </Badge>
                             </div>
                             <div className="text-sm text-gray-600">
-                              <div>Quantity: {request.quantity}</div>
-                              <div>Supplier: {request.supplier || "Not specified"}</div>
-                              {request.description && <div>Description: {request.description}</div>}
+                              <div>Status: {request.status}</div>
+                              <div>Reason: {request.reason || "Not specified"}</div>
                               <div>Requested: {new Date(request.createdAt).toLocaleDateString()}</div>
+                              {(() => {
+                                try {
+                                  const parts = JSON.parse(request.parts || "[]");
+                                  return (
+                                    <div className="mt-2">
+                                      <div className="font-medium">Parts:</div>
+                                      {parts.map((part: any, idx: number) => (
+                                        <div key={idx} className="ml-2 text-xs">
+                                          • {part.name} (Qty: {part.quantity}) - ${parseFloat(part.estimatedCost || "0").toFixed(2)} each
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                } catch {
+                                  return null;
+                                }
+                              })()}
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-lg font-medium">${parseFloat(request.estimatedCost || "0").toFixed(2)}</div>
-                            <div className="text-sm text-gray-500">Estimated Cost</div>
+                            <div className="text-lg font-medium">
+                              {(() => {
+                                try {
+                                  const parts = JSON.parse(request.parts || "[]");
+                                  const total = parts.reduce((sum: number, part: any) => sum + (parseFloat(part.estimatedCost || "0") * parseInt(part.quantity || "1")), 0);
+                                  return `$${total.toFixed(2)}`;
+                                } catch {
+                                  return "$0.00";
+                                }
+                              })()}
+                            </div>
+                            <div className="text-sm text-gray-500">Total Cost</div>
                           </div>
                         </div>
                       </CardContent>
@@ -1103,41 +1129,101 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm text-gray-700">Labor Cost</h4>
-                        <p className="text-2xl font-bold text-blue-600">${parseFloat(proposalData.laborCost || "0").toFixed(2)}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm text-gray-700">Parts Cost</h4>
-                        <p className="text-2xl font-bold text-green-600">${parseFloat(proposalData.partsCost || "0").toFixed(2)}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm text-gray-700">Total Cost</h4>
-                        <p className="text-3xl font-bold text-gray-900">
-                          ${(parseFloat(proposalData.laborCost || "0") + parseFloat(proposalData.partsCost || "0")).toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm text-gray-700">Estimated Hours</h4>
-                        <p className="text-2xl font-bold text-purple-600">{proposalData.estimatedHours || "0"} hours</p>
-                      </div>
-                    </div>
+                    {(() => {
+                      try {
+                        const laborData = JSON.parse(proposalData.laborData || "[]");
+                        const partsData = JSON.parse(proposalData.partsData || "[]");
+                        const servicesData = JSON.parse(proposalData.servicesData || "[]");
+                        
+                        const laborTotal = laborData.reduce((sum: number, item: any) => sum + (parseFloat(item.cost || "0") * parseFloat(item.hours || "1")), 0);
+                        const partsTotal = partsData.reduce((sum: number, item: any) => sum + (parseFloat(item.cost || "0") * parseInt(item.quantity || "1")), 0);
+                        const servicesTotal = servicesData.reduce((sum: number, item: any) => sum + parseFloat(item.cost || "0"), 0);
+                        const grandTotal = laborTotal + partsTotal + servicesTotal;
+                        
+                        return (
+                          <div>
+                            <div className="grid grid-cols-2 gap-6 mb-6">
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-sm text-gray-700">Labor Total</h4>
+                                <p className="text-2xl font-bold text-blue-600">${laborTotal.toFixed(2)}</p>
+                              </div>
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-sm text-gray-700">Parts Total</h4>
+                                <p className="text-2xl font-bold text-green-600">${partsTotal.toFixed(2)}</p>
+                              </div>
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-sm text-gray-700">Services Total</h4>
+                                <p className="text-2xl font-bold text-purple-600">${servicesTotal.toFixed(2)}</p>
+                              </div>
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-sm text-gray-700">Grand Total</h4>
+                                <p className="text-3xl font-bold text-gray-900">${grandTotal.toFixed(2)}</p>
+                              </div>
+                            </div>
+                            
+                            {laborData.length > 0 && (
+                              <div className="mb-6">
+                                <h4 className="font-medium text-gray-700 mb-3">Labor Details</h4>
+                                <div className="space-y-2">
+                                  {laborData.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                                      <div>
+                                        <div className="font-medium">{item.description}</div>
+                                        <div className="text-sm text-gray-600">{item.hours} hours × ${parseFloat(item.cost || "0").toFixed(2)}/hr</div>
+                                      </div>
+                                      <div className="font-bold">${(parseFloat(item.cost || "0") * parseFloat(item.hours || "1")).toFixed(2)}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {partsData.length > 0 && (
+                              <div className="mb-6">
+                                <h4 className="font-medium text-gray-700 mb-3">Parts Details</h4>
+                                <div className="space-y-2">
+                                  {partsData.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                                      <div>
+                                        <div className="font-medium">{item.description}</div>
+                                        <div className="text-sm text-gray-600">Qty: {item.quantity} × ${parseFloat(item.cost || "0").toFixed(2)} each</div>
+                                      </div>
+                                      <div className="font-bold">${(parseFloat(item.cost || "0") * parseInt(item.quantity || "1")).toFixed(2)}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {servicesData.length > 0 && (
+                              <div className="mb-6">
+                                <h4 className="font-medium text-gray-700 mb-3">Services Details</h4>
+                                <div className="space-y-2">
+                                  {servicesData.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                                      <div className="font-medium">{item.description}</div>
+                                      <div className="font-bold">${parseFloat(item.cost || "0").toFixed(2)}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      } catch {
+                        return (
+                          <div className="text-center py-8">
+                            <p className="text-gray-500">Unable to parse proposal data</p>
+                          </div>
+                        );
+                      }
+                    })()}
                     
-                    {proposalData.description && (
+                    {proposalData.message && (
                       <div className="space-y-2">
-                        <h4 className="font-medium text-gray-700">Description</h4>
+                        <h4 className="font-medium text-gray-700">Message</h4>
                         <div className="p-4 bg-gray-50 rounded-lg border">
-                          <p className="text-gray-900 whitespace-pre-wrap">{proposalData.description}</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {proposalData.notes && (
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-gray-700">Notes</h4>
-                        <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                          <p className="text-gray-900 whitespace-pre-wrap">{proposalData.notes}</p>
+                          <p className="text-gray-900 whitespace-pre-wrap">{proposalData.message}</p>
                         </div>
                       </div>
                     )}
@@ -1184,7 +1270,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                         <div className="flex justify-between items-start mb-4">
                           <div className="space-y-2">
                             <div className="flex items-center space-x-3">
-                              <h4 className="text-xl font-bold text-gray-900">{request.partName}</h4>
+                              <h4 className="text-xl font-bold text-gray-900">Parts Request #{request.id}</h4>
                               <Badge variant={
                                 request.status === "approved" ? "default" : 
                                 request.status === "rejected" ? "destructive" : 
@@ -1195,30 +1281,71 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-2xl font-bold text-green-600">${parseFloat(request.estimatedCost || "0").toFixed(2)}</div>
-                            <div className="text-sm text-gray-500">Estimated Cost</div>
+                            <div className="text-2xl font-bold text-green-600">
+                              {(() => {
+                                try {
+                                  const parts = JSON.parse(request.parts || "[]");
+                                  const total = parts.reduce((sum: number, part: any) => sum + (parseFloat(part.estimatedCost || "0") * parseInt(part.quantity || "1")), 0);
+                                  return `$${total.toFixed(2)}`;
+                                } catch {
+                                  return "$0.00";
+                                }
+                              })()}
+                            </div>
+                            <div className="text-sm text-gray-500">Total Cost</div>
                           </div>
                         </div>
                         
                         <div className="grid grid-cols-2 gap-6 mb-4">
                           <div>
-                            <h5 className="font-medium text-gray-700 mb-1">Quantity</h5>
-                            <p className="text-lg font-semibold">{request.quantity}</p>
+                            <h5 className="font-medium text-gray-700 mb-1">Status</h5>
+                            <p className="text-lg font-semibold capitalize">{request.status}</p>
                           </div>
                           <div>
-                            <h5 className="font-medium text-gray-700 mb-1">Supplier</h5>
-                            <p className="text-lg">{request.supplier || "Not specified"}</p>
+                            <h5 className="font-medium text-gray-700 mb-1">Requested By</h5>
+                            <p className="text-lg">User #{request.requestedBy}</p>
                           </div>
                         </div>
                         
-                        {request.description && (
+                        {request.reason && (
                           <div className="mb-4">
-                            <h5 className="font-medium text-gray-700 mb-2">Description</h5>
+                            <h5 className="font-medium text-gray-700 mb-2">Reason</h5>
                             <div className="p-3 bg-gray-50 rounded-lg border">
-                              <p className="text-gray-900">{request.description}</p>
+                              <p className="text-gray-900">{request.reason}</p>
                             </div>
                           </div>
                         )}
+                        
+                        {(() => {
+                          try {
+                            const parts = JSON.parse(request.parts || "[]");
+                            return parts.length > 0 ? (
+                              <div className="mb-4">
+                                <h5 className="font-medium text-gray-700 mb-2">Parts Details</h5>
+                                <div className="space-y-2">
+                                  {parts.map((part: any, idx: number) => (
+                                    <div key={idx} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                      <div className="flex justify-between items-start">
+                                        <div>
+                                          <div className="font-medium">{part.name}</div>
+                                          <div className="text-sm text-gray-600">Quantity: {part.quantity}</div>
+                                          {part.supplier && <div className="text-sm text-gray-600">Supplier: {part.supplier}</div>}
+                                          {part.description && <div className="text-sm text-gray-600">{part.description}</div>}
+                                        </div>
+                                        <div className="text-right">
+                                          <div className="font-bold">${parseFloat(part.estimatedCost || "0").toFixed(2)}</div>
+                                          <div className="text-sm text-gray-500">per unit</div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null;
+                          } catch {
+                            return null;
+                          }
+                        })()}
                         
                         <div className="text-sm text-gray-500 pt-3 border-t">
                           Requested: {new Date(request.createdAt).toLocaleDateString()}
