@@ -66,52 +66,5 @@
   body {
     @apply bg-background text-foreground;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-  }
-}
-
-@layer components {
-  /* Admin Panel Base Styles */
-  .admin-layout {
-    @apply flex h-screen overflow-hidden bg-gray-50;
-  }
-  
-  .admin-sidebar {
-    @apply hidden md:flex md:flex-shrink-0;
-  }
-  
-  .admin-sidebar-content {
-    @apply flex flex-col w-64 bg-slate-800;
-  }
-  
-  .admin-main {
-    @apply flex flex-col w-0 flex-1 overflow-hidden;
-  }
-  
-  .admin-header {
-    @apply relative z-10 flex-shrink-0 flex h-16 bg-white shadow;
-  }
-  
-  .admin-content {
-    @apply flex-1 relative overflow-y-auto focus:outline-none bg-gray-50;
-  }
-
-  /* Navigation Styles */
-  .nav-item {
-    @apply group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors;
-  }
-  
-  .nav-item-active {
-    @apply bg-slate-700 text-white;
-  }
-  
-  .nav-item-inactive {
-    @apply text-slate-300 hover:bg-slate-700 hover:text-white;
-  }
-
-  /* Map specific styles */
-  .technician-map-container {
-    @apply h-full w-full relative bg-gradient-to-br from-blue-50 to-green-50 rounded-lg overflow-hidden;
   }
 }

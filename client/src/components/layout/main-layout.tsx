@@ -16,13 +16,13 @@ export function MainLayout({ children }: MainLayoutProps) {
   }
 
   return (
-    <div className="admin-layout">
+    <div className="flex h-screen overflow-hidden bg-gray-50">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
-      <div className="admin-main">
+      <div className="flex flex-col w-0 flex-1 overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
         
-        <main className="admin-content">
+        <main className="flex-1 relative overflow-y-auto focus:outline-none bg-gray-50">
           <div className="py-6">
             {children}
           </div>
