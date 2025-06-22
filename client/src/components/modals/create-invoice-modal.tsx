@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Receipt } from "lucide-react";
 
 const invoiceSchema = z.object({
   laborCost: z.string().min(1, "Labor cost is required"),
@@ -111,7 +112,8 @@ export function CreateInvoiceModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Invoice</DialogTitle>
+          <DialogTitle>ABC Corporation - Invoice Management</DialogTitle>
+          <p className="text-sm text-gray-600">Create or edit invoice for work order</p>
         </DialogHeader>
 
         <Form {...form}>
@@ -119,7 +121,11 @@ export function CreateInvoiceModal({
             {/* Invoice Details */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Invoice Details</CardTitle>
+                <CardTitle className="text-lg flex items-center">
+                  <Receipt className="h-5 w-5 mr-2" />
+                  ABC Corporation Invoice Details
+                </CardTitle>
+                <p className="text-sm text-gray-600">Professional invoice for work order services</p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -247,8 +253,8 @@ export function CreateInvoiceModal({
                 <Separator />
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold">Total Amount:</span>
-                  <Badge variant="outline" className="text-lg font-bold">
+                  <span className="text-lg font-semibold">ABC Corporation Total:</span>
+                  <Badge variant="outline" className="text-lg font-bold bg-blue-50 text-blue-700">
                     ${calculatedValues.totalAmount.toFixed(2)}
                   </Badge>
                 </div>
@@ -265,8 +271,8 @@ export function CreateInvoiceModal({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating..." : "Create Invoice"}
+              <Button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700">
+                {isLoading ? "Processing..." : "Save Invoice"}
               </Button>
             </div>
           </form>
