@@ -25,6 +25,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { name: "Proposals", href: "/proposals", icon: FileText, permission: "view_work_orders" },
     { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "view_work_orders" },
     { name: "Payment Manager", href: "/payment-manager", icon: DollarSign, permission: "manage_work_orders" },
+    { name: "Technician Payments", href: "/technician-payments", icon: BarChart3, permission: "view_work_orders" },
 
   ];
 
