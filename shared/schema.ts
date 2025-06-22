@@ -110,6 +110,7 @@ export const workOrderPartsRequests = sqliteTable("work_order_parts_requests", {
   requestedBy: integer("requested_by").notNull(),
   parts: text("parts").notNull(), // JSON string of parts array
   reason: text("reason"),
+  estimatedCost: text("estimated_cost").notNull().default("0"),
   status: text("status").notNull().default("pending"), // pending, approved, cancelled
   createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
