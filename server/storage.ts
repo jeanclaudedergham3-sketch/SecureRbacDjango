@@ -818,6 +818,54 @@ export class SqliteStorage implements IStorage {
       .returning();
     return result[0];
   }
+
+  async generateInvoiceNumber(): Promise<string> {
+    // Get the latest invoice number
+    const latestInvoice = await db.select()
+      .from(workOrderInvoices)
+      .orderBy(desc(workOrderInvoices.id))
+      .limit(1);
+
+    let nextNumber = 1;
+    if (latestInvoice.length > 0 && latestInvoice[0].invoiceNumber) {
+      const currentNumber = latestInvoice[0].invoiceNumber.replace("INV-", "");
+      nextNumber = parseInt(currentNumber) + 1;
+    }
+
+    return `INV-${String(nextNumber).padStart(6, "0")}`;
+  }
+
+  async calculateInvoiceTotals(workOrderId: number, extraAmount = 0): Promise<{
+    partsSubtotal: number;
+    laborSubtotal: number;
+    subtotal: number;
+    taxAmount: number;
+    total: number;
+  }> {
+    // Get approved parts requests
+    const partsRequests = await this.getWorkOrderPartsRequests(workOrderId);
+    const approvedParts = partsRequests.filter(part => part.status === "approved");
+    const partsSubtotal = approvedParts.reduce((sum, part) => sum + parseFloat(part.estimatedCost || "0"), 0);
+
+    // Get approved technician payments
+    const payments = await this.getWorkOrderTechnicianPayments(workOrderId);
+    const approvedPayments = payments.filter(payment => payment.status === "approved" || payment.status === "paid" || payment.status === "partially_paid");
+    const laborSubtotal = approvedPayments.reduce((sum, payment) => sum + parseFloat(payment.amountApproved || "0"), 0);
+
+    // Calculate totals
+    const subtotal = partsSubtotal + laborSubtotal + extraAmount;
+    const taxRate = 0.08; // 8% tax rate
+    const taxAmount = subtotal * taxRate;
+    const total = subtotal + taxAmount;
+
+    return {
+      partsSubtotal,
+      laborSubtotal,
+      subtotal,
+      taxAmount,
+      total
+    };
+  }
 }
 
 export const storage = new SqliteStorage();

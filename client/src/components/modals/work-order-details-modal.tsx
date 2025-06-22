@@ -55,6 +55,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isPaymentRequestOpen, setIsPaymentRequestOpen] = useState(false);
+  const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
 
   const { data: technicians = [] } = useQuery<Technician[]>({
     queryKey: ["/api/technicians"],
@@ -62,6 +63,16 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
 
   const { data: existingPayments = [] } = useQuery({
     queryKey: [`/api/work-orders/${workOrder?.id}/payments`],
+    enabled: !!workOrder?.id,
+  });
+
+  const { data: workOrderInvoice } = useQuery({
+    queryKey: [`/api/work-orders/${workOrder?.id}/invoice`],
+    enabled: !!workOrder?.id,
+  });
+
+  const { data: invoiceCalculation } = useQuery({
+    queryKey: [`/api/work-orders/${workOrder?.id}/invoice-calculation`],
     enabled: !!workOrder?.id,
   });
 
@@ -161,6 +172,31 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
     },
   });
 
+  const createInvoiceMutation = useMutation({
+    mutationFn: (data: CreateInvoiceFormData) => 
+      apiRequest("POST", "/api/invoices", {
+        workOrderId: workOrder.id,
+        ...data,
+      }),
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Invoice created successfully",
+      });
+      setIsCreateInvoiceOpen(false);
+      invoiceForm.reset();
+      queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/invoice`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create invoice",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handlePaymentSubmit = (data: PaymentRequestFormData) => {
     console.log("Submitting payment request:", data);
     console.log("Selected payment methods:", selectedPaymentMethods);
@@ -169,6 +205,97 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
       paymentMethods: selectedPaymentMethods
     });
   };
+
+  const handleInvoiceSubmit = (data: CreateInvoiceFormData) => {
+    createInvoiceMutation.mutate(data);
+  };
+
+  const handlePrintInvoice = (invoice: any) => {
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      const invoiceHtml = generateInvoiceHTML(invoice);
+      printWindow.document.write(invoiceHtml);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  const generateInvoiceHTML = (invoice: any) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice ${invoice.invoiceNumber}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .invoice-details { margin-bottom: 20px; }
+          .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          .table th { background-color: #f2f2f2; }
+          .totals { text-align: right; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>INVOICE</h1>
+          <h2>${invoice.invoiceNumber}</h2>
+        </div>
+        
+        <div class="invoice-details">
+          <p><strong>Work Order:</strong> ${workOrder.workOrderNumber}</p>
+          <p><strong>Customer:</strong> ${invoice.customerName}</p>
+          <p><strong>Email:</strong> ${invoice.customerEmail}</p>
+          <p><strong>Phone:</strong> ${invoice.customerPhone}</p>
+          <p><strong>Address:</strong> ${invoice.customerAddress}</p>
+          <p><strong>Issue Date:</strong> ${new Date(invoice.issuedAt).toLocaleDateString()}</p>
+        </div>
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Parts & Materials</td>
+              <td>$${parseFloat(invoice.partsSubtotal).toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td>Labor & Services</td>
+              <td>$${parseFloat(invoice.laborSubtotal).toFixed(2)}</td>
+            </tr>
+            ${parseFloat(invoice.extraAmount) > 0 ? `
+            <tr>
+              <td>${invoice.extraDescription || "Additional Charges"}</td>
+              <td>$${parseFloat(invoice.extraAmount).toFixed(2)}</td>
+            </tr>
+            ` : ""}
+            <tr>
+              <td><strong>Subtotal</strong></td>
+              <td><strong>$${parseFloat(invoice.subtotal).toFixed(2)}</strong></td>
+            </tr>
+            <tr>
+              <td>Tax (${(parseFloat(invoice.taxRate) * 100).toFixed(1)}%)</td>
+              <td>$${parseFloat(invoice.taxAmount).toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td><strong>TOTAL</strong></td>
+              <td><strong>$${parseFloat(invoice.total).toFixed(2)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        ${invoice.notes ? `<p><strong>Notes:</strong> ${invoice.notes}</p>` : ""}
+      </body>
+      </html>
+    `;
+  };
+
+  // Check if proposal is approved for invoice eligibility
+  const isInvoiceEligible = workOrder?.status === "proposal_approved" || !!proposal?.approvedAt;
 
   const handleTechnicianChange = (value: string) => {
     const technicianId = parseInt(value);
@@ -716,6 +843,136 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          {/* Invoice Tab */}
+          <TabsContent value="invoice" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Invoice Management</h3>
+              {!workOrderInvoice && isInvoiceEligible && (
+                <Button onClick={() => setIsCreateInvoiceOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Invoice
+                </Button>
+              )}
+            </div>
+
+            {!isInvoiceEligible && (
+              <Card className="border-yellow-200 bg-yellow-50">
+                <CardContent className="pt-4">
+                  <div className="flex items-center space-x-2 text-yellow-800">
+                    <AlertTriangle className="h-5 w-5" />
+                    <span className="font-medium">Proposal approval required</span>
+                  </div>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Invoice can only be created after the proposal is approved.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {workOrderInvoice ? (
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>Invoice {workOrderInvoice.invoiceNumber}</CardTitle>
+                    <div className="flex space-x-2">
+                      <Badge className={
+                        workOrderInvoice.status === "paid" ? "bg-green-100 text-green-800" :
+                        workOrderInvoice.status === "sent" ? "bg-blue-100 text-blue-800" :
+                        workOrderInvoice.status === "overdue" ? "bg-red-100 text-red-800" :
+                        "bg-gray-100 text-gray-800"
+                      }>
+                        {workOrderInvoice.status}
+                      </Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePrintInvoice(workOrderInvoice)}
+                      >
+                        <Printer className="h-4 w-4 mr-1" />
+                        Print
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-medium mb-2">Customer Information</h4>
+                      <p><strong>Name:</strong> {workOrderInvoice.customerName}</p>
+                      <p><strong>Email:</strong> {workOrderInvoice.customerEmail}</p>
+                      <p><strong>Phone:</strong> {workOrderInvoice.customerPhone}</p>
+                      <p><strong>Address:</strong> {workOrderInvoice.customerAddress}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium mb-2">Invoice Details</h4>
+                      <p><strong>Issue Date:</strong> {new Date(workOrderInvoice.issuedAt).toLocaleDateString()}</p>
+                      {workOrderInvoice.paidAt && (
+                        <p><strong>Paid Date:</strong> {new Date(workOrderInvoice.paidAt).toLocaleDateString()}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-medium mb-3">Cost Breakdown</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Parts & Materials:</span>
+                        <span>${parseFloat(workOrderInvoice.partsSubtotal).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Labor & Services:</span>
+                        <span>${parseFloat(workOrderInvoice.laborSubtotal).toFixed(2)}</span>
+                      </div>
+                      {parseFloat(workOrderInvoice.extraAmount) > 0 && (
+                        <div className="flex justify-between">
+                          <span>{workOrderInvoice.extraDescription || "Additional Charges"}:</span>
+                          <span>${parseFloat(workOrderInvoice.extraAmount).toFixed(2)}</span>
+                        </div>
+                      )}
+                      <hr />
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>${parseFloat(workOrderInvoice.subtotal).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Tax ({(parseFloat(workOrderInvoice.taxRate) * 100).toFixed(1)}%):</span>
+                        <span>${parseFloat(workOrderInvoice.taxAmount).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-lg">
+                        <span>Total:</span>
+                        <span>${parseFloat(workOrderInvoice.total).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {workOrderInvoice.notes && (
+                    <div>
+                      <h4 className="font-medium mb-2">Notes</h4>
+                      <p className="text-gray-600">{workOrderInvoice.notes}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : isInvoiceEligible && (
+              <Card className="border-blue-200 bg-blue-50">
+                <CardContent className="pt-4">
+                  <div className="flex items-center space-x-2 text-blue-800">
+                    <FileText className="h-5 w-5" />
+                    <span className="font-medium">Ready for invoicing</span>
+                  </div>
+                  <p className="text-sm text-blue-700 mt-1">
+                    This work order is ready to be invoiced. Click "Create Invoice" to generate an invoice.
+                  </p>
+                  {invoiceCalculation && (
+                    <div className="mt-3 text-sm">
+                      <p>Estimated total: <span className="font-medium">${(invoiceCalculation.subtotal + invoiceCalculation.taxAmount).toFixed(2)}</span></p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
 
