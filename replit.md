@@ -137,6 +137,8 @@ The application uses a comprehensive RBAC schema with the following entities:
 Changelog:
 - June 22, 2025. Initial setup with PostgreSQL
 - June 22, 2025. Migrated to SQLite database
+- June 22, 2025. Added technician management system with location tracking and payment methods
+- June 22, 2025. Implemented technician map view and rating system with RBAC integration
 ```
 
 ## User Preferences

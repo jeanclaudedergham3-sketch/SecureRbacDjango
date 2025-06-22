@@ -10,6 +10,8 @@ import Dashboard from "@/pages/dashboard";
 import Users from "@/pages/users";
 import Roles from "@/pages/roles";
 import Equipment from "@/pages/equipment";
+import Technicians from "@/pages/technicians";
+import TechnicianMap from "@/pages/technician-map";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -66,8 +68,8 @@ function Router() {
       <Route path="/users" component={() => <ProtectedRoute component={Users} />} />
       <Route path="/roles" component={() => <ProtectedRoute component={Roles} />} />
       <Route path="/equipment" component={() => <ProtectedRoute component={Equipment} />} />
-      <Route path="/reports" component={() => <ProtectedRoute component={NotFound} />} />
-      <Route path="/settings" component={() => <ProtectedRoute component={NotFound} />} />
+      <Route path="/technicians" component={() => <ProtectedRoute component={Technicians} />} />
+      <Route path="/technician-map" component={() => <ProtectedRoute component={TechnicianMap} />} />
       <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
     </Switch>

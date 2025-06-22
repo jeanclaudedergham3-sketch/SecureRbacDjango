@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X } from "lucide-react";
+import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
@@ -19,8 +19,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { name: "Users", href: "/users", icon: Users, permission: "view_users" },
     { name: "Roles & Permissions", href: "/roles", icon: UserCheck, permission: "view_roles" },
     { name: "Equipment", href: "/equipment", icon: Cog, permission: "view_equipment" },
-    { name: "Reports", href: "/reports", icon: BarChart3, permission: null },
-    { name: "Settings", href: "/settings", icon: Settings, permission: null },
+    { name: "Technicians", href: "/technicians", icon: Users, permission: "manage_technicians" },
+    { name: "Technician Map", href: "/technician-map", icon: Map, permission: "manage_technicians" },
   ];
 
   const getInitials = (firstName: string, lastName: string) => {

@@ -1,5 +1,10 @@
 import { db } from "./database";
-import { users, roles, permissions, userRoles, rolePermissions, equipment, type User, type Role, type Permission, type Equipment, type InsertUser, type InsertRole, type InsertPermission, type InsertEquipment, type UserWithRole, type RoleWithPermissions } from "@shared/schema";
+import { 
+  users, roles, permissions, userRoles, rolePermissions, equipment, technicians, technicianRatings,
+  type User, type Role, type Permission, type Equipment, type Technician, type TechnicianRating,
+  type InsertUser, type InsertRole, type InsertPermission, type InsertEquipment, 
+  type InsertTechnician, type InsertRating, type UserWithRole, type RoleWithPermissions 
+} from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
@@ -47,6 +52,18 @@ export interface IStorage {
   updateEquipment(id: number, equipment: Partial<InsertEquipment>): Promise<Equipment | undefined>;
   deleteEquipment(id: number): Promise<boolean>;
   getAllEquipment(): Promise<Equipment[]>;
+  
+  // Technician operations
+  getTechnician(id: number): Promise<Technician | undefined>;
+  createTechnician(technician: InsertTechnician): Promise<Technician>;
+  updateTechnician(id: number, technician: Partial<InsertTechnician>): Promise<Technician | undefined>;
+  deleteTechnician(id: number): Promise<boolean>;
+  getAllTechnicians(): Promise<Technician[]>;
+  
+  // Rating operations
+  createRating(rating: InsertRating): Promise<TechnicianRating>;
+  getTechnicianRatings(technicianId: number): Promise<TechnicianRating[]>;
+  updateTechnicianAverageRating(technicianId: number): Promise<void>;
 }
 
 export class SqliteStorage implements IStorage {
@@ -81,6 +98,8 @@ export class SqliteStorage implements IStorage {
         { name: "assign_roles", description: "Assign roles" },
         { name: "view_equipment", description: "View equipment" },
         { name: "edit_equipment", description: "Edit equipment" },
+        { name: "manage_technicians", description: "Manage technicians" },
+        { name: "rate_technicians", description: "Rate technicians" },
       ];
 
       const createdPermissions = [];
@@ -106,10 +125,15 @@ export class SqliteStorage implements IStorage {
       await this.assignRolePermission(managerRole.id, createdPermissions[3].id); // view_roles
       await this.assignRolePermission(managerRole.id, createdPermissions[5].id); // view_equipment
       await this.assignRolePermission(managerRole.id, createdPermissions[6].id); // edit_equipment
+      await this.assignRolePermission(managerRole.id, createdPermissions[7].id); // manage_technicians
+      await this.assignRolePermission(managerRole.id, createdPermissions[8].id); // rate_technicians
 
       // Viewer - read-only permissions
       await this.assignRolePermission(viewerRole.id, createdPermissions[0].id); // view_dashboard
       await this.assignRolePermission(viewerRole.id, createdPermissions[1].id); // view_users
+      await this.assignRolePermission(viewerRole.id, createdPermissions[3].id); // view_roles
+      await this.assignRolePermission(viewerRole.id, createdPermissions[5].id); // view_equipment
+      await this.assignRolePermission(viewerRole.id, createdPermissions[8].id); // rate_technicians
 
       // Create default users
       const adminUser = await this.createUser({
@@ -170,6 +194,40 @@ export class SqliteStorage implements IStorage {
         status: "offline",
         cpuUsage: 0,
         memoryUsage: 0,
+      });
+
+      // Create sample technicians
+      await this.createTechnician({
+        name: "John Smith",
+        phoneNumber: "+1-555-0101",
+        email: "john.smith@tech.com",
+        address: "123 Tech Street, San Francisco, CA 94105",
+        latitude: "37.7749",
+        longitude: "-122.4194",
+        taxNumber: "TAX123456",
+        paymentMethods: JSON.stringify(["paypal", "bank_transfer"]),
+        paymentDetails: JSON.stringify({
+          paypal: { link: "https://paypal.me/johnsmith", qrCode: "" },
+          bank_transfer: { iban: "US12345678901234567890", bankName: "Tech Bank", accountName: "John Smith" }
+        }),
+        averageRating: "4.5",
+        totalRatings: 12,
+      });
+
+      await this.createTechnician({
+        name: "Sarah Johnson",
+        phoneNumber: "+1-555-0102",
+        email: "sarah.johnson@tech.com", 
+        address: "456 Innovation Ave, Austin, TX 78701",
+        latitude: "30.2672",
+        longitude: "-97.7431",
+        taxNumber: "TAX789012",
+        paymentMethods: JSON.stringify(["credit_card", "cash"]),
+        paymentDetails: JSON.stringify({
+          credit_card: { cardholderName: "Sarah Johnson", cardNumber: "**** **** **** 1234", expiryDate: "12/25" }
+        }),
+        averageRating: "4.8",
+        totalRatings: 8,
       });
 
       console.log("Database seeded successfully");
@@ -405,6 +463,68 @@ export class SqliteStorage implements IStorage {
 
   async getAllEquipment(): Promise<Equipment[]> {
     return await db.select().from(equipment);
+  }
+
+  // Technician operations
+  async getTechnician(id: number): Promise<Technician | undefined> {
+    const result = await db.select().from(technicians).where(eq(technicians.id, id));
+    return result[0];
+  }
+
+  async createTechnician(insertTechnician: InsertTechnician): Promise<Technician> {
+    const result = await db.insert(technicians).values({
+      ...insertTechnician,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async updateTechnician(id: number, updateData: Partial<InsertTechnician>): Promise<Technician | undefined> {
+    const result = await db.update(technicians)
+      .set(updateData)
+      .where(eq(technicians.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteTechnician(id: number): Promise<boolean> {
+    const result = await db.delete(technicians).where(eq(technicians.id, id));
+    return result.changes > 0;
+  }
+
+  async getAllTechnicians(): Promise<Technician[]> {
+    return await db.select().from(technicians);
+  }
+
+  // Rating operations
+  async createRating(insertRating: InsertRating): Promise<TechnicianRating> {
+    const result = await db.insert(technicianRatings).values({
+      ...insertRating,
+      createdAt: new Date(),
+    }).returning();
+    
+    // Update technician average rating
+    await this.updateTechnicianAverageRating(insertRating.technicianId);
+    
+    return result[0];
+  }
+
+  async getTechnicianRatings(technicianId: number): Promise<TechnicianRating[]> {
+    return await db.select().from(technicianRatings).where(eq(technicianRatings.technicianId, technicianId));
+  }
+
+  async updateTechnicianAverageRating(technicianId: number): Promise<void> {
+    const ratings = await this.getTechnicianRatings(technicianId);
+    if (ratings.length === 0) return;
+
+    const average = ratings.reduce((sum, rating) => sum + rating.rating, 0) / ratings.length;
+    
+    await db.update(technicians)
+      .set({
+        averageRating: average.toFixed(1),
+        totalRatings: ratings.length,
+      })
+      .where(eq(technicians.id, technicianId));
   }
 }
 

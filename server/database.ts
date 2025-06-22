@@ -89,6 +89,33 @@ export function initializeDatabase() {
         memory_usage INTEGER DEFAULT 0,
         created_at INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS technicians (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        phone_number TEXT NOT NULL,
+        email TEXT,
+        address TEXT,
+        latitude TEXT,
+        longitude TEXT,
+        tax_number TEXT,
+        payment_methods TEXT,
+        payment_details TEXT,
+        average_rating TEXT DEFAULT '0',
+        total_ratings INTEGER DEFAULT 0,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS technician_ratings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        technician_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        rating INTEGER NOT NULL,
+        comment TEXT,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (technician_id) REFERENCES technicians(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
     `);
     
     console.log("Database tables created successfully");

@@ -52,6 +52,31 @@ export const equipment = sqliteTable("equipment", {
   createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
+export const technicians = sqliteTable("technicians", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  email: text("email"),
+  address: text("address"),
+  latitude: text("latitude"),
+  longitude: text("longitude"),
+  taxNumber: text("tax_number"),
+  paymentMethods: text("payment_methods"), // JSON string for multiple payment methods
+  paymentDetails: text("payment_details"), // JSON string for payment method details
+  averageRating: text("average_rating").default("0"),
+  totalRatings: integer("total_ratings").default(0),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
+export const technicianRatings = sqliteTable("technician_ratings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  technicianId: integer("technician_id").notNull(),
+  userId: integer("user_id").notNull(),
+  rating: integer("rating").notNull(), // 1-5 stars
+  comment: text("comment"),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -75,6 +100,22 @@ export const insertEquipmentSchema = createInsertSchema(equipment).omit({
   createdAt: true,
 });
 
+export const insertTechnicianSchema = createInsertSchema(technicians).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  name: z.string().min(1, "Name is required"),
+  phoneNumber: z.string().min(1, "Phone number is required"),
+  email: z.string().email().optional().or(z.literal("")),
+});
+
+export const insertRatingSchema = createInsertSchema(technicianRatings).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  rating: z.number().min(1).max(5),
+});
+
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
@@ -86,11 +127,15 @@ export type Permission = typeof permissions.$inferSelect;
 export type Equipment = typeof equipment.$inferSelect;
 export type UserRole = typeof userRoles.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
+export type Technician = typeof technicians.$inferSelect;
+export type TechnicianRating = typeof technicianRatings.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertPermission = z.infer<typeof insertPermissionSchema>;
 export type InsertEquipment = z.infer<typeof insertEquipmentSchema>;
+export type InsertTechnician = z.infer<typeof insertTechnicianSchema>;
+export type InsertRating = z.infer<typeof insertRatingSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
 
 export type UserWithRole = User & {

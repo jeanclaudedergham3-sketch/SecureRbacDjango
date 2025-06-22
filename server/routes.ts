@@ -4,7 +4,7 @@ import session from "express-session";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
-import { insertUserSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, loginSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 
 declare module 'express-session' {
@@ -299,17 +299,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Technician routes
+  app.get("/api/technicians", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+    try {
+      const technicians = await storage.getAllTechnicians();
+      res.json(technicians);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get technicians" });
+    }
+  });
+
+  app.post("/api/technicians", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+    try {
+      const technicianData = insertTechnicianSchema.parse(req.body);
+      const technician = await storage.createTechnician(technicianData);
+      res.status(201).json(technician);
+    } catch (error) {
+      console.error("Error creating technician:", error);
+      res.status(400).json({ 
+        message: "Failed to create technician", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
+  app.put("/api/technicians/:id", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const technicianData = insertTechnicianSchema.partial().parse(req.body);
+      const technician = await storage.updateTechnician(id, technicianData);
+      if (!technician) {
+        return res.status(404).json({ message: "Technician not found" });
+      }
+      res.json(technician);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update technician" });
+    }
+  });
+
+  app.delete("/api/technicians/:id", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteTechnician(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Technician not found" });
+      }
+      res.json({ message: "Technician deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete technician" });
+    }
+  });
+
+  // Rating routes
+  app.post("/api/technician-ratings", requireAuth, requirePermission("rate_technicians"), async (req, res) => {
+    try {
+      const ratingData = insertRatingSchema.parse(req.body);
+      const rating = await storage.createRating(ratingData);
+      res.status(201).json(rating);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to create rating" });
+    }
+  });
+
+  app.get("/api/technicians/:id/ratings", requireAuth, async (req, res) => {
+    try {
+      const technicianId = parseInt(req.params.id);
+      const ratings = await storage.getTechnicianRatings(technicianId);
+      res.json(ratings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get ratings" });
+    }
+  });
+
   // Dashboard stats
   app.get("/api/dashboard/stats", requireAuth, requirePermission("view_dashboard"), async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       const roles = await storage.getAllRoles();
       const equipment = await storage.getAllEquipment();
+      const technicians = await storage.getAllTechnicians();
       
       const stats = {
         totalUsers: users.length,
         activeRoles: roles.length,
         equipment: equipment.length,
+        technicians: technicians.length,
         securityEvents: 0,
       };
       
