@@ -550,26 +550,20 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <p className="text-gray-600 mb-4">
                 Communicate with team members about this work order.
               </p>
-              <Button onClick={() => setIsChatModalOpen(true)}>
-                Open Chat
+              <Button 
+                onClick={() => workOrder.isLocked ? toast({
+                  title: "Action Blocked",
+                  description: "Cannot access chat - work order is locked due to paid invoice.",
+                  variant: "destructive"
+                }) : setIsChatModalOpen(true)}
+                disabled={workOrder.isLocked}
+              >
+                {workOrder.isLocked ? "Locked" : "Open Chat"}
               </Button>
             </div>
           </TabsContent>
 
-          <TabsContent value="chat" className="space-y-4">
-            <div className="text-center py-8">
-              <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium mb-2">Work Order Chat</h3>
-              <p className="text-gray-600 mb-4">
-                Communicate with team members about this work order.
-              </p>
-              <Button onClick={() => setIsChatModalOpen(true)}>
-                Open Chat
-              </Button>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="payments" className="space-y-4">
+          <TabsContent value="payment" className="space-y-4">
             <div className="text-center py-8">
               <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <h3 className="text-lg font-medium mb-2">Payment Requests</h3>
@@ -578,9 +572,17 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               </p>
               
               <PermissionGuard permission="view_work_orders">
-                <Button onClick={() => setIsPaymentRequestOpen(true)} className="mb-4">
+                <Button 
+                  onClick={() => workOrder.isLocked ? toast({
+                    title: "Action Blocked",
+                    description: "Cannot create payment requests - work order is locked due to paid invoice.",
+                    variant: "destructive"
+                  }) : setIsPaymentRequestOpen(true)} 
+                  className="mb-4"
+                  disabled={workOrder.isLocked}
+                >
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Payment Request
+                  {workOrder.isLocked ? "Locked" : "Create Payment Request"}
                 </Button>
               </PermissionGuard>
 
