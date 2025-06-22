@@ -126,6 +126,8 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
         : apiRequest("POST", `/api/work-orders/${workOrder.id}/proposal`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/proposal`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
       toast({
         title: "Success",
         description: "Proposal saved successfully",
@@ -145,6 +147,8 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
       apiRequest("PUT", `/api/work-orders/${workOrder.id}/proposal/status`, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/proposal`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
       toast({
         title: "Success",
         description: "Proposal status updated successfully",

@@ -128,6 +128,16 @@ export default function Proposals() {
               Review and manage all work order proposals with approval workflow.
             </p>
           </div>
+          <div className="space-x-2">
+            <Button variant="outline" onClick={() => window.location.href = '/work-orders'}>
+              View Work Orders
+            </Button>
+            <PermissionGuard permission="manage_work_orders">
+              <Button onClick={() => window.location.href = '/work-orders'}>
+                Create New Work Order
+              </Button>
+            </PermissionGuard>
+          </div>
         </div>
 
         {/* Statistics Cards */}
@@ -216,26 +226,27 @@ export default function Proposals() {
 
         {/* Proposals List */}
         <div className="mt-6 space-y-4">
-          {filteredProposals.map((item) => {
-            const proposalTotal = calculateProposalTotal(item);
-            
-            return (
-              <Card key={item.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-4">
-                        <div>
-                          <h3 className="text-lg font-semibold text-blue-600">
-                            {item.workOrder.workOrderNumber}
-                          </h3>
-                          <p className="text-gray-900 font-medium">
-                            {item.workOrder.clientName}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {item.workOrder.street}, {item.workOrder.city}
-                          </p>
-                        </div>
+          {filteredProposals.length > 0 ? (
+            filteredProposals.map((item) => {
+              const proposalTotal = calculateProposalTotal(item);
+              
+              return (
+                <Card key={item.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4">
+                          <div>
+                            <h3 className="text-lg font-semibold text-blue-600">
+                              {item.workOrder.workOrderNumber}
+                            </h3>
+                            <p className="text-gray-900 font-medium">
+                              {item.workOrder.clientName}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {item.workOrder.street}, {item.workOrder.city}
+                            </p>
+                          </div>
                         
                         <div className="text-center">
                           <p className="text-sm text-gray-500">Work Order Value</p>
@@ -287,23 +298,22 @@ export default function Proposals() {
                 </CardContent>
               </Card>
             );
-          })}
-        </div>
-
-        {filteredProposals.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-gray-500">
-              <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">No proposals found</h3>
-              <p className="text-sm">
-                {searchTerm || statusFilter !== "all" 
-                  ? "Try adjusting your search criteria or filters."
-                  : "Proposals will appear here when work orders have proposal data."
-                }
-              </p>
+          })
+          ) : (
+            <div className="text-center py-12">
+              <div className="text-gray-500">
+                <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-medium mb-2">No proposals found</h3>
+                <p className="text-sm">
+                  {searchTerm || statusFilter !== "all" 
+                    ? "Try adjusting your search criteria or filters."
+                    : "Proposals will appear here when work orders have proposal data."
+                  }
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {selectedWorkOrder && (
