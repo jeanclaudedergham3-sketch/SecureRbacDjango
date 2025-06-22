@@ -19,7 +19,7 @@ interface PaymentRequestModalProps {
   workOrder: WorkOrderWithUsers;
 }
 
-export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentRequestModalProps) {
+export function PaymentRequestModal({ isOpen, onClose, workOrder, preSelectedTechnicians = [] }: PaymentRequestModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -68,6 +68,14 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
     setDescription("");
     setAvailablePaymentMethods([]);
   };
+
+  // Auto-select first pre-selected technician if available
+  React.useEffect(() => {
+    if (preSelectedTechnicians.length > 0 && !selectedTechnicianId) {
+      const firstTechId = preSelectedTechnicians[0].toString();
+      handleTechnicianChange(firstTechId);
+    }
+  }, [preSelectedTechnicians, selectedTechnicianId]);
 
   const handleTechnicianChange = (technicianId: string) => {
     setSelectedTechnicianId(technicianId);
@@ -204,9 +212,20 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                       </SelectTrigger>
                       <SelectContent>
                         {technicians.map((technician) => (
-                          <SelectItem key={technician.id} value={technician.id.toString()}>
+                          <SelectItem 
+                            key={technician.id} 
+                            value={technician.id.toString()}
+                            className={preSelectedTechnicians.includes(technician.id) ? "bg-blue-50" : ""}
+                          >
                             <div className="flex flex-col">
-                              <span>{technician.firstName} {technician.lastName}</span>
+                              <div className="flex items-center">
+                                <span>{technician.firstName} {technician.lastName}</span>
+                                {preSelectedTechnicians.includes(technician.id) && (
+                                  <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                    Pre-selected
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-sm text-gray-500">
                                 ⭐ {technician.averageRating ? parseFloat(technician.averageRating).toFixed(1) : 'No ratings'} 
                                 {technician.phoneNumber && ` • ${technician.phoneNumber}`}
