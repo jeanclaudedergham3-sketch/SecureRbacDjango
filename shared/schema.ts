@@ -55,6 +55,9 @@ export const equipment = sqliteTable("equipment", {
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+}).extend({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
 });
 
 export const insertRoleSchema = createInsertSchema(roles).omit({

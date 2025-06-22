@@ -105,6 +105,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/users", requireAuth, requirePermission("edit_users"), async (req, res) => {
     try {
+      console.log("Creating user with data:", req.body);
+      
+      // Validate required fields manually since the schema might not catch everything
+      const { username, email, firstName, lastName, password } = req.body;
+      if (!username || !email || !firstName || !lastName || !password) {
+        throw new Error("Missing required fields");
+      }
+      
       const userData = insertUserSchema.parse(req.body);
       
       // Hash password
@@ -112,15 +120,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userWithHashedPassword = { ...userData, password: hashedPassword };
       
       const user = await storage.createUser(userWithHashedPassword);
+      console.log("User created:", user);
       
       // Assign role if provided
       if (req.body.roleId) {
+        console.log("Assigning role:", req.body.roleId);
         await storage.assignUserRole(user.id, req.body.roleId);
       }
       
       res.status(201).json(user);
     } catch (error) {
-      res.status(400).json({ message: "Failed to create user" });
+      console.error("Error creating user:", error);
+      res.status(400).json({ 
+        message: "Failed to create user", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 
