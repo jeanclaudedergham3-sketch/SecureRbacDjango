@@ -77,6 +77,89 @@ export const technicianRatings = sqliteTable("technician_ratings", {
   createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
+export const workOrders = sqliteTable("work_orders", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderNumber: text("work_order_number").notNull().unique(),
+  clientName: text("client_name").notNull(),
+  country: text("country").notNull(),
+  city: text("city").notNull(),
+  street: text("street").notNull(),
+  nte: text("nte").notNull(), // amount without tax
+  tnte: text("tnte").notNull(), // amount including tax
+  startDate: integer("start_date", { mode: 'timestamp' }).notNull(),
+  endDate: integer("end_date", { mode: 'timestamp' }).notNull(),
+  assignedUserId: integer("assigned_user_id").notNull(),
+  status: text("status").notNull().default("active"), // active, completed, cancelled
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
+export const workOrderProposals = sqliteTable("work_order_proposals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
+  laborData: text("labor_data"), // JSON array of labor entries
+  partsData: text("parts_data"), // JSON array of parts entries
+  servicesData: text("services_data"), // JSON array of services entries
+  message: text("message"),
+  status: text("status").notNull().default("pending"), // pending, approved, cancelled
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
+export const workOrderPartsRequests = sqliteTable("work_order_parts_requests", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
+  partName: text("part_name").notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPrice: text("unit_price").notNull(),
+  totalPrice: text("total_price").notNull(),
+  storeName: text("store_name"),
+  remark: text("remark"),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  requestedAt: integer("requested_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
+export const workOrderFiles = sqliteTable("work_order_files", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
+  fileName: text("file_name").notNull(),
+  filePath: text("file_path").notNull(),
+  fileType: text("file_type").notNull(), // image, pdf, etc
+  category: text("category").notNull(), // before, after, signature
+  uploadedAt: integer("uploaded_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
+export const workOrderChats = sqliteTable("work_order_chats", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
+  userId: integer("user_id").notNull(),
+  message: text("message"),
+  fileUrl: text("file_url"),
+  messageType: text("message_type").notNull().default("text"), // text, file, image
+  sentAt: integer("sent_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
+export const workOrderTechnicianPayments = sqliteTable("work_order_technician_payments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
+  technicianId: integer("technician_id").notNull(),
+  paymentMethod: text("payment_method").notNull(),
+  amountRequested: text("amount_requested").notNull(),
+  amountApproved: text("amount_approved").default("0"),
+  amountPaid: text("amount_paid").default("0"),
+  status: text("status").notNull().default("pending"), // pending, partially_paid, paid
+  requestedAt: integer("requested_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
+export const workOrderInvoices = sqliteTable("work_order_invoices", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
+  partsTotal: text("parts_total").notNull().default("0"),
+  technicianTotal: text("technician_total").notNull().default("0"),
+  extraCharges: text("extra_charges").notNull().default("0"),
+  finalTotal: text("final_total").notNull(),
+  invoiceData: text("invoice_data"), // JSON with detailed breakdown
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -116,6 +199,48 @@ export const insertRatingSchema = createInsertSchema(technicianRatings).omit({
   rating: z.number().min(1).max(5),
 });
 
+export const insertWorkOrderSchema = createInsertSchema(workOrders).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  clientName: z.string().min(1, "Client name is required"),
+  country: z.string().min(1, "Country is required"),
+  city: z.string().min(1, "City is required"),
+  street: z.string().min(1, "Street is required"),
+  nte: z.string().min(1, "NTE amount is required"),
+  tnte: z.string().min(1, "TNTE amount is required"),
+});
+
+export const insertWorkOrderProposalSchema = createInsertSchema(workOrderProposals).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertWorkOrderPartsRequestSchema = createInsertSchema(workOrderPartsRequests).omit({
+  id: true,
+  requestedAt: true,
+});
+
+export const insertWorkOrderFileSchema = createInsertSchema(workOrderFiles).omit({
+  id: true,
+  uploadedAt: true,
+});
+
+export const insertWorkOrderChatSchema = createInsertSchema(workOrderChats).omit({
+  id: true,
+  sentAt: true,
+});
+
+export const insertWorkOrderTechnicianPaymentSchema = createInsertSchema(workOrderTechnicianPayments).omit({
+  id: true,
+  requestedAt: true,
+});
+
+export const insertWorkOrderInvoiceSchema = createInsertSchema(workOrderInvoices).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
@@ -129,6 +254,13 @@ export type UserRole = typeof userRoles.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
 export type Technician = typeof technicians.$inferSelect;
 export type TechnicianRating = typeof technicianRatings.$inferSelect;
+export type WorkOrder = typeof workOrders.$inferSelect;
+export type WorkOrderProposal = typeof workOrderProposals.$inferSelect;
+export type WorkOrderPartsRequest = typeof workOrderPartsRequests.$inferSelect;
+export type WorkOrderFile = typeof workOrderFiles.$inferSelect;
+export type WorkOrderChat = typeof workOrderChats.$inferSelect;
+export type WorkOrderTechnicianPayment = typeof workOrderTechnicianPayments.$inferSelect;
+export type WorkOrderInvoice = typeof workOrderInvoices.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
@@ -136,6 +268,13 @@ export type InsertPermission = z.infer<typeof insertPermissionSchema>;
 export type InsertEquipment = z.infer<typeof insertEquipmentSchema>;
 export type InsertTechnician = z.infer<typeof insertTechnicianSchema>;
 export type InsertRating = z.infer<typeof insertRatingSchema>;
+export type InsertWorkOrder = z.infer<typeof insertWorkOrderSchema>;
+export type InsertWorkOrderProposal = z.infer<typeof insertWorkOrderProposalSchema>;
+export type InsertWorkOrderPartsRequest = z.infer<typeof insertWorkOrderPartsRequestSchema>;
+export type InsertWorkOrderFile = z.infer<typeof insertWorkOrderFileSchema>;
+export type InsertWorkOrderChat = z.infer<typeof insertWorkOrderChatSchema>;
+export type InsertWorkOrderTechnicianPayment = z.infer<typeof insertWorkOrderTechnicianPaymentSchema>;
+export type InsertWorkOrderInvoice = z.infer<typeof insertWorkOrderInvoiceSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
 
 export type UserWithRole = User & {
@@ -144,4 +283,8 @@ export type UserWithRole = User & {
 
 export type RoleWithPermissions = Role & {
   permissions: Permission[];
+};
+
+export type WorkOrderWithUser = WorkOrder & {
+  assignedUser?: User;
 };
