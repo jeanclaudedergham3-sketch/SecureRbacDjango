@@ -292,30 +292,23 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           <TabsContent value="payments" className="space-y-4">
             <div className="text-center py-8">
               <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium mb-2">Technician Payments</h3>
-              <p className="text-gray-600 mb-4">
-                Manage technician payments and invoicing for this work order.
-              </p>
-              <PermissionGuard permission="manage_payments">
-                <Button>
-                  Add Payment Request
-                </Button>
-              </PermissionGuard>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="payments" className="space-y-4">
-            <div className="text-center py-8">
-              <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <h3 className="text-lg font-medium mb-2">Payment Requests</h3>
               <p className="text-gray-600 mb-4">
                 Create and manage payment requests for technicians working on this order.
               </p>
               <PermissionGuard permission="manage_work_orders">
-                <Button onClick={() => setIsPaymentRequestModalOpen(true)}>
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Manage Payments
-                </Button>
+                <div className="space-x-2">
+                  <Button onClick={() => setIsPaymentRequestModalOpen(true)}>
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Create Payment Request
+                  </Button>
+                  <Button variant="outline" onClick={() => {
+                    onClose();
+                    window.location.href = '/payments';
+                  }}>
+                    View All Payments
+                  </Button>
+                </div>
               </PermissionGuard>
             </div>
           </TabsContent>

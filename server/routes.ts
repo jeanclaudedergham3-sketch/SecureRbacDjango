@@ -831,6 +831,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Global Payment routes for the payments page
+  app.get("/api/payments", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      // Get all payment requests across all work orders
+      const allWorkOrders = await storage.getAllWorkOrders();
+      const allPayments = [];
+      
+      for (const workOrder of allWorkOrders) {
+        const payments = await storage.getWorkOrderTechnicianPayments(workOrder.id);
+        allPayments.push(...payments);
+      }
+      
+      // Sort by request date (most recent first)
+      allPayments.sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+      
+      res.json(allPayments);
+    } catch (error) {
+      console.error("Error fetching all payment requests:", error);
+      res.status(500).json({ message: "Failed to get payment requests" });
+    }
+  });
+
+  app.patch("/api/payments/:id", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const paymentId = parseInt(req.params.id);
+      const updateData = req.body;
+      
+      const payment = await storage.updateWorkOrderTechnicianPayment(paymentId, updateData);
+      if (!payment) {
+        return res.status(404).json({ message: "Payment request not found" });
+      }
+      
+      console.log(`Payment request ${paymentId} updated by user ${req.session.userId}`);
+      res.json(payment);
+    } catch (error) {
+      console.error("Error updating payment request:", error);
+      res.status(400).json({ 
+        message: "Failed to update payment request", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
   // Dashboard stats
   app.get("/api/dashboard/stats", requireAuth, requirePermission("view_dashboard"), async (req, res) => {
     try {
