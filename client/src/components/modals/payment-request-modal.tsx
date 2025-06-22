@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ interface PaymentRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
   workOrder: WorkOrderWithUsers;
+  preSelectedTechnicians?: number[];
 }
 
 export function PaymentRequestModal({ isOpen, onClose, workOrder, preSelectedTechnicians = [] }: PaymentRequestModalProps) {
@@ -70,7 +71,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder, preSelectedTec
   };
 
   // Auto-select first pre-selected technician if available
-  React.useEffect(() => {
+  useEffect(() => {
     if (preSelectedTechnicians.length > 0 && !selectedTechnicianId) {
       const firstTechId = preSelectedTechnicians[0].toString();
       handleTechnicianChange(firstTechId);
