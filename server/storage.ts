@@ -767,7 +767,6 @@ export class SqliteStorage implements IStorage {
 
   // Work Order Technician Payment operations
   async getWorkOrderTechnicianPayments(workOrderId: number): Promise<WorkOrderTechnicianPayment[]> {
-    await this.ensureInitialized();
     if (workOrderId === 0) {
       // Get all payments
       return await db.select().from(workOrderTechnicianPayments);
@@ -778,13 +777,11 @@ export class SqliteStorage implements IStorage {
   }
 
   async createWorkOrderTechnicianPayment(insertPayment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment> {
-    await this.ensureInitialized();
     const result = await db.insert(workOrderTechnicianPayments).values(insertPayment).returning();
     return result[0];
   }
 
   async updateWorkOrderTechnicianPayment(id: number, updateData: Partial<InsertWorkOrderTechnicianPayment>): Promise<WorkOrderTechnicianPayment | undefined> {
-    await this.ensureInitialized();
     const result = await db.update(workOrderTechnicianPayments)
       .set(updateData)
       .where(eq(workOrderTechnicianPayments.id, id))

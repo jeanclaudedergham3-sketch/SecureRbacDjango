@@ -239,7 +239,7 @@ export const insertWorkOrderTechnicianPaymentSchema = createInsertSchema(workOrd
   id: true,
   requestedAt: true,
   approvedAt: true,
-  paidAt: true
+  paidAt: true,
 });
 
 export const insertWorkOrderInvoiceSchema = createInsertSchema(workOrderInvoices).omit({

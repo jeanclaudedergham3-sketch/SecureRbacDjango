@@ -398,7 +398,12 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                                   {technicians.map((technician) => (
                                     <SelectItem key={technician.id} value={technician.id.toString()}>
                                       <div className="flex items-center space-x-2">
-                                        <span>{technician.firstName || 'Unknown'} {technician.lastName || 'Technician'}</span>
+                                        <span>
+                                          {technician.firstName && technician.lastName 
+                                            ? `${technician.firstName} ${technician.lastName}`
+                                            : technician.name || `Technician #${technician.id}`
+                                          }
+                                        </span>
                                         {technician.averageRating && (
                                           <span className="text-sm text-gray-500">⭐ {technician.averageRating}</span>
                                         )}
