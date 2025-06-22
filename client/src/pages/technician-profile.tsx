@@ -162,7 +162,7 @@ export default function TechnicianProfilePage() {
                       technician.status === 'available' ? 'bg-green-500' : 
                       technician.status === 'busy' ? 'bg-red-500' : 'bg-gray-500'
                     }`}>
-                      {technician.firstName[0]}{technician.lastName[0]}
+                      {technician.firstName?.[0] || 'T'}{technician.lastName?.[0] || 'T'}
                     </div>
                     <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
                       technician.status === 'available' ? 'bg-green-500' : 
