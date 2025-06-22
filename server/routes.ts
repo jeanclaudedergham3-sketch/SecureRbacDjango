@@ -6,6 +6,8 @@ import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
 import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, loginSchema } from "@shared/schema";
+import { z } from "zod";
+import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
 import multer from "multer";
 import path from "path";
@@ -793,8 +795,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Global payment manager routes
   app.get("/api/payments/all", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
     try {
+      console.log("Fetching all payments...");
       // Get all payments with work order and technician details
       const allPayments = await storage.getWorkOrderTechnicianPayments(0); // 0 = all
+      console.log("Found payments:", allPayments);
+      
       const workOrders = await storage.getAllWorkOrders();
       const technicians = await storage.getAllTechnicians();
       
@@ -809,6 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
+      console.log("Payments with details:", paymentsWithDetails);
       res.json(paymentsWithDetails);
     } catch (error) {
       console.error("Error fetching all payments:", error);
@@ -874,6 +880,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to create payment request", 
         error: error instanceof Error ? error.message : String(error) 
       });
+    }
+  });
+
+  // Direct payment creation endpoint (used by work order modal)
+  app.post("/api/payments", requireAuth, async (req, res) => {
+    try {
+      console.log("Creating payment request:", req.body);
+      const validatedData = insertWorkOrderTechnicianPaymentSchema.parse(req.body);
+      const payment = await storage.createWorkOrderTechnicianPayment(validatedData);
+      console.log("Payment created:", payment);
+      res.json(payment);
+    } catch (error: any) {
+      console.error("Error creating payment:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: fromZodError(error).toString() });
+      } else {
+        res.status(500).json({ message: error.message });
+      }
     }
   });
 

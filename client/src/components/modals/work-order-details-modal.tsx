@@ -129,8 +129,10 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
     mutationFn: (data: PaymentRequestFormData) => 
       apiRequest("POST", "/api/payments", {
         workOrderId: workOrder.id,
-        ...data,
-        amountRequested: parseFloat(data.amountRequested),
+        technicianId: data.technicianId,
+        paymentMethod: JSON.stringify(data.paymentMethods),
+        amountRequested: data.amountRequested,
+        description: data.description || "",
       }),
     onSuccess: () => {
       toast({
@@ -141,6 +143,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
       paymentForm.reset();
       setSelectedTechnician(null);
       setSelectedPaymentMethods([]);
+      // Invalidate payment cache to refresh payment manager
+      queryClient.invalidateQueries({ queryKey: ["/api/payments/all"] });
     },
     onError: (error: any) => {
       toast({
@@ -152,6 +156,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   });
 
   const handlePaymentSubmit = (data: PaymentRequestFormData) => {
+    console.log("Submitting payment request:", data);
+    console.log("Selected payment methods:", selectedPaymentMethods);
     createPaymentMutation.mutate({
       ...data,
       paymentMethods: selectedPaymentMethods
