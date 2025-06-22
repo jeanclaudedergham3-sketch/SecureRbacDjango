@@ -116,6 +116,98 @@ export function initializeDatabase() {
         FOREIGN KEY (technician_id) REFERENCES technicians(id),
         FOREIGN KEY (user_id) REFERENCES users(id)
       );
+
+      CREATE TABLE IF NOT EXISTS work_orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        work_order_number TEXT NOT NULL UNIQUE,
+        client_name TEXT NOT NULL,
+        country TEXT NOT NULL,
+        city TEXT NOT NULL,
+        street TEXT NOT NULL,
+        nte TEXT NOT NULL,
+        tnte TEXT NOT NULL,
+        start_date INTEGER NOT NULL,
+        end_date INTEGER NOT NULL,
+        assigned_user_id INTEGER NOT NULL,
+        status TEXT DEFAULT 'active' NOT NULL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (assigned_user_id) REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS work_order_proposals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        work_order_id INTEGER NOT NULL,
+        labor_data TEXT,
+        parts_data TEXT,
+        services_data TEXT,
+        message TEXT,
+        status TEXT DEFAULT 'pending' NOT NULL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS work_order_parts_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        work_order_id INTEGER NOT NULL,
+        part_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_price TEXT NOT NULL,
+        total_price TEXT NOT NULL,
+        store_name TEXT,
+        remark TEXT,
+        status TEXT DEFAULT 'pending' NOT NULL,
+        requested_at INTEGER NOT NULL,
+        FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS work_order_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        work_order_id INTEGER NOT NULL,
+        file_name TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        file_type TEXT NOT NULL,
+        category TEXT NOT NULL,
+        uploaded_at INTEGER NOT NULL,
+        FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS work_order_chats (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        work_order_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        message TEXT,
+        file_url TEXT,
+        message_type TEXT DEFAULT 'text' NOT NULL,
+        sent_at INTEGER NOT NULL,
+        FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS work_order_technician_payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        work_order_id INTEGER NOT NULL,
+        technician_id INTEGER NOT NULL,
+        payment_method TEXT NOT NULL,
+        amount_requested TEXT NOT NULL,
+        amount_approved TEXT DEFAULT '0',
+        amount_paid TEXT DEFAULT '0',
+        status TEXT DEFAULT 'pending' NOT NULL,
+        requested_at INTEGER NOT NULL,
+        FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+        FOREIGN KEY (technician_id) REFERENCES technicians(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS work_order_invoices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        work_order_id INTEGER NOT NULL,
+        parts_total TEXT DEFAULT '0' NOT NULL,
+        technician_total TEXT DEFAULT '0' NOT NULL,
+        extra_charges TEXT DEFAULT '0' NOT NULL,
+        final_total TEXT NOT NULL,
+        invoice_data TEXT,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
+      );
     `);
     
     console.log("Database tables created successfully");
