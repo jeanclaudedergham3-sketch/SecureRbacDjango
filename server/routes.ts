@@ -4,7 +4,7 @@ import session from "express-session";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
-import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, loginSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 
 declare module 'express-session' {
@@ -511,6 +511,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(proposalsWithWorkOrders);
     } catch (error) {
       res.status(500).json({ message: "Failed to get proposals" });
+    }
+  });
+
+  // Work Order Parts Request routes
+  app.get("/api/work-orders/:id/parts-requests", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const partsRequests = await storage.getWorkOrderPartsRequests(workOrderId);
+      res.json(partsRequests);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get parts requests" });
+    }
+  });
+
+  app.post("/api/work-orders/:id/parts-requests", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const partsRequestData = insertWorkOrderPartsRequestSchema.parse({
+        ...req.body,
+        workOrderId
+      });
+      const partsRequest = await storage.createWorkOrderPartsRequest(partsRequestData);
+      res.status(201).json(partsRequest);
+    } catch (error) {
+      console.error("Error creating parts request:", error);
+      res.status(400).json({ 
+        message: "Failed to create parts request", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
+  app.put("/api/parts-requests/:id/status", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!["pending", "approved", "cancelled"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const success = await storage.updateWorkOrderPartsRequestStatus(id, status);
+      if (!success) {
+        return res.status(404).json({ message: "Parts request not found" });
+      }
+      
+      console.log(`Parts request ${id} status updated to ${status} by user ${req.session.userId}`);
+      res.json({ message: "Status updated successfully" });
+    } catch (error) {
+      console.error("Error updating parts request status:", error);
+      res.status(400).json({ message: "Failed to update parts request status" });
+    }
+  });
+
+  // Get all parts requests with work order and user info
+  app.get("/api/parts-requests", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const workOrders = await storage.getAllWorkOrders();
+      const users = await storage.getAllUsers();
+      const partsRequestsWithInfo = [];
+      
+      for (const workOrder of workOrders) {
+        const partsRequests = await storage.getWorkOrderPartsRequests(workOrder.id);
+        for (const request of partsRequests) {
+          const requestedByUser = users.find(u => u.id === request.requestedBy);
+          partsRequestsWithInfo.push({
+            ...request,
+            workOrder: {
+              workOrderNumber: workOrder.workOrderNumber,
+              clientName: workOrder.clientName,
+              street: workOrder.street,
+              city: workOrder.city
+            },
+            requestedByUser: requestedByUser ? {
+              firstName: requestedByUser.firstName,
+              lastName: requestedByUser.lastName,
+              email: requestedByUser.email
+            } : {
+              firstName: "Unknown",
+              lastName: "User",
+              email: "unknown@example.com"
+            }
+          });
+        }
+      }
+      
+      res.json(partsRequestsWithInfo);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get parts requests" });
     }
   });
 

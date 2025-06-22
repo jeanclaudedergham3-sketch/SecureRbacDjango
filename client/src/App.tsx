@@ -14,6 +14,7 @@ import Technicians from "@/pages/technicians";
 import TechnicianMap from "@/pages/technician-map";
 import WorkOrders from "@/pages/work-orders";
 import Proposals from "@/pages/proposals";
+import PartsRequests from "@/pages/parts-requests";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -74,6 +75,7 @@ function Router() {
       <Route path="/technician-map" component={() => <ProtectedRoute component={TechnicianMap} />} />
       <Route path="/work-orders" component={() => <ProtectedRoute component={WorkOrders} />} />
       <Route path="/proposals" component={() => <ProtectedRoute component={Proposals} />} />
+      <Route path="/parts-requests" component={() => <ProtectedRoute component={PartsRequests} />} />
       <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
     </Switch>

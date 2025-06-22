@@ -148,15 +148,13 @@ export function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS work_order_parts_requests (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         work_order_id INTEGER NOT NULL,
-        part_name TEXT NOT NULL,
-        quantity INTEGER NOT NULL,
-        unit_price TEXT NOT NULL,
-        total_price TEXT NOT NULL,
-        store_name TEXT,
-        remark TEXT,
+        requested_by INTEGER NOT NULL,
+        parts TEXT NOT NULL,
+        reason TEXT,
         status TEXT DEFAULT 'pending' NOT NULL,
-        requested_at INTEGER NOT NULL,
-        FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
+        FOREIGN KEY (requested_by) REFERENCES users(id)
       );
 
       CREATE TABLE IF NOT EXISTS work_order_files (

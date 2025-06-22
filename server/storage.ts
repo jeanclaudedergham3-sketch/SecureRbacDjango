@@ -720,10 +720,7 @@ export class SqliteStorage implements IStorage {
   }
 
   async createWorkOrderPartsRequest(insertPartsRequest: InsertWorkOrderPartsRequest): Promise<WorkOrderPartsRequest> {
-    const result = await db.insert(workOrderPartsRequests).values({
-      ...insertPartsRequest,
-      requestedAt: new Date(),
-    }).returning();
+    const result = await db.insert(workOrderPartsRequests).values(insertPartsRequest).returning();
     return result[0];
   }
 

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, DollarSign, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer } from "lucide-react";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
+import { PartsRequestModal } from "@/components/modals/parts-request-modal";
 import { useAuth } from "@/hooks/use-auth";
 import type { WorkOrderWithUsers } from "@shared/schema";
 
@@ -20,6 +21,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [isPartsRequestModalOpen, setIsPartsRequestModalOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -244,9 +246,14 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <p className="text-gray-600 mb-4">
                 Request parts and materials for this work order.
               </p>
-              <Button>
-                Request Parts
-              </Button>
+              <div className="space-x-2">
+                <Button onClick={() => setIsPartsRequestModalOpen(true)}>
+                  Request Parts
+                </Button>
+                <Button variant="outline" onClick={() => window.location.href = '/parts-requests'}>
+                  View All Parts Requests
+                </Button>
+              </div>
             </div>
           </TabsContent>
 
@@ -323,6 +330,14 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
         <WorkOrderProposalModal
           isOpen={isProposalModalOpen}
           onClose={() => setIsProposalModalOpen(false)}
+          workOrder={workOrder}
+        />
+      )}
+
+      {isPartsRequestModalOpen && (
+        <PartsRequestModal
+          isOpen={isPartsRequestModalOpen}
+          onClose={() => setIsPartsRequestModalOpen(false)}
           workOrder={workOrder}
         />
       )}

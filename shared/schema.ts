@@ -107,14 +107,11 @@ export const workOrderProposals = sqliteTable("work_order_proposals", {
 export const workOrderPartsRequests = sqliteTable("work_order_parts_requests", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   workOrderId: integer("work_order_id").notNull(),
-  partName: text("part_name").notNull(),
-  quantity: integer("quantity").notNull(),
-  unitPrice: text("unit_price").notNull(),
-  totalPrice: text("total_price").notNull(),
-  storeName: text("store_name"),
-  remark: text("remark"),
-  status: text("status").notNull().default("pending"), // pending, approved, rejected
-  requestedAt: integer("requested_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  requestedBy: integer("requested_by").notNull(),
+  parts: text("parts").notNull(), // JSON string of parts array
+  reason: text("reason"),
+  status: text("status").notNull().default("pending"), // pending, approved, cancelled
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
 export const workOrderFiles = sqliteTable("work_order_files", {
@@ -222,7 +219,7 @@ export const insertWorkOrderProposalSchema = createInsertSchema(workOrderProposa
 
 export const insertWorkOrderPartsRequestSchema = createInsertSchema(workOrderPartsRequests).omit({
   id: true,
-  requestedAt: true,
+  createdAt: true,
 });
 
 export const insertWorkOrderFileSchema = createInsertSchema(workOrderFiles).omit({
