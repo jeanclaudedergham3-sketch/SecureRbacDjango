@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Technician } from "@shared/schema";
+import { InvoiceManagement } from "../invoice-management";
 
 import { useAuth } from "@/hooks/use-auth";
 import type { WorkOrderWithUsers } from "@shared/schema";
@@ -772,10 +773,29 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
       {isInvoiceModalOpen && (
         <CreateInvoiceModal
           isOpen={isInvoiceModalOpen}
-          onClose={() => setIsInvoiceModalOpen(false)}
-          workOrderId={workOrder?.id}
-          onSubmit={(data) => createInvoiceMutation.mutate(data)}
-          isLoading={createInvoiceMutation.isPending}
+          onClose={() => {
+            setIsInvoiceModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/invoice`] });
+          }}
+          workOrder={workOrder}
+          onSubmit={(data) => {
+            apiRequest("POST", `/api/work-orders/${workOrder.id}/invoice`, data)
+              .then(() => {
+                toast({
+                  title: "Success",
+                  description: "Invoice saved successfully",
+                });
+                setIsInvoiceModalOpen(false);
+                queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/invoice`] });
+              })
+              .catch((error) => {
+                toast({
+                  title: "Error",
+                  description: error.message || "Failed to save invoice",
+                  variant: "destructive",
+                });
+              });
+          }}
         />
       )}
 
