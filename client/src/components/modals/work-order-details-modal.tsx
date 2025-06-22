@@ -293,7 +293,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview" className="flex items-center gap-1">
               <FileText className="h-3 w-3" />
               Overview
@@ -313,6 +313,10 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
             <TabsTrigger value="files" className="flex items-center gap-1">
               <Upload className="h-3 w-3" />
               Files
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="flex items-center gap-1">
+              <MessageSquare className="h-3 w-3" />
+              Chat
             </TabsTrigger>
             <TabsTrigger value="payment" className="flex items-center gap-1">
               <CreditCard className="h-3 w-3" />
@@ -541,6 +545,19 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               </p>
               <Button onClick={() => setIsFileUploadModalOpen(true)}>
                 Manage Files
+              </Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="chat" className="space-y-4">
+            <div className="text-center py-8">
+              <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-lg font-medium mb-2">Work Order Chat</h3>
+              <p className="text-gray-600 mb-4">
+                Communicate with team members about this work order.
+              </p>
+              <Button onClick={() => setIsChatModalOpen(true)}>
+                Open Chat
               </Button>
             </div>
           </TabsContent>
