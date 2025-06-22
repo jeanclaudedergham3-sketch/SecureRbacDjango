@@ -51,6 +51,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   
   const [activeTab, setActiveTab] = useState("overview");
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isPartsRequestModalOpen, setIsPartsRequestModalOpen] = useState(false);
   const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
@@ -62,6 +63,11 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
 
   const { data: workOrderProposal } = useQuery({
     queryKey: [`/api/work-orders/${workOrder?.id}/proposal`],
+    enabled: !!workOrder?.id,
+  });
+
+  const { data: workOrderInvoice } = useQuery({
+    queryKey: [`/api/work-orders/${workOrder?.id}/invoice`],
     enabled: !!workOrder?.id,
   });
 
@@ -408,6 +414,83 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 </div>
               </PermissionGuard>
             </div>
+          </TabsContent>
+
+          <TabsContent value="invoice" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Invoice</h3>
+              <PermissionGuard requiredPermission="manage_work_orders">
+                <Button onClick={() => setIsInvoiceModalOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Invoice
+                </Button>
+              </PermissionGuard>
+            </div>
+
+            {workOrderInvoice ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex justify-between items-center">
+                    <span>Invoice Details</span>
+                    <Badge variant="outline">
+                      Total: ${parseFloat(workOrderInvoice.totalAmount || "0").toFixed(2)}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Labor Cost</p>
+                      <p className="text-lg">${parseFloat(workOrderInvoice.laborCost || "0").toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Material Cost</p>
+                      <p className="text-lg">${parseFloat(workOrderInvoice.materialCost || "0").toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Tax Amount</p>
+                      <p className="text-lg">${parseFloat(workOrderInvoice.taxAmount || "0").toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Status</p>
+                      <Badge className={
+                        workOrderInvoice.status === 'paid' ? 'bg-green-100 text-green-800' :
+                        workOrderInvoice.status === 'sent' ? 'bg-blue-100 text-blue-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }>
+                        {workOrderInvoice.status || 'Draft'}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  {workOrderInvoice.notes && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-2">Notes</p>
+                      <p className="text-sm bg-gray-50 p-3 rounded">{workOrderInvoice.notes}</p>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-500">
+                    Created: {new Date(workOrderInvoice.createdAt).toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <p className="text-gray-500">No invoice created yet</p>
+                  <PermissionGuard requiredPermission="manage_work_orders">
+                    <Button 
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={() => setIsInvoiceModalOpen(true)}
+                    >
+                      Create Invoice
+                    </Button>
+                  </PermissionGuard>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="parts" className="space-y-4">
