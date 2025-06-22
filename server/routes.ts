@@ -997,6 +997,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Invoice routes
+  app.get("/api/work-orders/:id/invoice", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      console.log(`API: Fetching invoice for work order ${workOrderId}`);
+      const invoice = await storage.getWorkOrderInvoice(workOrderId);
+      console.log(`API: Found invoice:`, invoice);
+      res.json(invoice || null);
+    } catch (error: any) {
+      console.error("API: Error fetching invoice:", error);
+      res.status(500).json({ message: "Error fetching invoice: " + error.message });
+    }
+  });
+
+  app.post("/api/work-orders/:id/invoice", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      console.log(`API: Creating/updating invoice for work order ${workOrderId} with data:`, req.body);
+      
+      // Check if invoice already exists
+      const existingInvoice = await storage.getWorkOrderInvoice(workOrderId);
+      
+      let savedInvoice;
+      if (existingInvoice) {
+        // Update existing invoice
+        savedInvoice = await storage.updateWorkOrderInvoice(workOrderId, req.body);
+        console.log(`API: Updated invoice:`, savedInvoice);
+      } else {
+        // Create new invoice
+        savedInvoice = await storage.createWorkOrderInvoice({
+          ...req.body,
+          workOrderId
+        });
+        console.log(`API: Created invoice:`, savedInvoice);
+      }
+      
+      res.json(savedInvoice);
+    } catch (error: any) {
+      console.error("API: Error creating/updating invoice:", error);
+      res.status(500).json({ message: "Error creating/updating invoice: " + error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
