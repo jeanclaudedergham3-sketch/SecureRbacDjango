@@ -444,20 +444,18 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           <TabsContent value="invoice" className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium">Invoice Management</h3>
-              <PermissionGuard requiredPermission="manage_work_orders">
-                <div className="space-x-2">
-                  {workOrderInvoice ? (
-                    <Button onClick={() => setIsInvoiceModalOpen(true)}>
-                      Edit Invoice
-                    </Button>
-                  ) : (
-                    <Button onClick={() => setIsInvoiceModalOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Invoice
-                    </Button>
-                  )}
-                </div>
-              </PermissionGuard>
+              <div className="space-x-2">
+                {workOrderInvoice ? (
+                  <Button onClick={() => setIsInvoiceModalOpen(true)}>
+                    Edit Invoice
+                  </Button>
+                ) : (
+                  <Button onClick={() => setIsInvoiceModalOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Invoice
+                  </Button>
+                )}
+              </div>
             </div>
 
             {workOrderInvoice ? (
@@ -550,16 +548,14 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                   </div>
 
                   {/* Action Buttons */}
-                  <PermissionGuard requiredPermission="manage_work_orders">
-                    <div className="border-t pt-4 flex justify-end space-x-2">
-                      <Button variant="outline" onClick={() => setIsInvoiceModalOpen(true)}>
-                        Edit Invoice
-                      </Button>
-                      <Button>
-                        Download PDF
-                      </Button>
-                    </div>
-                  </PermissionGuard>
+                  <div className="border-t pt-4 flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => setIsInvoiceModalOpen(true)}>
+                      Edit Invoice
+                    </Button>
+                    <Button>
+                      Download PDF
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ) : (
@@ -570,15 +566,13 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                   <p className="text-gray-600 mb-6">
                     Create a professional invoice for this work order from ABC Corporation.
                   </p>
-                  <PermissionGuard requiredPermission="manage_work_orders">
-                    <Button 
-                      onClick={() => setIsInvoiceModalOpen(true)}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Invoice
-                    </Button>
-                  </PermissionGuard>
+                  <Button 
+                    onClick={() => setIsInvoiceModalOpen(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Invoice
+                  </Button>
                 </CardContent>
               </Card>
             )}
