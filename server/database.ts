@@ -175,7 +175,7 @@ export function initializeDatabase() {
         message TEXT,
         file_url TEXT,
         message_type TEXT DEFAULT 'text' NOT NULL,
-        sent_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
         FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
         FOREIGN KEY (user_id) REFERENCES users(id)
       );

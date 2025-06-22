@@ -757,7 +757,7 @@ export class SqliteStorage implements IStorage {
   async getWorkOrderChats(workOrderId: number): Promise<WorkOrderChat[]> {
     return await db.select().from(workOrderChats)
       .where(eq(workOrderChats.workOrderId, workOrderId))
-      .orderBy(workOrderChats.sentAt);
+      .orderBy(workOrderChats.createdAt);
   }
 
   async createWorkOrderChat(insertChat: InsertWorkOrderChat): Promise<WorkOrderChat> {

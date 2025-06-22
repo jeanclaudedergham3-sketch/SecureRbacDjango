@@ -748,6 +748,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/work-orders/:id/chats/file", requireAuth, requirePermission("view_work_orders"), upload.single('file'), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      
+      const { messageType, userId, message } = req.body;
+      
+      const chatData = {
+        workOrderId,
+        userId: userId ? parseInt(userId) : req.session.userId || 1,
+        message: message || req.file.originalname,
+        messageType: messageType || 'file',
+        fileUrl: `/uploads/${workOrderId}/${req.file.filename}`,
+      };
+      
+      const chat = await storage.createWorkOrderChat(chatData);
+      console.log(`File message created for work order ${workOrderId} by user ${req.session.userId}`);
+      res.status(201).json(chat);
+    } catch (error) {
+      console.error("Error creating file message:", error);
+      res.status(400).json({ 
+        message: "Failed to create file message", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
   // Dashboard stats
   app.get("/api/dashboard/stats", requireAuth, requirePermission("view_dashboard"), async (req, res) => {
     try {

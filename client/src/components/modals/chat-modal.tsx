@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, MessageCircle, User, Clock } from "lucide-react";
+import { Send, MessageCircle, User, Clock, Paperclip, Image, Smile, Download, FileText } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -33,6 +33,9 @@ export function ChatModal({ isOpen, onClose, workOrder }: ChatModalProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const [message, setMessage] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch chat messages
   const { data: chats = [], isLoading } = useQuery<ChatWithUser[]>({
@@ -42,14 +45,46 @@ export function ChatModal({ isOpen, onClose, workOrder }: ChatModalProps) {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: (messageData: any) => 
-      apiRequest("POST", `/api/work-orders/${workOrder.id}/chats`, messageData),
+    mutationFn: async (data: { message?: string; file?: File }) => {
+      if (data.file) {
+        // Send file message
+        const formData = new FormData();
+        formData.append('file', data.file);
+        formData.append('messageType', 'file');
+        formData.append('userId', user?.id?.toString() || '1');
+        formData.append('workOrderId', workOrder.id.toString());
+        formData.append('message', data.file.name);
+
+        const response = await fetch(`/api/work-orders/${workOrder.id}/chats/file`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to send file');
+        }
+
+        return response.json();
+      } else {
+        // Send text message
+        return apiRequest("POST", `/api/work-orders/${workOrder.id}/chats`, {
+          workOrderId: workOrder.id,
+          userId: user?.id,
+          message: data.message?.trim(),
+          messageType: 'text'
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/chats`] });
       setMessage("");
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       toast({
         title: "Success",
-        description: "Message sent successfully",
+        description: selectedFile ? "File sent successfully" : "Message sent successfully",
       });
     },
     onError: (error: any) => {
@@ -62,22 +97,44 @@ export function ChatModal({ isOpen, onClose, workOrder }: ChatModalProps) {
   });
 
   const handleSendMessage = () => {
-    if (!message.trim()) {
+    if (selectedFile) {
+      sendMessageMutation.mutate({ file: selectedFile });
+    } else if (message.trim()) {
+      sendMessageMutation.mutate({ message: message.trim() });
+    } else {
       toast({
         title: "Error",
-        description: "Please enter a message",
+        description: "Please enter a message or select a file",
         variant: "destructive",
       });
-      return;
     }
+  };
 
-    const messageData = {
-      workOrderId: workOrder.id,
-      userId: user?.id,
-      message: message.trim(),
-    };
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast({
+          title: "Error",
+          description: "File size must be less than 10MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
 
-    sendMessageMutation.mutate(messageData);
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const addEmoji = (emoji: string) => {
+    setMessage(prev => prev + emoji);
+    setShowEmojiPicker(false);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -183,9 +240,39 @@ export function ChatModal({ isOpen, onClose, workOrder }: ChatModalProps) {
                     
                     <Card className={`${isCurrentUser(chat.userId) ? 'bg-blue-600 text-white' : 'bg-white border-gray-200'}`}>
                       <CardContent className="p-3">
-                        <p className="text-sm whitespace-pre-wrap break-words">
-                          {chat.message}
-                        </p>
+                        {chat.messageType === 'file' && chat.fileUrl ? (
+                          <div className="space-y-2">
+                            {chat.fileUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                              <div>
+                                <img 
+                                  src={chat.fileUrl} 
+                                  alt={chat.message || "Shared image"} 
+                                  className="max-w-xs max-h-48 rounded cursor-pointer hover:opacity-80"
+                                  onClick={() => window.open(chat.fileUrl, '_blank')}
+                                />
+                                {chat.message && (
+                                  <p className="text-sm mt-1">{chat.message}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded border">
+                                <FileText className="h-4 w-4" />
+                                <span className="text-sm flex-1">{chat.message}</span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => window.open(chat.fileUrl, '_blank')}
+                                >
+                                  <Download className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm whitespace-pre-wrap break-words">
+                            {chat.message}
+                          </p>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
@@ -204,18 +291,81 @@ export function ChatModal({ isOpen, onClose, workOrder }: ChatModalProps) {
 
         {/* Message Input Area */}
         <div className="flex-shrink-0 border-t pt-4">
+          {/* File Preview */}
+          {selectedFile && (
+            <div className="mb-3 p-3 bg-blue-50 rounded-lg border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {selectedFile.type.startsWith('image/') ? (
+                    <Image className="h-4 w-4 text-blue-600" />
+                  ) : (
+                    <Paperclip className="h-4 w-4 text-blue-600" />
+                  )}
+                  <span className="text-sm font-medium text-blue-900">{selectedFile.name}</span>
+                  <span className="text-xs text-blue-600">
+                    ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </span>
+                </div>
+                <Button size="sm" variant="outline" onClick={removeSelectedFile}>
+                  Remove
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Emoji Picker */}
+          {showEmojiPicker && (
+            <div className="mb-3 p-3 bg-white border rounded-lg shadow-lg">
+              <div className="text-sm text-gray-600 mb-2">Quick Emojis:</div>
+              <div className="grid grid-cols-8 gap-2">
+                {['😊', '👍', '👎', '❤️', '😂', '😢', '😮', '😡', '🎉', '🔥', '💯', '✅', '❌', '⚠️', '💡', '🚀'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => addEmoji(emoji)}
+                    className="text-lg hover:bg-gray-100 rounded p-1"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex space-x-2">
+            <div className="flex space-x-1">
+              {/* File Upload Button */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={sendMessageMutation.isPending}
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              
+              {/* Emoji Button */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                disabled={sendMessageMutation.isPending}
+              >
+                <Smile className="h-4 w-4" />
+              </Button>
+            </div>
+
             <Input
-              placeholder="Type your message..."
+              placeholder={selectedFile ? "Add a caption..." : "Type your message..."}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               className="flex-1"
               disabled={sendMessageMutation.isPending}
             />
+            
             <Button 
               onClick={handleSendMessage}
-              disabled={sendMessageMutation.isPending || !message.trim()}
+              disabled={sendMessageMutation.isPending || (!message.trim() && !selectedFile)}
               size="sm"
             >
               {sendMessageMutation.isPending ? (
@@ -225,8 +375,18 @@ export function ChatModal({ isOpen, onClose, workOrder }: ChatModalProps) {
               )}
             </Button>
           </div>
+
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            hidden
+            accept="image/*,.pdf,.doc,.docx,.txt"
+            onChange={handleFileSelect}
+          />
+
           <p className="text-xs text-gray-500 mt-2">
-            Press Enter to send • Shift+Enter for new line
+            Press Enter to send • Shift+Enter for new line • Max file size: 10MB
           </p>
         </div>
       </DialogContent>
