@@ -166,10 +166,10 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
 
   const getTechnicianDetails = (technicianId: number) => {
     const technician = technicians.find(t => t.id === technicianId);
-    if (!technician) return "Unknown Technician";
+    if (!technician) return { name: "Unknown Technician", rating: "0" };
     return {
       name: `${technician.firstName} ${technician.lastName}`,
-      rate: technician.hourlyRate,
+      rating: technician.averageRating ? technician.averageRating.toFixed(1) : 'No ratings',
       phone: technician.phoneNumber
     };
   };
@@ -208,7 +208,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                             <div className="flex flex-col">
                               <span>{technician.firstName} {technician.lastName}</span>
                               <span className="text-sm text-gray-500">
-                                Rate: ${technician.hourlyRate}/hr
+                                ⭐ {technician.averageRating ? technician.averageRating.toFixed(1) : 'No ratings'} 
                                 {technician.phoneNumber && ` • ${technician.phoneNumber}`}
                               </span>
                             </div>
@@ -316,7 +316,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                           <div>
                             <p className="font-medium">{getTechnicianDetails(payment.technicianId).name}</p>
                             <p className="text-sm text-gray-500">
-                              ${getTechnicianDetails(payment.technicianId).rate}/hr • {getPaymentMethodDisplayName(payment.paymentMethod)}
+                              ⭐ {getTechnicianDetails(payment.technicianId).rating} • {getPaymentMethodDisplayName(payment.paymentMethod)}
                             </p>
                           </div>
                         </div>
