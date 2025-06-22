@@ -60,6 +60,11 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
     queryKey: ["/api/technicians"],
   });
 
+  const { data: workOrderProposal } = useQuery({
+    queryKey: [`/api/work-orders/${workOrder?.id}/proposal`],
+    enabled: !!workOrder?.id,
+  });
+
   const { data: existingPayments = [] } = useQuery({
     queryKey: [`/api/work-orders/${workOrder?.id}/payments`],
     enabled: !!workOrder?.id,
