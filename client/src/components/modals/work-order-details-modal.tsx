@@ -18,6 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Technician } from "@shared/schema";
@@ -33,7 +34,7 @@ interface WorkOrderDetailsModalProps {
 
 const paymentRequestSchema = z.object({
   technicianId: z.number().min(1, "Technician is required"),
-  paymentMethod: z.enum(["bank_transfer", "cash", "check", "digital_wallet"]),
+  paymentMethods: z.array(z.string()).min(1, "At least one payment method is required"),
   amountRequested: z.string().min(1, "Amount is required").refine(
     (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
     "Amount must be a positive number"
@@ -63,11 +64,66 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
     resolver: zodResolver(paymentRequestSchema),
     defaultValues: {
       technicianId: 0,
-      paymentMethod: "bank_transfer",
+      paymentMethods: [],
       amountRequested: "",
       description: "",
     },
   });
+
+  const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
+  const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
+
+  // Available payment methods with details
+  const paymentMethodsInfo = {
+    bank_transfer: {
+      name: "Bank Transfer",
+      description: "Direct bank account transfer",
+      icon: "🏦",
+      details: ["Account Number", "Routing Number", "Bank Name"]
+    },
+    cash: {
+      name: "Cash",
+      description: "Cash payment on-site",
+      icon: "💵",
+      details: ["On-site pickup location"]
+    },
+    check: {
+      name: "Check",
+      description: "Physical or digital check",
+      icon: "📋",
+      details: ["Payable to", "Mailing address"]
+    },
+    digital_wallet: {
+      name: "Digital Wallet",
+      description: "PayPal, Venmo, etc.",
+      icon: "📱",
+      details: ["Wallet ID/Email", "Preferred platform"]
+    },
+    wire_transfer: {
+      name: "Wire Transfer",
+      description: "International wire transfer",
+      icon: "🌐",
+      details: ["SWIFT Code", "Account Details", "Bank Address"]
+    }
+  };
+
+  // Get technician's available payment methods
+  const getAvailablePaymentMethods = (technician: Technician) => {
+    try {
+      return technician.paymentMethods ? JSON.parse(technician.paymentMethods) : ["bank_transfer", "cash"];
+    } catch {
+      return ["bank_transfer", "cash"];
+    }
+  };
+
+  // Get technician's payment details
+  const getPaymentDetails = (technician: Technician) => {
+    try {
+      return technician.paymentDetails ? JSON.parse(technician.paymentDetails) : {};
+    } catch {
+      return {};
+    }
+  };
 
   const createPaymentMutation = useMutation({
     mutationFn: (data: PaymentRequestFormData) => 
@@ -83,6 +139,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
       });
       setIsPaymentRequestOpen(false);
       paymentForm.reset();
+      setSelectedTechnician(null);
+      setSelectedPaymentMethods([]);
     },
     onError: (error: any) => {
       toast({
@@ -94,7 +152,28 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   });
 
   const handlePaymentSubmit = (data: PaymentRequestFormData) => {
-    createPaymentMutation.mutate(data);
+    createPaymentMutation.mutate({
+      ...data,
+      paymentMethods: selectedPaymentMethods
+    });
+  };
+
+  const handleTechnicianChange = (value: string) => {
+    const technicianId = parseInt(value);
+    const technician = technicians.find(t => t.id === technicianId);
+    setSelectedTechnician(technician || null);
+    setSelectedPaymentMethods([]);
+    paymentForm.setValue("technicianId", technicianId);
+    paymentForm.setValue("paymentMethods", []);
+  };
+
+  const handlePaymentMethodToggle = (method: string, checked: boolean) => {
+    const newMethods = checked 
+      ? [...selectedPaymentMethods, method]
+      : selectedPaymentMethods.filter(m => m !== method);
+    
+    setSelectedPaymentMethods(newMethods);
+    paymentForm.setValue("paymentMethods", newMethods);
   };
 
 
@@ -388,7 +467,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Technician</FormLabel>
-                              <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                              <Select onValueChange={handleTechnicianChange}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select technician" />
@@ -417,30 +496,56 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                           )}
                         />
 
-                        {/* Payment Method */}
-                        <FormField
-                          control={paymentForm.control}
-                          name="paymentMethod"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Payment Method</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select payment method" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                                  <SelectItem value="cash">Cash</SelectItem>
-                                  <SelectItem value="check">Check</SelectItem>
-                                  <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        {/* Payment Methods - Only show when technician is selected */}
+                        {selectedTechnician && (
+                          <FormField
+                            control={paymentForm.control}
+                            name="paymentMethods"
+                            render={() => (
+                              <FormItem>
+                                <FormLabel>Available Payment Methods</FormLabel>
+                                <div className="space-y-3">
+                                  {getAvailablePaymentMethods(selectedTechnician).map((method: string) => {
+                                    const methodInfo = paymentMethodsInfo[method as keyof typeof paymentMethodsInfo];
+                                    const technicianDetails = getPaymentDetails(selectedTechnician);
+                                    const isSelected = selectedPaymentMethods.includes(method);
+                                    
+                                    return (
+                                      <div key={method} className="border rounded-lg p-3">
+                                        <div className="flex items-center space-x-2 mb-2">
+                                          <Checkbox
+                                            id={method}
+                                            checked={isSelected}
+                                            onCheckedChange={(checked) => handlePaymentMethodToggle(method, checked as boolean)}
+                                          />
+                                          <label htmlFor={method} className="flex items-center space-x-2 cursor-pointer">
+                                            <span className="text-lg">{methodInfo?.icon}</span>
+                                            <div>
+                                              <div className="font-medium">{methodInfo?.name}</div>
+                                              <div className="text-sm text-gray-500">{methodInfo?.description}</div>
+                                            </div>
+                                          </label>
+                                        </div>
+                                        
+                                        {isSelected && methodInfo && (
+                                          <div className="ml-6 mt-2 p-2 bg-gray-50 rounded text-xs">
+                                            <div className="font-medium mb-1">Required Details:</div>
+                                            {methodInfo.details.map((detail, idx) => (
+                                              <div key={idx} className="text-gray-600">
+                                                • {detail}: {technicianDetails[method]?.[detail] || "Contact technician"}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
 
                         {/* Amount */}
                         <FormField
