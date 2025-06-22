@@ -61,7 +61,7 @@ export default function PaymentManager() {
   });
 
   const { data: technicianHistory = [] } = useQuery<PaymentRequest[]>({
-    queryKey: ["/api/payments/technician", selectedTechnicianId],
+    queryKey: [`/api/payments/technician/${selectedTechnicianId}`],
     enabled: !!selectedTechnicianId,
   });
 

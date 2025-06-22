@@ -827,8 +827,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/payments/technician/:technicianId", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
     try {
       const technicianId = parseInt(req.params.technicianId);
+      console.log(`Fetching payment history for technician ${technicianId}`);
+      
       const allPayments = await storage.getWorkOrderTechnicianPayments(0);
       const workOrders = await storage.getAllWorkOrders();
+      
+      console.log(`Total payments found: ${allPayments.length}`);
+      console.log("All payments:", allPayments);
       
       const technicianPayments = allPayments
         .filter(payment => payment.technicianId === technicianId)
@@ -841,6 +846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
       
+      console.log(`Filtered payments for technician ${technicianId}:`, technicianPayments);
       res.json(technicianPayments);
     } catch (error) {
       console.error("Error fetching technician payments:", error);
