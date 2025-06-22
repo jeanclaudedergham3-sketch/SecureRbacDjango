@@ -119,6 +119,15 @@ export default function PaymentsPage() {
     return technician ? `${technician.firstName} ${technician.lastName}` : "Unknown Technician";
   };
 
+  const getTechnicianDetails = (technicianId: number) => {
+    const technician = technicians.find(t => t.id === technicianId);
+    if (!technician) return { name: "Unknown Technician", rate: "0" };
+    return {
+      name: `${technician.firstName} ${technician.lastName}`,
+      rate: technician.hourlyRate
+    };
+  };
+
   const getWorkOrderNumber = (workOrderId: number) => {
     const workOrder = workOrders.find(wo => wo.id === workOrderId);
     return workOrder ? workOrder.workOrderNumber : "Unknown";
@@ -299,7 +308,10 @@ export default function PaymentsPage() {
                     <TableCell>
                       <div className="flex items-center">
                         <User className="h-4 w-4 mr-2 text-gray-500" />
-                        {getTechnicianName(payment.technicianId)}
+                        <div>
+                          <p className="font-medium">{getTechnicianDetails(payment.technicianId).name}</p>
+                          <p className="text-xs text-gray-500">${getTechnicianDetails(payment.technicianId).rate}/hr</p>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -368,7 +380,8 @@ export default function PaymentsPage() {
                 </div>
                 <div>
                   <span className="font-medium">Technician:</span>
-                  <p>{getTechnicianName(selectedPayment.technicianId)}</p>
+                  <p>{getTechnicianDetails(selectedPayment.technicianId).name}</p>
+                  <p className="text-sm text-gray-500">${getTechnicianDetails(selectedPayment.technicianId).rate}/hr</p>
                 </div>
                 <div>
                   <span className="font-medium">Payment Method:</span>

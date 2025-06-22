@@ -164,6 +164,16 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
     return technician ? `${technician.firstName} ${technician.lastName}` : "Unknown Technician";
   };
 
+  const getTechnicianDetails = (technicianId: number) => {
+    const technician = technicians.find(t => t.id === technicianId);
+    if (!technician) return "Unknown Technician";
+    return {
+      name: `${technician.firstName} ${technician.lastName}`,
+      rate: technician.hourlyRate,
+      phone: technician.phoneNumber
+    };
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
@@ -195,10 +205,13 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                       <SelectContent>
                         {technicians.map((technician) => (
                           <SelectItem key={technician.id} value={technician.id.toString()}>
-                            {technician.firstName} {technician.lastName}
-                            {technician.phoneNumber && (
-                              <span className="text-gray-500 ml-2">({technician.phoneNumber})</span>
-                            )}
+                            <div className="flex flex-col">
+                              <span>{technician.firstName} {technician.lastName}</span>
+                              <span className="text-sm text-gray-500">
+                                Rate: ${technician.hourlyRate}/hr
+                                {technician.phoneNumber && ` • ${technician.phoneNumber}`}
+                              </span>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -301,8 +314,10 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                         <div className="flex items-center space-x-3">
                           <User className="h-5 w-5 text-gray-500" />
                           <div>
-                            <p className="font-medium">{getTechnicianName(payment.technicianId)}</p>
-                            <p className="text-sm text-gray-500">{getPaymentMethodDisplayName(payment.paymentMethod)}</p>
+                            <p className="font-medium">{getTechnicianDetails(payment.technicianId).name}</p>
+                            <p className="text-sm text-gray-500">
+                              ${getTechnicianDetails(payment.technicianId).rate}/hr • {getPaymentMethodDisplayName(payment.paymentMethod)}
+                            </p>
                           </div>
                         </div>
                         <Badge className={getStatusColor(payment.status)}>
