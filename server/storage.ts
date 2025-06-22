@@ -112,6 +112,7 @@ export interface IStorage {
   getAllInvoices(): Promise<WorkOrderInvoice[]>;
   getInvoiceById(id: number): Promise<WorkOrderInvoice | undefined>;
   deleteInvoice(id: number): Promise<boolean>;
+  lockWorkOrder(workOrderId: number): Promise<boolean>;
 }
 
 export class SqliteStorage implements IStorage {
@@ -830,6 +831,15 @@ export class SqliteStorage implements IStorage {
 
   async deleteInvoice(id: number): Promise<boolean> {
     const result = await db.delete(workOrderInvoices).where(eq(workOrderInvoices.id, id));
+    return result.changes > 0;
+  }
+
+  async lockWorkOrder(workOrderId: number): Promise<boolean> {
+    console.log(`Storage: Locking work order ${workOrderId}`);
+    const result = await db.update(workOrders)
+      .set({ isLocked: true })
+      .where(eq(workOrders.id, workOrderId));
+    console.log(`Storage: Work order ${workOrderId} lock result:`, result.changes > 0);
     return result.changes > 0;
   }
 }

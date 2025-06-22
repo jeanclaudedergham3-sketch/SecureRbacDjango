@@ -36,6 +36,7 @@ export default function Invoices() {
   // Fetch all invoices with work order details
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ["/api/invoices/all"],
+    refetchInterval: 2000, // Refresh every 2 seconds to show new invoices
   });
 
   const updateInvoiceMutation = useMutation({
@@ -190,10 +191,20 @@ export default function Invoices() {
       return;
     }
 
-    updateInvoiceMutation.mutate({
-      invoiceId: invoice.id,
-      data: { status: newStatus },
-    });
+    // Special handling for changing to "paid" status
+    if (newStatus === "paid") {
+      if (confirm(`Are you sure you want to mark this invoice as PAID? This will lock the work order ${invoice.workOrderNumber} from all future edits.`)) {
+        updateInvoiceMutation.mutate({
+          invoiceId: invoice.id,
+          data: { status: newStatus },
+        });
+      }
+    } else {
+      updateInvoiceMutation.mutate({
+        invoiceId: invoice.id,
+        data: { status: newStatus },
+      });
+    }
   };
 
   const handleModalSubmit = (data: any) => {
@@ -321,25 +332,25 @@ export default function Invoices() {
                         ${parseFloat(invoice.totalAmount || "0").toFixed(2)}
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={invoice.status || "draft"}
-                          onValueChange={(value) => handleStatusChange(invoice, value)}
-                          disabled={updateInvoiceMutation.isPending}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="sent">Sent</SelectItem>
-                            <SelectItem value="paid">Paid</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {invoice.isLocked && (
-                          <div className="mt-1">
-                            {getStatusBadge(invoice.status || "draft", invoice.isLocked)}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(invoice.status || "draft", invoice.isLocked)}
+                          {!invoice.isLocked && (
+                            <Select
+                              value={invoice.status || "draft"}
+                              onValueChange={(value) => handleStatusChange(invoice, value)}
+                              disabled={updateInvoiceMutation.isPending}
+                            >
+                              <SelectTrigger className="w-20">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="sent">Sent</SelectItem>
+                                <SelectItem value="paid">Paid</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {new Date(invoice.createdAt).toLocaleDateString()}

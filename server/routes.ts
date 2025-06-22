@@ -1049,7 +1049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const invoicesWithDetails = allInvoices.map(invoice => {
         const workOrder = workOrders.find(wo => wo.id === invoice.workOrderId);
-        const isLocked = invoice.status === "paid";
+        const isLocked = invoice.status === "paid" || workOrder?.isLocked || false;
         
         return {
           ...invoice,
@@ -1091,10 +1091,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const updatedInvoice = await storage.updateWorkOrderInvoice(invoice.workOrderId, req.body);
       
-      // If status changed to "paid", lock the work order by updating the work order status
+      // If status changed to "paid", lock the work order
       if (req.body.status === "paid") {
-        // We'll implement work order locking through the work order management
-        console.log(`Work order ${invoice.workOrderId} should be locked due to paid invoice`);
+        await storage.lockWorkOrder(invoice.workOrderId);
+        console.log(`Work order ${invoice.workOrderId} has been LOCKED due to paid invoice`);
       }
       
       res.json(updatedInvoice);
