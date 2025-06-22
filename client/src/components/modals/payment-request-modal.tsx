@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { DollarSign, CreditCard, User, Clock, MapPin } from "lucide-react";
+import { TechnicianMapSelectionModal } from "@/components/modals/technician-map-selection-modal";
 import type { WorkOrderWithUsers, Technician, WorkOrderTechnicianPayment } from "@shared/schema";
 
 interface PaymentRequestModalProps {
@@ -29,6 +30,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder, preSelectedTec
   const [amountRequested, setAmountRequested] = useState("");
   const [description, setDescription] = useState("");
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<string[]>([]);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
 
   // Fetch technicians
   const { data: technicians = [] } = useQuery<Technician[]>({
@@ -68,6 +70,10 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder, preSelectedTec
     setAmountRequested("");
     setDescription("");
     setAvailablePaymentMethods([]);
+  };
+
+  const handleTechnicianSelectFromMap = (technician: Technician) => {
+    handleTechnicianChange(technician.id.toString());
   };
 
   // Auto-select first pre-selected technician if available
@@ -240,12 +246,9 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder, preSelectedTec
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => {
-                          onClose();
-                          window.location.href = '/technician-map';
-                        }}
+                        onClick={() => setIsMapModalOpen(true)}
                         className="px-3"
-                        title="Select technicians from map"
+                        title="Select technician from map"
                       >
                         <MapPin className="h-4 w-4" />
                       </Button>
