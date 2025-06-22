@@ -150,11 +150,13 @@ export const workOrderTechnicianPayments = sqliteTable("work_order_technician_pa
 export const workOrderInvoices = sqliteTable("work_order_invoices", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   workOrderId: integer("work_order_id").notNull(),
-  partsTotal: text("parts_total").notNull().default("0"),
-  technicianTotal: text("technician_total").notNull().default("0"),
-  extraCharges: text("extra_charges").notNull().default("0"),
-  finalTotal: text("final_total").notNull(),
-  invoiceData: text("invoice_data"), // JSON with detailed breakdown
+  laborCost: text("labor_cost"),
+  materialCost: text("material_cost"),
+  taxRate: text("tax_rate"),
+  taxAmount: text("tax_amount"),
+  totalAmount: text("total_amount"),
+  status: text("status"),
+  notes: text("notes"),
   createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 

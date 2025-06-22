@@ -198,11 +198,13 @@ export function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS work_order_invoices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         work_order_id INTEGER NOT NULL,
-        parts_total TEXT DEFAULT '0' NOT NULL,
-        technician_total TEXT DEFAULT '0' NOT NULL,
-        extra_charges TEXT DEFAULT '0' NOT NULL,
-        final_total TEXT NOT NULL,
-        invoice_data TEXT,
+        labor_cost TEXT,
+        material_cost TEXT,
+        tax_rate TEXT,
+        tax_amount TEXT,
+        total_amount TEXT,
+        status TEXT,
+        notes TEXT,
         created_at INTEGER NOT NULL,
         FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
       );
