@@ -169,7 +169,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
     if (!technician) return { name: "Unknown Technician", rating: "0" };
     return {
       name: `${technician.firstName} ${technician.lastName}`,
-      rating: technician.averageRating ? technician.averageRating.toFixed(1) : 'No ratings',
+      rating: technician.averageRating ? parseFloat(technician.averageRating).toFixed(1) : 'No ratings',
       phone: technician.phoneNumber
     };
   };
@@ -208,7 +208,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                             <div className="flex flex-col">
                               <span>{technician.firstName} {technician.lastName}</span>
                               <span className="text-sm text-gray-500">
-                                ⭐ {technician.averageRating ? technician.averageRating.toFixed(1) : 'No ratings'} 
+                                ⭐ {technician.averageRating ? parseFloat(technician.averageRating).toFixed(1) : 'No ratings'} 
                                 {technician.phoneNumber && ` • ${technician.phoneNumber}`}
                               </span>
                             </div>

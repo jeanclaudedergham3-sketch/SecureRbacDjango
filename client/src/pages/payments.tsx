@@ -124,7 +124,7 @@ export default function PaymentsPage() {
     if (!technician) return { name: "Unknown Technician", rating: "No ratings" };
     return {
       name: `${technician.firstName} ${technician.lastName}`,
-      rating: technician.averageRating ? technician.averageRating.toFixed(1) : 'No ratings'
+      rating: technician.averageRating ? parseFloat(technician.averageRating).toFixed(1) : 'No ratings'
     };
   };
 
