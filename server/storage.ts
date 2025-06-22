@@ -761,10 +761,7 @@ export class SqliteStorage implements IStorage {
   }
 
   async createWorkOrderChat(insertChat: InsertWorkOrderChat): Promise<WorkOrderChat> {
-    const result = await db.insert(workOrderChats).values({
-      ...insertChat,
-      sentAt: new Date(),
-    }).returning();
+    const result = await db.insert(workOrderChats).values(insertChat).returning();
     return result[0];
   }
 

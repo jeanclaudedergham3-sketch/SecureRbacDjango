@@ -9,6 +9,7 @@ import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { PartsRequestModal } from "@/components/modals/parts-request-modal";
 import { FileUploadModal } from "@/components/modals/file-upload-modal";
+import { ChatModal } from "@/components/modals/chat-modal";
 import { useAuth } from "@/hooks/use-auth";
 import type { WorkOrderWithUsers } from "@shared/schema";
 
@@ -24,6 +25,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [isPartsRequestModalOpen, setIsPartsRequestModalOpen] = useState(false);
   const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -279,9 +281,9 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <p className="text-gray-600 mb-4">
                 Communicate with team members about this work order.
               </p>
-              <p className="text-sm text-gray-500">
-                Only assigned users can access this chat.
-              </p>
+              <Button onClick={() => setIsChatModalOpen(true)}>
+                Open Chat
+              </Button>
             </div>
           </TabsContent>
 
@@ -328,6 +330,14 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
         <FileUploadModal
           isOpen={isFileUploadModalOpen}
           onClose={() => setIsFileUploadModalOpen(false)}
+          workOrder={workOrder}
+        />
+      )}
+
+      {isChatModalOpen && (
+        <ChatModal
+          isOpen={isChatModalOpen}
+          onClose={() => setIsChatModalOpen(false)}
           workOrder={workOrder}
         />
       )}

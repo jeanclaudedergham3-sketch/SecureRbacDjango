@@ -229,7 +229,7 @@ export const insertWorkOrderFileSchema = createInsertSchema(workOrderFiles).omit
 
 export const insertWorkOrderChatSchema = createInsertSchema(workOrderChats).omit({
   id: true,
-  sentAt: true,
+  createdAt: true,
 });
 
 export const insertWorkOrderTechnicianPaymentSchema = createInsertSchema(workOrderTechnicianPayments).omit({

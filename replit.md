@@ -143,6 +143,7 @@ Changelog:
 - June 22, 2025. Added work order creation, tracking, and multi-tab detail views
 - June 22, 2025. Completed Parts Request Management system with approval workflow and RBAC
 - June 22, 2025. Implemented File Upload system for before/after photos, signatures, and documents with Multer
+- June 22, 2025. Built real-time Chat system for work order communication with message history
 ```
 
 ## User Preferences

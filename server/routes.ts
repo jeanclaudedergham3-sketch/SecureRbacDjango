@@ -5,7 +5,7 @@ import session from "express-session";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
-import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, loginSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import multer from "multer";
 import path from "path";
@@ -698,6 +698,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Serve uploaded files
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
+  // Work Order Chat routes
+  app.get("/api/work-orders/:id/chats", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const chats = await storage.getWorkOrderChats(workOrderId);
+      const users = await storage.getAllUsers();
+      
+      const chatsWithUsers = chats.map(chat => {
+        const user = users.find(u => u.id === chat.userId);
+        return {
+          ...chat,
+          user: user ? {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email
+          } : {
+            firstName: "Unknown",
+            lastName: "User",
+            email: "unknown@example.com"
+          }
+        };
+      });
+      
+      res.json(chatsWithUsers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get chats" });
+    }
+  });
+
+  app.post("/api/work-orders/:id/chats", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const chatData = insertWorkOrderChatSchema.parse({
+        ...req.body,
+        workOrderId
+      });
+      
+      const chat = await storage.createWorkOrderChat(chatData);
+      console.log(`Chat message created for work order ${workOrderId} by user ${req.session.userId}`);
+      res.status(201).json(chat);
+    } catch (error) {
+      console.error("Error creating chat message:", error);
+      res.status(400).json({ 
+        message: "Failed to create chat message", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
 
   // Dashboard stats
   app.get("/api/dashboard/stats", requireAuth, requirePermission("view_dashboard"), async (req, res) => {
