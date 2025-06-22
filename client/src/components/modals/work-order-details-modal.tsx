@@ -68,6 +68,11 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
     enabled: !!workOrder?.id,
   });
 
+  const { data: partsRequests = [] } = useQuery({
+    queryKey: [`/api/work-orders/${workOrder?.id}/parts-requests`],
+    enabled: !!workOrder?.id,
+  });
+
 
 
   const { data: existingPayments = [] } = useQuery({
@@ -582,13 +587,64 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           </TabsContent>
 
           <TabsContent value="parts" className="space-y-4">
-            <div className="text-center py-8">
-              <Receipt className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium mb-2">Parts Requests</h3>
-              <p className="text-gray-600 mb-4">
-                Request parts and materials for this work order.
-              </p>
-              <div className="space-x-2">
+            {partsRequests.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Parts Requests</h3>
+                  <Button 
+                    onClick={() => workOrder.isLocked ? toast({
+                      title: "Action Blocked",
+                      description: "Cannot request parts - work order is locked due to paid invoice.",
+                      variant: "destructive"
+                    }) : setIsPartsRequestModalOpen(true)}
+                    disabled={workOrder.isLocked}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {workOrder.isLocked ? "Locked" : "Add Parts Request"}
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {partsRequests.map((request: any) => (
+                    <Card key={request.id}>
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <h4 className="font-medium">{request.partName}</h4>
+                              <Badge variant={
+                                request.status === "approved" ? "default" : 
+                                request.status === "rejected" ? "destructive" : 
+                                request.status === "ordered" ? "secondary" : "outline"
+                              }>
+                                {request.status}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              <div>Quantity: {request.quantity}</div>
+                              <div>Supplier: {request.supplier || "Not specified"}</div>
+                              {request.description && <div>Description: {request.description}</div>}
+                              <div>Requested: {new Date(request.createdAt).toLocaleDateString()}</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-medium">${parseFloat(request.estimatedCost || "0").toFixed(2)}</div>
+                            <div className="text-sm text-gray-500">Estimated Cost</div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Receipt className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-medium mb-2">No Parts Requested</h3>
+                <p className="text-gray-600 mb-4">
+                  Request parts and materials needed for this work order.
+                </p>
                 <Button 
                   onClick={() => workOrder.isLocked ? toast({
                     title: "Action Blocked",
@@ -599,11 +655,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 >
                   {workOrder.isLocked ? "Locked" : "Request Parts"}
                 </Button>
-                <Button variant="outline" onClick={() => window.location.href = '/parts-requests'}>
-                  View All Parts Requests
-                </Button>
               </div>
-            </div>
+            )}
           </TabsContent>
 
           <TabsContent value="files" className="space-y-4">
