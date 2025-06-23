@@ -269,24 +269,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roles/:id/permissions", requireAuth, requirePermission("assign_roles"), async (req, res) => {
+  app.post("/api/roles/:id/permissions", requireAuth, requirePermission("manage_permissions"), async (req, res) => {
     try {
       const roleId = parseInt(req.params.id);
-      const { permissionIds } = req.body;
+      const { permissionId, permissionIds } = req.body;
       
-      // Remove existing permissions
-      const existingPermissions = await storage.getRolePermissions(roleId);
-      for (const perm of existingPermissions) {
-        await storage.removeRolePermission(roleId, perm.id);
-      }
-      
-      // Assign new permissions
-      for (const permissionId of permissionIds) {
+      if (permissionIds) {
+        // Batch update - remove existing permissions first
+        const existingPermissions = await storage.getRolePermissions(roleId);
+        for (const perm of existingPermissions) {
+          await storage.removeRolePermission(roleId, perm.id);
+        }
+        
+        // Assign new permissions
+        for (const id of permissionIds) {
+          await storage.assignRolePermission(roleId, id);
+        }
+      } else if (permissionId) {
+        // Single permission assignment
         await storage.assignRolePermission(roleId, permissionId);
       }
       
       res.json({ message: "Permissions updated successfully" });
     } catch (error) {
+      console.error("Permission assignment error:", error);
       res.status(400).json({ message: "Failed to update permissions" });
     }
   });

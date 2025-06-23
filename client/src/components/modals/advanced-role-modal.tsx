@@ -135,19 +135,13 @@ export function AdvancedRoleModal({ isOpen, onClose, role }: AdvancedRoleModalPr
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Create role first
+      // Create role with permissions in one request
       const roleResponse = await apiRequest("POST", "/api/roles", {
         name: data.name,
-        description: data.description
+        description: data.description,
+        permissionIds: data.permissions
       });
-      const newRole = await roleResponse.json();
-      
-      // Assign permissions to the new role
-      for (const permissionId of data.permissions) {
-        await apiRequest("POST", `/api/roles/${newRole.id}/permissions`, { permissionId });
-      }
-      
-      return newRole;
+      return roleResponse.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/roles"] });
@@ -168,10 +162,8 @@ export function AdvancedRoleModal({ isOpen, onClose, role }: AdvancedRoleModalPr
         description: data.description
       });
       
-      // Update permissions separately
-      for (const permissionId of data.permissions) {
-        await apiRequest("POST", `/api/roles/${role.id}/permissions`, { permissionId });
-      }
+      // Update permissions with batch update
+      await apiRequest("POST", `/api/roles/${role.id}/permissions`, { permissionIds: data.permissions });
       
       return roleResponse.json();
     },
