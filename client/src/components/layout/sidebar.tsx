@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [location] = useLocation();
   const { user, role, logout } = useAuth();
+  const [isHovered, setIsHovered] = useState(false);
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: BarChart3, permission: "view_dashboard" },
@@ -45,10 +47,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       {/* Sidebar */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 sidebar-bg transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0",
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      <div 
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 sidebar-bg transform transition-all duration-300 ease-in-out md:translate-x-0 md:static md:inset-0",
+          isOpen ? "translate-x-0" : "-translate-x-full",
+          isHovered ? "w-64" : "w-16"
+        )}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <div className="flex flex-col flex-grow pt-5 pb-4 overflow-y-auto">
           {/* Mobile close button */}
           <div className="flex items-center justify-between px-4 md:hidden">
@@ -68,7 +75,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <Shield className="h-4 w-4 text-white" />
             </div>
-            <h1 className="ml-3 text-xl font-semibold text-white">AdminPanel</h1>
+            <h1 className={cn(
+              "ml-3 text-xl font-semibold text-white transition-all duration-300",
+              isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
+            )}>AdminPanel</h1>
           </div>
 
           {/* User Info */}
@@ -79,11 +89,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   {user ? getInitials(user.firstName, user.lastName) : ""}
                 </span>
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-white">
+              <div className={cn(
+                "ml-3 transition-all duration-300",
+                isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
+              )}>
+                <p className="text-sm font-medium text-white whitespace-nowrap">
                   {user ? `${user.firstName} ${user.lastName}` : ""}
                 </p>
-                <p className="text-xs text-slate-300 capitalize">
+                <p className="text-xs text-slate-300 capitalize whitespace-nowrap">
                   {role?.name || ""}
                 </p>
               </div>
@@ -102,15 +115,25 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <Link href={item.href}>
                       <button
                         className={cn(
-                          "w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors text-left",
+                          "w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors text-left relative",
                           isActive
                             ? "bg-slate-700 text-white"
                             : "text-slate-300 hover:bg-slate-700 hover:text-white"
                         )}
                         onClick={onClose}
                       >
-                        <Icon className="mr-3 h-4 w-4" />
-                        {item.name}
+                        <Icon className="h-4 w-4 flex-shrink-0" />
+                        <span className={cn(
+                          "ml-3 transition-all duration-300 whitespace-nowrap",
+                          isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
+                        )}>
+                          {item.name}
+                        </span>
+                        {!isHovered && (
+                          <div className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
+                            {item.name}
+                          </div>
+                        )}
                       </button>
                     </Link>
                   </PermissionGuard>
@@ -121,15 +144,25 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <Link key={item.name} href={item.href}>
                   <button
                     className={cn(
-                      "w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors text-left",
+                      "w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors text-left relative",
                       isActive
                         ? "bg-slate-700 text-white"
                         : "text-slate-300 hover:bg-slate-700 hover:text-white"
                     )}
                     onClick={onClose}
                   >
-                    <Icon className="mr-3 h-4 w-4" />
-                    {item.name}
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span className={cn(
+                      "ml-3 transition-all duration-300 whitespace-nowrap",
+                      isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
+                    )}>
+                      {item.name}
+                    </span>
+                    {!isHovered && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
+                        {item.name}
+                      </div>
+                    )}
                   </button>
                 </Link>
               );
@@ -140,13 +173,21 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div className="flex-shrink-0 flex border-t border-slate-700 p-4">
             <button
               onClick={logout}
-              className="flex-shrink-0 w-full group block text-left hover:bg-slate-700 rounded-md p-2 transition-colors"
+              className="flex-shrink-0 w-full group block text-left hover:bg-slate-700 rounded-md p-2 transition-colors relative"
             >
               <div className="flex items-center">
-                <LogOut className="h-4 w-4 text-slate-400 mr-3" />
-                <span className="text-sm font-medium text-slate-300 group-hover:text-white">
+                <LogOut className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                <span className={cn(
+                  "ml-3 text-sm font-medium text-slate-300 group-hover:text-white transition-all duration-300 whitespace-nowrap",
+                  isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
+                )}>
                   Logout
                 </span>
+                {!isHovered && (
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
+                    Logout
+                  </div>
+                )}
               </div>
             </button>
           </div>
