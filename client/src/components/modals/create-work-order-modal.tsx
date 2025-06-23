@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { X, CreditCard } from "lucide-react";
+import { X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { WorkOrderWithUsers, User } from "@shared/schema";
@@ -48,8 +48,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     status: "active",
   });
 
-  const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
-  const [paymentDetails, setPaymentDetails] = useState<any>({});
+  
 
   // Fetch users for assignment dropdown
   const { data: users = [] } = useQuery<User[]>({
@@ -83,15 +82,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         status: workOrder.status || "active",
       });
       
-      try {
-        const methods = workOrder.paymentMethods ? JSON.parse(workOrder.paymentMethods) : [];
-        const details = workOrder.paymentDetails ? JSON.parse(workOrder.paymentDetails) : {};
-        setSelectedPaymentMethods(methods);
-        setPaymentDetails(details);
-      } catch {
-        setSelectedPaymentMethods([]);
-        setPaymentDetails({});
-      }
+      
     } else {
       setFormData({
         clientName: "",
@@ -116,37 +107,11 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         assignedUserIds: [],
         status: "active",
       });
-      setSelectedPaymentMethods([]);
-      setPaymentDetails({});
+      
     }
   }, [workOrder, isOpen]);
 
-  const handlePaymentMethodChange = (method: string, checked: boolean) => {
-    if (checked) {
-      setSelectedPaymentMethods(prev => [...prev, method]);
-      if (!paymentDetails[method]) {
-        setPaymentDetails(prev => ({
-          ...prev,
-          [method]: method === "cash" ? {} : {}
-        }));
-      }
-    } else {
-      setSelectedPaymentMethods(prev => prev.filter(m => m !== method));
-      const newDetails = { ...paymentDetails };
-      delete newDetails[method];
-      setPaymentDetails(newDetails);
-    }
-  };
-
-  const handlePaymentDetailChange = (method: string, field: string, value: string) => {
-    setPaymentDetails(prev => ({
-      ...prev,
-      [method]: {
-        ...prev[method],
-        [field]: value
-      }
-    }));
-  };
+  
 
   const createWorkOrderMutation = useMutation({
     mutationFn: (data: any) => 
@@ -200,8 +165,6 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     const submitData = {
       ...formData,
       assignedUserIds: JSON.stringify(formData.assignedUserIds),
-      paymentMethods: JSON.stringify(selectedPaymentMethods),
-      paymentDetails: JSON.stringify(paymentDetails),
       startDate: formData.startDate,
       endDate: formData.endDate,
     };
@@ -559,414 +522,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
             </div>
           </div>
 
-          {/* Payment Methods */}
-          <Card className="border-2 border-blue-100">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-              <CardTitle className="text-lg flex items-center">
-                <CreditCard className="h-5 w-5 mr-2 text-blue-600" />
-                Accepted Payment Methods
-              </CardTitle>
-              <p className="text-sm text-gray-600">Configure which payment methods clients can use for this work order</p>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              {[
-                { 
-                  value: "paypal", 
-                  label: "PayPal", 
-                  icon: "💳",
-                  description: "Secure online payments via PayPal",
-                  features: ["Instant transfers", "Buyer protection", "Mobile payments"]
-                },
-                { 
-                  value: "credit_card", 
-                  label: "Credit/Debit Cards", 
-                  icon: "💎",
-                  description: "Accept all major credit and debit cards",
-                  features: ["Visa, MasterCard, Amex", "Secure processing", "Real-time approval"]
-                },
-                { 
-                  value: "bank_transfer", 
-                  label: "Bank Transfer", 
-                  icon: "🏦",
-                  description: "Direct bank-to-bank transfers",
-                  features: ["ACH transfers", "Wire transfers", "Lower fees"]
-                },
-                { 
-                  value: "digital_wallet", 
-                  label: "Digital Wallets", 
-                  icon: "📱",
-                  description: "Apple Pay, Google Pay, Samsung Pay",
-                  features: ["Contactless payments", "Biometric security", "Quick checkout"]
-                },
-                { 
-                  value: "cryptocurrency", 
-                  label: "Cryptocurrency", 
-                  icon: "₿",
-                  description: "Bitcoin, Ethereum, and other cryptocurrencies",
-                  features: ["Decentralized", "Global payments", "Low transaction fees"]
-                },
-                { 
-                  value: "financing", 
-                  label: "Financing Options", 
-                  icon: "📊",
-                  description: "Payment plans and financing solutions",
-                  features: ["Installment plans", "0% APR options", "Credit checks"]
-                },
-                { 
-                  value: "cash", 
-                  label: "Cash Payment", 
-                  icon: "💵",
-                  description: "Cash payments accepted on-site",
-                  features: ["No processing fees", "Immediate payment", "Receipt provided"]
-                },
-                { 
-                  value: "check", 
-                  label: "Check Payment", 
-                  icon: "📝",
-                  description: "Personal or business checks",
-                  features: ["Traditional payment", "Paper trail", "Business accounting"]
-                },
-              ].map((option) => (
-                <div key={option.value} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start space-x-3">
-                    <Checkbox
-                      id={option.value}
-                      checked={selectedPaymentMethods.includes(option.value)}
-                      onCheckedChange={(checked) => 
-                        handlePaymentMethodChange(option.value, checked as boolean)
-                      }
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <span className="text-lg">{option.icon}</span>
-                        <Label htmlFor={option.value} className="font-semibold text-lg cursor-pointer">
-                          {option.label}
-                        </Label>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">{option.description}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {option.features.map((feature, index) => (
-                          <span key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                            {feature}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Dynamic fields based on payment method */}
-                  {selectedPaymentMethods.includes(option.value) && (
-                    <div className="mt-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border-l-4 border-blue-500">
-                      {option.value === "paypal" && (
-                        <>
-                          <div>
-                            <Label>PayPal Email</Label>
-                            <Input
-                              value={paymentDetails.paypal?.email || ""}
-                              onChange={(e) => handlePaymentDetailChange("paypal", "email", e.target.value)}
-                              placeholder="payments@company.com"
-                            />
-                          </div>
-                          <div>
-                            <Label>PayPal Link</Label>
-                            <Input
-                              value={paymentDetails.paypal?.link || ""}
-                              onChange={(e) => handlePaymentDetailChange("paypal", "link", e.target.value)}
-                              placeholder="https://paypal.me/company"
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {option.value === "credit_card" && (
-                        <>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-sm font-medium text-gray-700">Payment Processor</Label>
-                              <Input
-                                value={paymentDetails.credit_card?.processor || ""}
-                                onChange={(e) => handlePaymentDetailChange("credit_card", "processor", e.target.value)}
-                                placeholder="Stripe, Square, PayPal, etc."
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-sm font-medium text-gray-700">Processing Fee %</Label>
-                              <Input
-                                type="number"
-                                step="0.1"
-                                value={paymentDetails.credit_card?.processingFee || ""}
-                                onChange={(e) => handlePaymentDetailChange("credit_card", "processingFee", e.target.value)}
-                                placeholder="2.9"
-                                className="mt-1"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label className="text-sm font-medium text-gray-700">Accepted Card Types</Label>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {["Visa", "MasterCard", "American Express", "Discover", "Diners Club", "JCB"].map((card) => (
-                                <label key={card} className="flex items-center space-x-2 text-sm">
-                                  <Checkbox
-                                    checked={(paymentDetails.credit_card?.acceptedCards || "").includes(card)}
-                                    onCheckedChange={(checked) => {
-                                      const current = paymentDetails.credit_card?.acceptedCards || "";
-                                      const cards = current.split(", ").filter(Boolean);
-                                      if (checked) {
-                                        cards.push(card);
-                                      } else {
-                                        const index = cards.indexOf(card);
-                                        if (index > -1) cards.splice(index, 1);
-                                      }
-                                      handlePaymentDetailChange("credit_card", "acceptedCards", cards.join(", "));
-                                    }}
-                                  />
-                                  <span>{card}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {option.value === "digital_wallet" && (
-                        <>
-                          <div className="space-y-3">
-                            <Label className="text-sm font-medium text-gray-700">Supported Digital Wallets</Label>
-                            <div className="grid grid-cols-2 gap-3">
-                              {["Apple Pay", "Google Pay", "Samsung Pay", "PayPal", "Venmo", "Cash App"].map((wallet) => (
-                                <label key={wallet} className="flex items-center space-x-2 text-sm">
-                                  <Checkbox
-                                    checked={(paymentDetails.digital_wallet?.supportedWallets || "").includes(wallet)}
-                                    onCheckedChange={(checked) => {
-                                      const current = paymentDetails.digital_wallet?.supportedWallets || "";
-                                      const wallets = current.split(", ").filter(Boolean);
-                                      if (checked) {
-                                        wallets.push(wallet);
-                                      } else {
-                                        const index = wallets.indexOf(wallet);
-                                        if (index > -1) wallets.splice(index, 1);
-                                      }
-                                      handlePaymentDetailChange("digital_wallet", "supportedWallets", wallets.join(", "));
-                                    }}
-                                  />
-                                  <span>{wallet}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <Label className="text-sm font-medium text-gray-700">Special Instructions</Label>
-                            <Textarea
-                              value={paymentDetails.digital_wallet?.instructions || ""}
-                              onChange={(e) => handlePaymentDetailChange("digital_wallet", "instructions", e.target.value)}
-                              placeholder="QR code available on-site, contactless payments accepted..."
-                              rows={2}
-                              className="mt-1"
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {option.value === "cryptocurrency" && (
-                        <>
-                          <div className="space-y-3">
-                            <Label className="text-sm font-medium text-gray-700">Accepted Cryptocurrencies</Label>
-                            <div className="grid grid-cols-2 gap-3">
-                              {["Bitcoin (BTC)", "Ethereum (ETH)", "Litecoin (LTC)", "Bitcoin Cash (BCH)", "Dogecoin (DOGE)", "USDC"].map((crypto) => (
-                                <label key={crypto} className="flex items-center space-x-2 text-sm">
-                                  <Checkbox
-                                    checked={(paymentDetails.cryptocurrency?.acceptedCoins || "").includes(crypto)}
-                                    onCheckedChange={(checked) => {
-                                      const current = paymentDetails.cryptocurrency?.acceptedCoins || "";
-                                      const coins = current.split(", ").filter(Boolean);
-                                      if (checked) {
-                                        coins.push(crypto);
-                                      } else {
-                                        const index = coins.indexOf(crypto);
-                                        if (index > -1) coins.splice(index, 1);
-                                      }
-                                      handlePaymentDetailChange("cryptocurrency", "acceptedCoins", coins.join(", "));
-                                    }}
-                                  />
-                                  <span>{crypto}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-sm font-medium text-gray-700">Wallet Address (BTC)</Label>
-                              <Input
-                                value={paymentDetails.cryptocurrency?.btcAddress || ""}
-                                onChange={(e) => handlePaymentDetailChange("cryptocurrency", "btcAddress", e.target.value)}
-                                placeholder="1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
-                                className="mt-1 font-mono text-xs"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-sm font-medium text-gray-700">Wallet Address (ETH)</Label>
-                              <Input
-                                value={paymentDetails.cryptocurrency?.ethAddress || ""}
-                                onChange={(e) => handlePaymentDetailChange("cryptocurrency", "ethAddress", e.target.value)}
-                                placeholder="0x742d35Cc6634C0532925a3b8D50ad59B7a0f3029"
-                                className="mt-1 font-mono text-xs"
-                              />
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {option.value === "financing" && (
-                        <>
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <Label className="text-sm font-medium text-gray-700">Financing Provider</Label>
-                                <Input
-                                  value={paymentDetails.financing?.provider || ""}
-                                  onChange={(e) => handlePaymentDetailChange("financing", "provider", e.target.value)}
-                                  placeholder="Affirm, Klarna, PayPal Credit..."
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-sm font-medium text-gray-700">Minimum Amount</Label>
-                                <Input
-                                  type="number"
-                                  value={paymentDetails.financing?.minimumAmount || ""}
-                                  onChange={(e) => handlePaymentDetailChange("financing", "minimumAmount", e.target.value)}
-                                  placeholder="1000"
-                                  className="mt-1"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <Label className="text-sm font-medium text-gray-700">Available Terms</Label>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {["3 months", "6 months", "12 months", "18 months", "24 months", "36 months"].map((term) => (
-                                  <label key={term} className="flex items-center space-x-2 text-sm">
-                                    <Checkbox
-                                      checked={(paymentDetails.financing?.availableTerms || "").includes(term)}
-                                      onCheckedChange={(checked) => {
-                                        const current = paymentDetails.financing?.availableTerms || "";
-                                        const terms = current.split(", ").filter(Boolean);
-                                        if (checked) {
-                                          terms.push(term);
-                                        } else {
-                                          const index = terms.indexOf(term);
-                                          if (index > -1) terms.splice(index, 1);
-                                        }
-                                        handlePaymentDetailChange("financing", "availableTerms", terms.join(", "));
-                                      }}
-                                    />
-                                    <span>{term}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
-                            <div>
-                              <Label className="text-sm font-medium text-gray-700">Special Offers</Label>
-                              <Textarea
-                                value={paymentDetails.financing?.specialOffers || ""}
-                                onChange={(e) => handlePaymentDetailChange("financing", "specialOffers", e.target.value)}
-                                placeholder="0% APR for 12 months, No credit check required for amounts under $500..."
-                                rows={2}
-                                className="mt-1"
-                              />
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {option.value === "bank_transfer" && (
-                        <>
-                          <div>
-                            <Label>Account Number</Label>
-                            <Input
-                              value={paymentDetails.bank_transfer?.accountNumber || ""}
-                              onChange={(e) => handlePaymentDetailChange("bank_transfer", "accountNumber", e.target.value)}
-                              placeholder="Account number"
-                            />
-                          </div>
-                          <div>
-                            <Label>Routing Number</Label>
-                            <Input
-                              value={paymentDetails.bank_transfer?.routingNumber || ""}
-                              onChange={(e) => handlePaymentDetailChange("bank_transfer", "routingNumber", e.target.value)}
-                              placeholder="Routing number"
-                            />
-                          </div>
-                          <div>
-                            <Label>Bank Name</Label>
-                            <Input
-                              value={paymentDetails.bank_transfer?.bankName || ""}
-                              onChange={(e) => handlePaymentDetailChange("bank_transfer", "bankName", e.target.value)}
-                              placeholder="Bank Name"
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {option.value === "check" && (
-                        <>
-                          <div>
-                            <Label>Make Checks Payable To</Label>
-                            <Input
-                              value={paymentDetails.check?.payableTo || ""}
-                              onChange={(e) => handlePaymentDetailChange("check", "payableTo", e.target.value)}
-                              placeholder="Company Name"
-                            />
-                          </div>
-                          <div>
-                            <Label>Mailing Address</Label>
-                            <Textarea
-                              value={paymentDetails.check?.mailingAddress || ""}
-                              onChange={(e) => handlePaymentDetailChange("check", "mailingAddress", e.target.value)}
-                              placeholder="Complete mailing address for checks"
-                              rows={2}
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {option.value === "cash" && (
-                        <div className="space-y-3">
-                          <div>
-                            <Label className="text-sm font-medium text-gray-700">Cash Payment Instructions</Label>
-                            <Textarea
-                              value={paymentDetails.cash?.instructions || ""}
-                              onChange={(e) => handlePaymentDetailChange("cash", "instructions", e.target.value)}
-                              placeholder="Payment due upon completion. Exact change appreciated. Receipt will be provided..."
-                              rows={2}
-                              className="mt-1"
-                            />
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <label className="flex items-center space-x-2 text-sm">
-                              <Checkbox
-                                checked={paymentDetails.cash?.makeChangeAvailable || false}
-                                onCheckedChange={(checked) => handlePaymentDetailChange("cash", "makeChangeAvailable", checked.toString())}
-                              />
-                              <span>We can make change</span>
-                            </label>
-                            <label className="flex items-center space-x-2 text-sm">
-                              <Checkbox
-                                checked={paymentDetails.cash?.receiptProvided || false}
-                                onCheckedChange={(checked) => handlePaymentDetailChange("cash", "receiptProvided", checked.toString())}
-                              />
-                              <span>Receipt provided</span>
-                            </label>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          
 
           <div className="flex justify-end space-x-3 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
