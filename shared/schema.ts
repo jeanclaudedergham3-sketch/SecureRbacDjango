@@ -1,322 +1,195 @@
-import { pgTable, text, integer, real, boolean, timestamp, serial, varchar } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { relations } from "drizzle-orm";
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: varchar("username", { length: 255 }).notNull().unique(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  password: varchar("password", { length: 255 }).notNull(),
-  firstName: varchar("first_name", { length: 255 }).notNull(),
-  lastName: varchar("last_name", { length: 255 }).notNull(),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true).notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const roles = pgTable("roles", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull().unique(),
+export const roles = sqliteTable("roles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
   description: text("description"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const permissions = pgTable("permissions", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull().unique(),
+export const permissions = sqliteTable("permissions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
   description: text("description"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const userRoles = pgTable("user_roles", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  roleId: integer("role_id").notNull().references(() => roles.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const userRoles = sqliteTable("user_roles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull().references(() => users.id),
+  roleId: integer("role_id").notNull().references(() => roles.id),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const rolePermissions = pgTable("role_permissions", {
-  id: serial("id").primaryKey(),
-  roleId: integer("role_id").notNull().references(() => roles.id, { onDelete: "cascade" }),
-  permissionId: integer("permission_id").notNull().references(() => permissions.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const rolePermissions = sqliteTable("role_permissions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  roleId: integer("role_id").notNull().references(() => roles.id),
+  permissionId: integer("permission_id").notNull().references(() => permissions.id),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const equipment = pgTable("equipment", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  type: varchar("type", { length: 100 }).notNull(),
+export const equipment = sqliteTable("equipment", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
   description: text("description"),
-  status: varchar("status", { length: 50 }).notNull().default("online"),
+  status: text("status").notNull().default("online"),
   cpuUsage: integer("cpu_usage").default(0),
   memoryUsage: integer("memory_usage").default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const technicians = pgTable("technicians", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
-  email: varchar("email", { length: 255 }),
+export const technicians = sqliteTable("technicians", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  email: text("email"),
   address: text("address"),
-  taxNumber: varchar("tax_number", { length: 50 }),
-  hourlyRate: varchar("hourly_rate", { length: 50 }),
+  taxNumber: text("tax_number"),
+  hourlyRate: text("hourly_rate"),
   specialties: text("specialties"),
   certifications: text("certifications"),
-  status: varchar("status", { length: 50 }).default("available"),
+  status: text("status").default("available"),
   averageRating: real("average_rating").default(0),
   totalRatings: integer("total_ratings").default(0),
   latitude: real("latitude"),
   longitude: real("longitude"),
 
   // Payment method fields
-  bankAccount: varchar("bank_account", { length: 255 }),
-  routingNumber: varchar("routing_number", { length: 50 }),
-  bankName: varchar("bank_name", { length: 255 }),
-  paypalEmail: varchar("paypal_email", { length: 255 }),
+  bankAccount: text("bank_account"),
+  routingNumber: text("routing_number"),
+  bankName: text("bank_name"),
+  paypalEmail: text("paypal_email"),
   paypalLink: text("paypal_link"),
-  venmoHandle: varchar("venmo_handle", { length: 100 }),
+  venmoHandle: text("venmo_handle"),
   venmoQr: text("venmo_qr"),
-  cashappHandle: varchar("cashapp_handle", { length: 100 }),
+  cashappHandle: text("cashapp_handle"),
   cashappQr: text("cashapp_qr"),
   zelleInfo: text("zelle_info"),
   mailingAddress: text("mailing_address"),
   paymentMethods: text("payment_methods"), // JSON array of selected payment methods
   paymentDetails: text("payment_details"), // JSON object with payment method details
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
 
-export const technicianRatings = pgTable("technician_ratings", {
-  id: serial("id").primaryKey(),
-  technicianId: integer("technician_id").notNull().references(() => technicians.id, { onDelete: "cascade" }),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+export const technicianRatings = sqliteTable("technician_ratings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  technicianId: integer("technician_id").notNull(),
+  userId: integer("user_id").notNull(),
   rating: integer("rating").notNull(), // 1-5 stars
   comment: text("comment"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const workOrders = pgTable("work_orders", {
-  id: serial("id").primaryKey(),
-  workOrderNumber: varchar("work_order_number", { length: 100 }).notNull().unique(),
-  clientName: varchar("client_name", { length: 255 }).notNull(),
-  country: varchar("country", { length: 100 }).notNull(),
-  city: varchar("city", { length: 100 }).notNull(),
+export const workOrders = sqliteTable("work_orders", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderNumber: text("work_order_number").notNull().unique(),
+  clientName: text("client_name").notNull(),
+  country: text("country").notNull(),
+  city: text("city").notNull(),
   street: text("street").notNull(),
-  nte: varchar("nte", { length: 50 }).notNull(), // amount without tax
-  tnte: varchar("tnte", { length: 50 }).notNull(), // amount including tax
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
+  nte: text("nte").notNull(), // amount without tax
+  tnte: text("tnte").notNull(), // amount including tax
+  startDate: integer("start_date", { mode: 'timestamp' }).notNull(),
+  endDate: integer("end_date", { mode: 'timestamp' }).notNull(),
   assignedUserIds: text("assigned_user_ids").notNull(), // JSON array of user IDs
-  status: varchar("status", { length: 50 }).notNull().default("active"), // active, completed, cancelled
-  isLocked: boolean("is_locked").default(false), // true when invoice is paid
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  status: text("status").notNull().default("active"), // active, completed, cancelled
+  isLocked: integer("is_locked", { mode: "boolean" }).default(false), // true when invoice is paid
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const workOrderProposals = pgTable("work_order_proposals", {
-  id: serial("id").primaryKey(),
-  workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
+export const workOrderProposals = sqliteTable("work_order_proposals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
   laborData: text("labor_data"), // JSON array of labor entries
   partsData: text("parts_data"), // JSON array of parts entries
   servicesData: text("services_data"), // JSON array of services entries
   message: text("message"),
-  status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, approved, cancelled
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  status: text("status").notNull().default("pending"), // pending, approved, cancelled
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const workOrderPartsRequests = pgTable("work_order_parts_requests", {
-  id: serial("id").primaryKey(),
-  workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
-  requestedBy: integer("requested_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+export const workOrderPartsRequests = sqliteTable("work_order_parts_requests", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
+  requestedBy: integer("requested_by").notNull(),
   parts: text("parts").notNull(), // JSON string of parts array
   reason: text("reason"),
-  status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, approved, cancelled
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  status: text("status").notNull().default("pending"), // pending, approved, cancelled
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const workOrderFiles = pgTable("work_order_files", {
-  id: serial("id").primaryKey(),
-  workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
-  fileName: varchar("file_name", { length: 255 }).notNull(),
+export const workOrderFiles = sqliteTable("work_order_files", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
+  fileName: text("file_name").notNull(),
   filePath: text("file_path").notNull(),
-  fileType: varchar("file_type", { length: 50 }).notNull(), // image, pdf, etc
-  category: varchar("category", { length: 50 }).notNull(), // before, after, signature
-  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+  fileType: text("file_type").notNull(), // image, pdf, etc
+  category: text("category").notNull(), // before, after, signature
+  uploadedAt: integer("uploaded_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const workOrderChats = pgTable("work_order_chats", {
-  id: serial("id").primaryKey(),
-  workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+export const workOrderChats = sqliteTable("work_order_chats", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
+  userId: integer("user_id").notNull(),
   message: text("message"),
   fileUrl: text("file_url"),
-  messageType: varchar("message_type", { length: 50 }).notNull().default("text"), // text, file, image
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  messageType: text("message_type").notNull().default("text"), // text, file, image
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const workOrderTechnicianPayments = pgTable("work_order_technician_payments", {
-  id: serial("id").primaryKey(),
-  workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
-  technicianId: integer("technician_id").notNull().references(() => technicians.id, { onDelete: "cascade" }),
-  paymentMethod: varchar("payment_method", { length: 100 }).notNull(),
-  amountRequested: varchar("amount_requested", { length: 50 }).notNull(),
-  amountApproved: varchar("amount_approved", { length: 50 }).default("0"),
-  amountPaid: varchar("amount_paid", { length: 50 }).default("0"),
-  status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, approved, partially_paid, paid, rejected
+export const workOrderTechnicianPayments = sqliteTable("work_order_technician_payments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
+  technicianId: integer("technician_id").notNull(),
+  paymentMethod: text("payment_method").notNull(),
+  amountRequested: text("amount_requested").notNull(),
+  amountApproved: text("amount_approved").default("0"),
+  amountPaid: text("amount_paid").default("0"),
+  status: text("status").notNull().default("pending"), // pending, approved, partially_paid, paid, rejected
   description: text("description"),
-  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  requestedAt: integer("requested_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const workOrderInvoices = pgTable("work_order_invoices", {
-  id: serial("id").primaryKey(),
-  workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
-  laborCost: varchar("labor_cost", { length: 50 }),
-  materialCost: varchar("material_cost", { length: 50 }),
-  taxRate: varchar("tax_rate", { length: 10 }),
-  taxAmount: varchar("tax_amount", { length: 50 }),
-  totalAmount: varchar("total_amount", { length: 50 }),
-  status: varchar("status", { length: 50 }),
+export const workOrderInvoices = sqliteTable("work_order_invoices", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workOrderId: integer("work_order_id").notNull(),
+  laborCost: text("labor_cost"),
+  materialCost: text("material_cost"),
+  taxRate: text("tax_rate"),
+  taxAmount: text("tax_amount"),
+  totalAmount: text("total_amount"),
+  status: text("status"),
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const notifications = pgTable("notifications", {
-  id: serial("id").primaryKey(),
+export const notifications = sqliteTable("notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
-  title: varchar("title", { length: 255 }).notNull(),
+  title: text("title").notNull(),
   message: text("message").notNull(),
-  type: varchar("type", { length: 50 }).notNull().default("info"), // info, success, warning, error
-  isRead: boolean("is_read").default(false),
-  relatedEntity: varchar("related_entity", { length: 100 }),
+  type: text("type").notNull().default("info"), // info, success, warning, error
+  isRead: integer("is_read", { mode: "boolean" }).default(false),
+  relatedEntity: text("related_entity"),
   relatedId: integer("related_id"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
-
-// Relations
-export const usersRelations = relations(users, ({ many, one }) => ({
-  userRoles: many(userRoles),
-  technicianRatings: many(technicianRatings),
-  workOrderChats: many(workOrderChats),
-  workOrderPartsRequests: many(workOrderPartsRequests),
-  notifications: many(notifications),
-}));
-
-export const rolesRelations = relations(roles, ({ many }) => ({
-  userRoles: many(userRoles),
-  rolePermissions: many(rolePermissions),
-}));
-
-export const permissionsRelations = relations(permissions, ({ many }) => ({
-  rolePermissions: many(rolePermissions),
-}));
-
-export const userRolesRelations = relations(userRoles, ({ one }) => ({
-  user: one(users, {
-    fields: [userRoles.userId],
-    references: [users.id],
-  }),
-  role: one(roles, {
-    fields: [userRoles.roleId],
-    references: [roles.id],
-  }),
-}));
-
-export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
-  role: one(roles, {
-    fields: [rolePermissions.roleId],
-    references: [roles.id],
-  }),
-  permission: one(permissions, {
-    fields: [rolePermissions.permissionId],
-    references: [permissions.id],
-  }),
-}));
-
-export const techniciansRelations = relations(technicians, ({ many }) => ({
-  technicianRatings: many(technicianRatings),
-  workOrderTechnicianPayments: many(workOrderTechnicianPayments),
-}));
-
-export const technicianRatingsRelations = relations(technicianRatings, ({ one }) => ({
-  technician: one(technicians, {
-    fields: [technicianRatings.technicianId],
-    references: [technicians.id],
-  }),
-  user: one(users, {
-    fields: [technicianRatings.userId],
-    references: [users.id],
-  }),
-}));
-
-export const workOrdersRelations = relations(workOrders, ({ many }) => ({
-  workOrderProposals: many(workOrderProposals),
-  workOrderPartsRequests: many(workOrderPartsRequests),
-  workOrderFiles: many(workOrderFiles),
-  workOrderChats: many(workOrderChats),
-  workOrderTechnicianPayments: many(workOrderTechnicianPayments),
-  workOrderInvoices: many(workOrderInvoices),
-}));
-
-export const workOrderProposalsRelations = relations(workOrderProposals, ({ one }) => ({
-  workOrder: one(workOrders, {
-    fields: [workOrderProposals.workOrderId],
-    references: [workOrders.id],
-  }),
-}));
-
-export const workOrderPartsRequestsRelations = relations(workOrderPartsRequests, ({ one }) => ({
-  workOrder: one(workOrders, {
-    fields: [workOrderPartsRequests.workOrderId],
-    references: [workOrders.id],
-  }),
-  requestedByUser: one(users, {
-    fields: [workOrderPartsRequests.requestedBy],
-    references: [users.id],
-  }),
-}));
-
-export const workOrderFilesRelations = relations(workOrderFiles, ({ one }) => ({
-  workOrder: one(workOrders, {
-    fields: [workOrderFiles.workOrderId],
-    references: [workOrders.id],
-  }),
-}));
-
-export const workOrderChatsRelations = relations(workOrderChats, ({ one }) => ({
-  workOrder: one(workOrders, {
-    fields: [workOrderChats.workOrderId],
-    references: [workOrders.id],
-  }),
-  user: one(users, {
-    fields: [workOrderChats.userId],
-    references: [users.id],
-  }),
-}));
-
-export const workOrderTechnicianPaymentsRelations = relations(workOrderTechnicianPayments, ({ one }) => ({
-  workOrder: one(workOrders, {
-    fields: [workOrderTechnicianPayments.workOrderId],
-    references: [workOrders.id],
-  }),
-  technician: one(technicians, {
-    fields: [workOrderTechnicianPayments.technicianId],
-    references: [technicians.id],
-  }),
-}));
-
-export const workOrderInvoicesRelations = relations(workOrderInvoices, ({ one }) => ({
-  workOrder: one(workOrders, {
-    fields: [workOrderInvoices.workOrderId],
-    references: [workOrders.id],
-  }),
-}));
-
-export const notificationsRelations = relations(notifications, ({ one }) => ({
-  user: one(users, {
-    fields: [notifications.userId],
-    references: [users.id],
-  }),
-}));
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,

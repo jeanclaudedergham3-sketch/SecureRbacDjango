@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { db } from "./database";
 import { 
   users, roles, permissions, userRoles, rolePermissions, equipment, technicians, technicianRatings,
   workOrders, workOrderProposals, workOrderPartsRequests, workOrderFiles, workOrderChats, 
@@ -124,23 +124,12 @@ export interface IStorage {
   markAllNotificationsAsRead(userId: number): Promise<boolean>;
 }
 
-export class PostgreSQLStorage implements IStorage {
+export class SqliteStorage implements IStorage {
   private initialized = false;
 
   constructor() {
-    this.initializeDatabase();
-  }
-
-  private async initializeDatabase() {
-    if (!this.initialized) {
-      try {
-        await this.seedData();
-        this.initialized = true;
-        console.log("PostgreSQL database initialized successfully");
-      } catch (error) {
-        console.error("Failed to initialize PostgreSQL database:", error);
-      }
-    }
+    // Seed data immediately since database should be initialized by now
+    this.seedData();
   }
 
   private async seedData() {
@@ -396,7 +385,7 @@ export class PostgreSQLStorage implements IStorage {
 
   async deleteUser(id: number): Promise<boolean> {
     const result = await db.delete(users).where(eq(users.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    return result.changes > 0;
   }
 
   async getAllUsers(): Promise<UserWithRole[]> {
@@ -448,7 +437,7 @@ export class PostgreSQLStorage implements IStorage {
 
   async deleteRole(id: number): Promise<boolean> {
     const result = await db.delete(roles).where(eq(roles.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    return result.changes > 0;
   }
 
   async getAllRoles(): Promise<RoleWithPermissions[]> {
@@ -502,7 +491,7 @@ export class PostgreSQLStorage implements IStorage {
   async removeUserRole(userId: number, roleId: number): Promise<boolean> {
     const result = await db.delete(userRoles)
       .where(sql`${userRoles.userId} = ${userId} AND ${userRoles.roleId} = ${roleId}`);
-    return result.rowCount ? result.rowCount > 0 : false;
+    return result.changes > 0;
   }
 
   async getUserRole(userId: number): Promise<Role | undefined> {
@@ -532,7 +521,7 @@ export class PostgreSQLStorage implements IStorage {
   async removeRolePermission(roleId: number, permissionId: number): Promise<boolean> {
     const result = await db.delete(rolePermissions)
       .where(sql`${rolePermissions.roleId} = ${roleId} AND ${rolePermissions.permissionId} = ${permissionId}`);
-    return result.rowCount ? result.rowCount > 0 : false;
+    return result.changes > 0;
   }
 
   async getRolePermissions(roleId: number): Promise<Permission[]> {
@@ -578,7 +567,7 @@ export class PostgreSQLStorage implements IStorage {
 
   async deleteEquipment(id: number): Promise<boolean> {
     const result = await db.delete(equipment).where(eq(equipment.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    return result.changes > 0;
   }
 
   async getAllEquipment(): Promise<Equipment[]> {
@@ -606,7 +595,7 @@ export class PostgreSQLStorage implements IStorage {
 
   async deleteTechnician(id: number): Promise<boolean> {
     const result = await db.delete(technicians).where(eq(technicians.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    return result.changes > 0;
   }
 
   async getAllTechnicians(): Promise<Technician[]> {
@@ -670,7 +659,7 @@ export class PostgreSQLStorage implements IStorage {
 
   async deleteWorkOrder(id: number): Promise<boolean> {
     const result = await db.delete(workOrders).where(eq(workOrders.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    return result.changes > 0;
   }
 
   async getAllWorkOrders(): Promise<WorkOrderWithUsers[]> {
@@ -766,7 +755,7 @@ export class PostgreSQLStorage implements IStorage {
     const result = await db.update(workOrderPartsRequests)
       .set({ status })
       .where(eq(workOrderPartsRequests.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    return result.changes > 0;
   }
 
   // Work Order File operations
@@ -788,7 +777,7 @@ export class PostgreSQLStorage implements IStorage {
 
   async deleteWorkOrderFile(id: number): Promise<boolean> {
     const result = await db.delete(workOrderFiles).where(eq(workOrderFiles.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    return result.changes > 0;
   }
 
   // Work Order Chat operations
@@ -865,7 +854,7 @@ export class PostgreSQLStorage implements IStorage {
 
   async deleteInvoice(id: number): Promise<boolean> {
     const result = await db.delete(workOrderInvoices).where(eq(workOrderInvoices.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    return result.changes > 0;
   }
 
   async lockWorkOrder(workOrderId: number): Promise<boolean> {
@@ -873,9 +862,8 @@ export class PostgreSQLStorage implements IStorage {
     const result = await db.update(workOrders)
       .set({ isLocked: true })
       .where(eq(workOrders.id, workOrderId));
-    const success = result.rowCount ? result.rowCount > 0 : false;
-    console.log(`Storage: Work order ${workOrderId} lock result:`, success);
-    return success;
+    console.log(`Storage: Work order ${workOrderId} lock result:`, result.changes > 0);
+    return result.changes > 0;
   }
 
   async getAllProposals(): Promise<WorkOrderProposal[]> {
@@ -979,4 +967,4 @@ export class PostgreSQLStorage implements IStorage {
   }
 }
 
-export const storage = new PostgreSQLStorage();
+export const storage = new SqliteStorage();

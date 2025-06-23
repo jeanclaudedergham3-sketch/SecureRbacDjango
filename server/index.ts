@@ -1,7 +1,10 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-// PostgreSQL database is initialized automatically via storage.ts
+import { initializeDatabase } from "./database";
+
+// Initialize database before anything else
+initializeDatabase();
 
 const app = express();
 app.use(express.json());
