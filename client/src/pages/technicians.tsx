@@ -181,37 +181,44 @@ export default function Technicians() {
                   </div>
 
                   {/* Payment Methods */}
-                  {paymentMethods.length > 0 && (
-                    <div className="pt-2 border-t">
-                      <div className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                        <CreditCard className="h-4 w-4 mr-1" />
-                        Payment Methods:
-                      </div>
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {paymentMethods.map((method, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {method}
-                          </Badge>
-                        ))}
-                      </div>
-                      
-                      {/* Payment Details Preview */}
-                      <div className="text-xs text-gray-500 space-y-1">
-                        {technician.bankAccount && (
-                          <div>Bank: ***{technician.bankAccount.slice(-4)}</div>
-                        )}
-                        {technician.paypalEmail && (
-                          <div>PayPal: {technician.paypalEmail}</div>
-                        )}
-                        {technician.venmoHandle && (
-                          <div>Venmo: @{technician.venmoHandle}</div>
-                        )}
-                        {technician.cashappHandle && (
-                          <div>CashApp: ${technician.cashappHandle}</div>
-                        )}
-                      </div>
+                  <div className="pt-2 border-t">
+                    <div className="flex items-center text-sm font-medium text-gray-700 mb-1">
+                      <CreditCard className="h-4 w-4 mr-1" />
+                      Payment Methods:
                     </div>
-                  )}
+                    {(() => {
+                      try {
+                        const methods = JSON.parse(technician.paymentMethods || "[]");
+                        if (methods.length === 0) {
+                          return <span className="text-gray-500 text-xs">No payment methods configured</span>;
+                        }
+                        return (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {methods.map((method: string, index: number) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {getPaymentMethodIcon(method)} {formatPaymentMethod(method)}
+                              </Badge>
+                            ))}
+                          </div>
+                        );
+                      } catch {
+                        // Fallback for old format
+                        const methods = getAvailablePaymentMethods(technician);
+                        if (methods.length === 0) {
+                          return <span className="text-gray-500 text-xs">No payment methods configured</span>;
+                        }
+                        return (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {methods.map((method, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {method}
+                              </Badge>
+                            ))}
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
 
                   {/* Location Coordinates (if available) */}
                   {technician.latitude && technician.longitude && (

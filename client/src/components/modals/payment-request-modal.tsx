@@ -136,6 +136,15 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
   const getAvailablePaymentMethods = (technician: any) => {
     if (!technician) return [];
     
+    try {
+      // Try to parse new payment methods format
+      const methods = JSON.parse(technician.paymentMethods || "[]");
+      if (methods.length > 0) return methods;
+    } catch {
+      // Fallback to old format
+    }
+    
+    // Fallback for backwards compatibility
     const methods = [];
     if (technician.bankAccount) methods.push("bank_transfer");
     if (technician.paypalLink || technician.paypalEmail) methods.push("paypal");
@@ -150,6 +159,42 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
   const getPaymentDetails = (technician: any) => {
     if (!technician) return {};
     
+    try {
+      // Try to parse new payment details format
+      const paymentDetails = JSON.parse(technician.paymentDetails || "{}");
+      if (Object.keys(paymentDetails).length > 0) {
+        return {
+          bank_transfer: {
+            "Account Number": paymentDetails.bankAccount,
+            "Routing Number": paymentDetails.routingNumber,
+            "Bank Name": paymentDetails.bankName
+          },
+          paypal: {
+            "PayPal Link": paymentDetails.paypalLink,
+            "Email Address": paymentDetails.paypalEmail
+          },
+          venmo: {
+            "Venmo": paymentDetails.venmoHandle,
+            "QR Code": paymentDetails.venmoQR
+          },
+          cashapp: {
+            "CashApp": paymentDetails.cashappHandle,
+            "QR Code": paymentDetails.cashappQR
+          },
+          zelle: {
+            "Phone Number": technician.phoneNumber,
+            "Email Address": paymentDetails.zelleInfo
+          },
+          check: {
+            "Mailing Address": paymentDetails.mailingAddress
+          }
+        };
+      }
+    } catch {
+      // Fallback to old format
+    }
+    
+    // Fallback for backwards compatibility
     return {
       bank_transfer: {
         "Account Number": technician.bankAccount,
