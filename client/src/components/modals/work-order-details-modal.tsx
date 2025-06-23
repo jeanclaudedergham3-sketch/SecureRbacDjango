@@ -11,6 +11,7 @@ import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
 import { PartsRequestModal } from "@/components/modals/parts-request-modal";
 import { FileUploadModal } from "@/components/modals/file-upload-modal";
 import { ChatModal } from "@/components/modals/chat-modal";
+import { PaymentRequestModal } from "@/components/modals/payment-request-modal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
