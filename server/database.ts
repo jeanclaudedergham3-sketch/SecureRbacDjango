@@ -94,6 +94,10 @@ export function initializeDatabase() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         phone_number TEXT NOT NULL,
+        email TEXT,
+        address TEXT,
+        tax_number TEXT,
+        hourly_rate TEXT,
         specialties TEXT,
         certifications TEXT,
         status TEXT DEFAULT 'available',
@@ -101,19 +105,8 @@ export function initializeDatabase() {
         total_ratings INTEGER DEFAULT 0,
         latitude REAL,
         longitude REAL,
-        first_name TEXT,
-        last_name TEXT,
-        bank_account TEXT,
-        routing_number TEXT,
-        bank_name TEXT,
-        paypal_email TEXT,
-        paypal_link TEXT,
-        venmo_handle TEXT,
-        venmo_qr TEXT,
-        cashapp_handle TEXT,
-        cashapp_qr TEXT,
-        zelle_info TEXT,
-        mailing_address TEXT,
+        payment_methods TEXT,
+        payment_details TEXT,
         created_at INTEGER NOT NULL
       );
 
@@ -219,6 +212,18 @@ export function initializeDatabase() {
         notes TEXT,
         created_at INTEGER NOT NULL,
         FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'info',
+        is_read INTEGER DEFAULT 0,
+        related_entity TEXT,
+        related_id INTEGER,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
     `);
     
