@@ -88,7 +88,7 @@ export default function Technicians() {
         {/* Technician Cards */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {technicians.map((technician) => {
-            const paymentMethods = parsePaymentMethods(technician.paymentMethods);
+            const paymentMethods = getAvailablePaymentMethods(technician);
             
             return (
               <Card key={technician.id} className="overflow-hidden hover:shadow-lg transition-shadow">
@@ -97,10 +97,10 @@ export default function Technicians() {
                     <div>
                       <CardTitle className="text-lg">{technician.name}</CardTitle>
                       <div className="mt-2">
-                        {renderStars(technician.averageRating || "0")}
+                        {renderStars(technician.averageRating || 0)}
                       </div>
                     </div>
-                    <Badge className={getStatusColor(technician.averageRating || "0")}>
+                    <Badge className={getStatusColor(technician.averageRating || 0)}>
                       {technician.totalRatings} reviews
                     </Badge>
                   </div>
@@ -112,25 +112,28 @@ export default function Technicians() {
                     {technician.phoneNumber}
                   </div>
                   
-                  {technician.email && (
+                  {technician.specialties && (
                     <div className="flex items-center text-sm text-gray-600">
-                      <Mail className="h-4 w-4 mr-2" />
-                      {technician.email}
+                      <Badge variant="outline" className="text-xs">
+                        {technician.specialties}
+                      </Badge>
                     </div>
                   )}
                   
-                  {technician.address && (
+                  {technician.certifications && (
                     <div className="flex items-start text-sm text-gray-600">
-                      <MapPin className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                      <span className="line-clamp-2">{technician.address}</span>
+                      <Award className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                      <span className="line-clamp-2">{technician.certifications}</span>
                     </div>
                   )}
 
-                  {technician.taxNumber && (
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">Tax #:</span> {technician.taxNumber}
-                    </div>
-                  )}
+                  <div className="flex items-center text-sm text-gray-600">
+                    <div className={`h-2 w-2 rounded-full mr-2 ${
+                      technician.status === 'available' ? 'bg-green-500' : 
+                      technician.status === 'busy' ? 'bg-yellow-500' : 'bg-red-500'
+                    }`} />
+                    <span className="capitalize">{technician.status}</span>
+                  </div>
 
                   {paymentMethods.length > 0 && (
                     <div>
@@ -141,7 +144,7 @@ export default function Technicians() {
                       <div className="flex flex-wrap gap-1">
                         {paymentMethods.map((method, index) => (
                           <Badge key={index} variant="outline" className="text-xs">
-                            {formatPaymentMethod(method)}
+                            {method}
                           </Badge>
                         ))}
                       </div>
