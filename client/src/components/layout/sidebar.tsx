@@ -48,7 +48,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl border-r border-slate-600/30 transform transition-all duration-500 ease-in-out md:translate-x-0 md:static md:inset-0",
+          "fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 shadow-2xl border-r border-slate-600/30 dark:border-slate-700/40 transform transition-all duration-500 ease-in-out md:translate-x-0 md:static md:inset-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
           isHovered ? "w-64" : "w-16"
         )}
