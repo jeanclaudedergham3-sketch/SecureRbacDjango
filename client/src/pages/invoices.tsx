@@ -239,10 +239,7 @@ export default function Invoices() {
           <h1 className="text-3xl font-bold">ABC Corporation - Invoice Management</h1>
           <p className="text-gray-600">Manage all invoices across work orders</p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-          <Receipt className="h-4 w-4 mr-2" />
-          Create Invoice
-        </Button>
+        
       </div>
 
       {/* Filters */}
