@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Edit, Phone, Mail, MapPin, Star, CreditCard } from "lucide-react";
+import { Plus, Edit, Phone, Star, CreditCard, Award } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,18 +16,16 @@ export default function Technicians() {
     queryKey: ["/api/technicians"],
   });
 
-  const getStatusColor = (rating: string) => {
-    const num = parseFloat(rating);
-    if (num >= 4.5) return "bg-green-100 text-green-800";
-    if (num >= 4.0) return "bg-blue-100 text-blue-800";
-    if (num >= 3.0) return "bg-yellow-100 text-yellow-800";
+  const getStatusColor = (rating: number) => {
+    if (rating >= 4.5) return "bg-green-100 text-green-800";
+    if (rating >= 4.0) return "bg-blue-100 text-blue-800";
+    if (rating >= 3.0) return "bg-yellow-100 text-yellow-800";
     return "bg-red-100 text-red-800";
   };
 
-  const renderStars = (rating: string) => {
-    const num = parseFloat(rating);
-    const fullStars = Math.floor(num);
-    const hasHalfStar = num % 1 >= 0.5;
+  const renderStars = (rating: number) => {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
     
     return (
       <div className="flex items-center">
@@ -43,9 +41,20 @@ export default function Technicians() {
             }`}
           />
         ))}
-        <span className="ml-1 text-sm text-gray-600">({num})</span>
+        <span className="ml-1 text-sm text-gray-600">({rating})</span>
       </div>
     );
+  };
+
+  const getAvailablePaymentMethods = (technician: any): string[] => {
+    const methods = [];
+    if (technician.bankAccount && technician.routingNumber) methods.push("Bank Transfer");
+    if (technician.paypalEmail || technician.paypalLink) methods.push("PayPal");
+    if (technician.venmoHandle) methods.push("Venmo");
+    if (technician.cashappHandle) methods.push("CashApp");
+    if (technician.zelleInfo) methods.push("Zelle");
+    if (technician.mailingAddress) methods.push("Check");
+    return methods;
   };
 
   const parsePaymentMethods = (methodsStr: string | null) => {
@@ -122,7 +131,7 @@ export default function Technicians() {
                   
                   {technician.certifications && (
                     <div className="flex items-start text-sm text-gray-600">
-                      <Award className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                      <Star className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
                       <span className="line-clamp-2">{technician.certifications}</span>
                     </div>
                   )}
