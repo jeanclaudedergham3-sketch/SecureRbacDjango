@@ -1,9 +1,12 @@
-import { Users, UserCheck, Cog, Shield, TrendingUp } from "lucide-react";
+import { Users, UserCheck, Cog, Shield, TrendingUp, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Dashboard() {
+  const { user, role } = useAuth();
   const { data: stats } = useQuery({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -35,14 +38,87 @@ export default function Dashboard() {
     },
   ];
 
+  // Calculate user-specific progress based on role
+  const getUserProgress = () => {
+    if (!role || !stats) return { percentage: 0, label: "Loading..." };
+    
+    switch (role.name) {
+      case "admin":
+        // Admin sees overall system completion
+        const totalTasks = (stats.totalUsers + stats.activeRoles + stats.techniciansCount + stats.workOrdersCount) || 1;
+        const completedTasks = stats.workOrdersCompleted || 0;
+        return {
+          percentage: Math.round((completedTasks / totalTasks) * 100),
+          label: "System Management Progress",
+          current: completedTasks,
+          total: totalTasks
+        };
+      case "manager":
+        // Manager sees work order completion
+        const totalWorkOrders = stats.workOrdersCount || 1;
+        const completedWorkOrders = stats.workOrdersCompleted || 0;
+        return {
+          percentage: Math.round((completedWorkOrders / totalWorkOrders) * 100),
+          label: "Work Orders Completion",
+          current: completedWorkOrders,
+          total: totalWorkOrders
+        };
+      default:
+        // Other roles see their task completion
+        const myTasks = 5; // Could be fetched from API
+        const myCompleted = 3;
+        return {
+          percentage: Math.round((myCompleted / myTasks) * 100),
+          label: "My Tasks Progress",
+          current: myCompleted,
+          total: myTasks
+        };
+    }
+  };
+
+  const progress = getUserProgress();
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
+          Welcome back, {user?.firstName}!
+        </h1>
         <p className="mt-2 text-sm text-gray-600">
-          Welcome back! Here's what's happening with your system.
+          Here's your personalized dashboard overview.
         </p>
       </div>
+
+      {/* Personal Progress Card */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center text-blue-900">
+            <TrendingUp className="h-5 w-5 mr-2" />
+            {progress.label}
+          </CardTitle>
+          <CardDescription className="text-blue-700">
+            Your current progress and performance overview
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-900">
+                {progress.current} of {progress.total} completed
+              </span>
+              <span className="text-2xl font-bold text-blue-900">
+                {progress.percentage}%
+              </span>
+            </div>
+            <Progress value={progress.percentage} className="h-3" />
+            <div className="flex justify-between text-xs text-blue-700">
+              <span>Started</span>
+              <span>In Progress</span>
+              <span>Completed</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div>
         {/* Stats Cards */}

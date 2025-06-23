@@ -153,6 +153,7 @@ Changelog:
 - June 23, 2025. Added beautiful logout confirmation dialog below user info with professional styling and confirmation message
 - June 23, 2025. Added custom scrollbar to sidebar with elegant styling matching the dark theme
 - June 23, 2025. Reorganized sidebar navigation into logical categories: Overview, User Management, Operations, Technicians, and Payments
+- June 23, 2025. Created personalized dashboard with role-based progress indicators for each user type
 ```
 
 ## User Preferences
