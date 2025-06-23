@@ -203,7 +203,8 @@ export const insertTechnicianSchema = createInsertSchema(technicians).omit({
 }).extend({
   name: z.string().min(1, "Name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
-  email: z.string().email().optional().or(z.literal("")),
+  latitude: z.union([z.number(), z.string().transform(Number)]).optional(),
+  longitude: z.union([z.number(), z.string().transform(Number)]).optional(),
 });
 
 export const insertRatingSchema = createInsertSchema(technicianRatings).omit({
