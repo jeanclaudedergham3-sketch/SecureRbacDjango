@@ -57,7 +57,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="flex flex-col flex-grow pt-6 pb-4 overflow-y-auto">
+        <div className="flex flex-col flex-grow pt-6 pb-4 overflow-y-auto scrollbar-thin">
           {/* Mobile close button */}
           <div className="flex items-center justify-between px-4 lg:hidden">
             <div className="flex items-center">
