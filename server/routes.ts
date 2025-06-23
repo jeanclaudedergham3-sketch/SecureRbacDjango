@@ -67,18 +67,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = loginSchema.parse(req.body);
-      console.log(`Login attempt for username: ${username}`);
-      
       const user = await storage.verifyPassword(username, password);
-      console.log(`User found:`, user ? `${user.username} (active: ${user.isActive})` : 'null');
       
       if (!user) {
-        console.log('Login failed: Invalid credentials');
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       if (!user.isActive) {
-        console.log('Login failed: Account inactive');
         return res.status(401).json({ message: "Account is inactive" });
       }
 

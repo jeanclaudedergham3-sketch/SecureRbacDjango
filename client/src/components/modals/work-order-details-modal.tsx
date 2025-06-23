@@ -1505,6 +1505,14 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
         </Dialog>
       )}
 
+      {/* Payment Request Modal */}
+      {isPaymentRequestModalOpen && (
+        <PaymentRequestModal 
+          isOpen={isPaymentRequestModalOpen}
+          onClose={() => setIsPaymentRequestModalOpen(false)}
+          workOrder={workOrder}
+        />
+      )}
     </Dialog>
   );
 }
