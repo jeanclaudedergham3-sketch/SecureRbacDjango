@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign } from "lucide-react";
+import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
@@ -27,6 +27,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { name: "Payment Manager", href: "/payment-manager", icon: DollarSign, permission: "manage_work_orders" },
     { name: "Technician Payments", href: "/technician-payments", icon: BarChart3, permission: "view_work_orders" },
     { name: "ABC Invoices", href: "/invoices", icon: FileText, permission: "view_work_orders" },
+    { name: "Financial Analysis", href: "/financial-analysis", icon: TrendingUp, permission: "view_dashboard" },
 
   ];
 

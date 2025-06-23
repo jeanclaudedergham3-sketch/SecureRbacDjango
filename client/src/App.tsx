@@ -18,6 +18,7 @@ import PartsRequests from "@/pages/parts-requests";
 import PaymentManager from "@/pages/payment-manager";
 import TechnicianPayments from "@/pages/technician-payments";
 import Invoices from "@/pages/invoices";
+import FinancialAnalysis from "@/pages/financial-analysis";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -82,6 +83,7 @@ function Router() {
       <Route path="/payment-manager" component={() => <ProtectedRoute component={PaymentManager} />} />
       <Route path="/technician-payments" component={() => <ProtectedRoute component={TechnicianPayments} />} />
       <Route path="/invoices" component={() => <ProtectedRoute component={Invoices} />} />
+      <Route path="/financial-analysis" component={() => <ProtectedRoute component={FinancialAnalysis} />} />
       <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
     </Switch>

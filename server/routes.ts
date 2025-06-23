@@ -1132,6 +1132,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all proposals for financial analysis
+  app.get("/api/proposals", requireAuth, async (req, res) => {
+    try {
+      const proposals = await storage.getAllProposals();
+      res.json(proposals);
+    } catch (error) {
+      console.error("Error fetching proposals:", error);
+      res.status(500).json({ message: "Failed to fetch proposals" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
