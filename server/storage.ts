@@ -255,35 +255,43 @@ export class SqliteStorage implements IStorage {
       // Create sample technicians
       await this.createTechnician({
         name: "John Smith",
-        phoneNumber: "+1-555-0101",
-        email: "john.smith@tech.com",
-        address: "123 Tech Street, San Francisco, CA 94105",
-        latitude: "37.7749",
-        longitude: "-122.4194",
-        taxNumber: "TAX123456",
-        paymentMethods: JSON.stringify(["paypal", "bank_transfer"]),
-        paymentDetails: JSON.stringify({
-          paypal: { link: "https://paypal.me/johnsmith", qrCode: "" },
-          bank_transfer: { iban: "US12345678901234567890", bankName: "Tech Bank", accountName: "John Smith" }
-        }),
-        averageRating: "4.5",
-        totalRatings: 12,
+        phoneNumber: "+1-555-0123",
+        specialties: "HVAC, Electrical",
+        certifications: "EPA Certified",
+        status: "available",
+        latitude: 40.7128,
+        longitude: -74.0060,
+        firstName: "John",
+        lastName: "Smith",
+        bankAccount: "1234567890",
+        routingNumber: "021000021",
+        bankName: "Chase Bank",
+        paypalEmail: "john.smith@paypal.com",
+        paypalLink: "https://paypal.me/johnsmith",
+        venmoHandle: "@johnsmith",
+        cashappHandle: "$johnsmith",
+        zelleInfo: "john.smith@example.com",
+        mailingAddress: "123 Main St, New York, NY 10001",
       });
 
       await this.createTechnician({
         name: "Sarah Johnson",
-        phoneNumber: "+1-555-0102",
-        email: "sarah.johnson@tech.com", 
-        address: "456 Innovation Ave, Austin, TX 78701",
-        latitude: "30.2672",
-        longitude: "-97.7431",
-        taxNumber: "TAX789012",
-        paymentMethods: JSON.stringify(["credit_card", "cash"]),
-        paymentDetails: JSON.stringify({
-          credit_card: { cardholderName: "Sarah Johnson", cardNumber: "**** **** **** 1234", expiryDate: "12/25" }
-        }),
-        averageRating: "4.8",
-        totalRatings: 8,
+        phoneNumber: "+1-555-0124",
+        specialties: "Plumbing, General Maintenance",
+        certifications: "Licensed Plumber",
+        status: "available",
+        latitude: 40.7580,
+        longitude: -73.9855,
+        firstName: "Sarah",
+        lastName: "Johnson",
+        bankAccount: "9876543210",
+        routingNumber: "011000015",
+        bankName: "Bank of America",
+        paypalEmail: "sarah.johnson@paypal.com",
+        venmoHandle: "@sarahjohnson",
+        cashappHandle: "$sarahjohnson",
+        zelleInfo: "sarah.johnson@example.com",
+        mailingAddress: "456 Oak Ave, Brooklyn, NY 11201",
       });
 
       // Create sample work orders
@@ -555,10 +563,7 @@ export class SqliteStorage implements IStorage {
   }
 
   async createTechnician(insertTechnician: InsertTechnician): Promise<Technician> {
-    const result = await db.insert(technicians).values({
-      ...insertTechnician,
-      createdAt: new Date(),
-    }).returning();
+    const result = await db.insert(technicians).values(insertTechnician).returning();
     return result[0];
   }
 

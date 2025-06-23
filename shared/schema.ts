@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -56,16 +57,28 @@ export const technicians = sqliteTable("technicians", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   phoneNumber: text("phone_number").notNull(),
-  email: text("email"),
-  address: text("address"),
-  latitude: text("latitude"),
-  longitude: text("longitude"),
-  taxNumber: text("tax_number"),
-  paymentMethods: text("payment_methods"), // JSON string for multiple payment methods
-  paymentDetails: text("payment_details"), // JSON string for payment method details
-  averageRating: text("average_rating").default("0"),
+  specialties: text("specialties"),
+  certifications: text("certifications"),
+  status: text("status", { enum: ["available", "busy", "offline"] }).default("available"),
+  averageRating: real("average_rating").default(0),
   totalRatings: integer("total_ratings").default(0),
-  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  // Payment method fields
+  bankAccount: text("bank_account"),
+  routingNumber: text("routing_number"),
+  bankName: text("bank_name"),
+  paypalEmail: text("paypal_email"),
+  paypalLink: text("paypal_link"),
+  venmoHandle: text("venmo_handle"),
+  venmoQR: text("venmo_qr"),
+  cashappHandle: text("cashapp_handle"),
+  cashappQR: text("cashapp_qr"),
+  zelleInfo: text("zelle_info"),
+  mailingAddress: text("mailing_address"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
 
 export const technicianRatings = sqliteTable("technician_ratings", {
