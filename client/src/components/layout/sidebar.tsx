@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 
 interface SidebarProps {
@@ -110,6 +111,42 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <p className="text-xs text-slate-300 capitalize whitespace-nowrap font-medium">
                   {role?.name || ""}
                 </p>
+                <div className="mt-2">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs h-7 bg-slate-600/50 border-slate-500/50 text-slate-200 hover:bg-red-600/20 hover:border-red-500/50 hover:text-red-300 transition-all duration-300"
+                      >
+                        <LogOut className="h-3 w-3 mr-1" />
+                        Sign Out
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="max-w-md">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center text-lg">
+                          <LogOut className="h-5 w-5 mr-2 text-slate-600" />
+                          Sign Out Confirmation
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-slate-600">
+                          Are you sure you want to sign out of your account? You'll need to log in again to access the admin panel.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="hover:bg-slate-100">
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={logout}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          Yes, Sign Out
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             </div>
           </div>
@@ -182,28 +219,46 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             })}
           </nav>
 
-          {/* Logout */}
-          <div className="flex-shrink-0 flex border-t border-slate-600/30 p-4 mt-4">
-            <button
-              onClick={logout}
-              className="flex-shrink-0 w-full group block text-left hover:bg-gradient-to-r hover:from-red-600/20 hover:to-red-700/20 rounded-xl p-3 transition-all duration-300 relative transform hover:scale-105 active:scale-95 border border-transparent hover:border-red-500/30"
-            >
-              <div className="flex items-center">
-                <LogOut className="h-5 w-5 text-slate-400 group-hover:text-red-400 flex-shrink-0 transition-colors duration-300" />
-                <span className={cn(
-                  "ml-3 text-sm font-medium text-slate-300 group-hover:text-red-300 transition-all duration-500 whitespace-nowrap",
-                  isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
-                )}>
-                  Logout
-                </span>
-                {!isHovered && (
-                  <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
-                    Logout
-                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
+          {/* Logout for collapsed state */}
+          <div className={cn(
+            "flex-shrink-0 flex border-t border-slate-600/30 p-4 mt-4 transition-all duration-500",
+            isHovered ? "opacity-0 h-0 overflow-hidden p-0 mt-0" : "opacity-100"
+          )}>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button className="flex-shrink-0 w-full group block text-left hover:bg-gradient-to-r hover:from-red-600/20 hover:to-red-700/20 rounded-xl p-3 transition-all duration-300 relative transform hover:scale-105 active:scale-95 border border-transparent hover:border-red-500/30">
+                  <div className="flex items-center justify-center">
+                    <LogOut className="h-5 w-5 text-slate-400 group-hover:text-red-400 flex-shrink-0 transition-colors duration-300" />
+                    <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
+                      Sign Out
+                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
+                    </div>
                   </div>
-                )}
-              </div>
-            </button>
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="max-w-md">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center text-lg">
+                    <LogOut className="h-5 w-5 mr-2 text-slate-600" />
+                    Sign Out Confirmation
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-slate-600">
+                    Are you sure you want to sign out of your account? You'll need to log in again to access the admin panel.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="hover:bg-slate-100">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={logout}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    Yes, Sign Out
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </div>

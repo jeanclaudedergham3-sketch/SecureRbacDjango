@@ -150,6 +150,7 @@ Changelog:
 - June 23, 2025. Built complete notification system with real-time alerts, unread count badges, and mark-as-read functionality for work orders, payments, and system events
 - June 23, 2025. Completely removed equipment management page and all related functionality per user request
 - June 23, 2025. Enhanced sidebar with professional design: gradient backgrounds, improved animations, better typography, and polished visual elements
+- June 23, 2025. Added beautiful logout confirmation dialog below user info with professional styling and confirmation message
 ```
 
 ## User Preferences
