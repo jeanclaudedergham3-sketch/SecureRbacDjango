@@ -24,7 +24,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Overview",
       items: [
         { name: "Dashboard", href: "/", icon: BarChart3, permission: "view_dashboard" },
-        { name: "Financial Analysis", href: "/financial-analysis", icon: TrendingUp, permission: "manage_payments" },
+        { name: "Financial Analysis", href: "/financial-analysis", icon: TrendingUp, permission: "view_dashboard" },
       ]
     },
     {
@@ -53,8 +53,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     {
       title: "Payments",
       items: [
-        { name: "Payment Manager", href: "/payment-manager", icon: DollarSign, permission: "manage_payments" },
-        { name: "Technician Payments", href: "/technician-payments", icon: DollarSign, permission: "manage_payments" },
+        { name: "Payment Manager", href: "/payment-manager", icon: DollarSign, permission: "manage_work_orders" },
+        { name: "Technician Payments", href: "/technician-payments", icon: DollarSign, permission: "view_work_orders" },
       ]
     }
   ];
@@ -181,7 +181,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             {navigationSections.map((section) => {
               // Check if user has permission for any item in this section
               const hasAnyPermission = section.items.some(item => 
-                !item.permission || true // We'll check permissions per item below
+                !item.permission || hasPermission(item.permission)
               );
               
               if (!hasAnyPermission) return null;
