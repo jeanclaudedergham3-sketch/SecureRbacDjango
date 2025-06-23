@@ -1,0 +1,431 @@
+import { useState, useEffect } from "react";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search } from "lucide-react";
+import { Settings, FileText, DollarSign, AlertTriangle, Database, Activity, Users, Shield } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import type { Permission, RoleWithPermissions } from "@shared/schema";
+
+interface AdvancedRoleModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  role?: RoleWithPermissions;
+}
+
+// Permission categories for better organization
+const PERMISSION_CATEGORIES = {
+  dashboard: {
+    name: "Dashboard & Analytics",
+    icon: Activity,
+    color: "bg-blue-500",
+    permissions: ["view_dashboard", "view_analytics", "export_reports"]
+  },
+  users: {
+    name: "User Management", 
+    icon: Users,
+    color: "bg-green-500",
+    permissions: ["view_users", "create_users", "edit_users", "delete_users", "manage_user_roles", "reset_passwords", "activate_deactivate_users"]
+  },
+  roles: {
+    name: "Role & Permission Management",
+    icon: Shield,
+    color: "bg-purple-500", 
+    permissions: ["view_roles", "create_roles", "edit_roles", "delete_roles", "manage_permissions"]
+  },
+  equipment: {
+    name: "Equipment Management",
+    icon: Settings,
+    color: "bg-orange-500",
+    permissions: ["view_equipment", "create_equipment", "edit_equipment", "delete_equipment", "equipment_maintenance", "equipment_reports"]
+  },
+  technicians: {
+    name: "Technician Management",
+    icon: Users,
+    color: "bg-cyan-500",
+    permissions: ["view_technicians", "create_technicians", "edit_technicians", "delete_technicians", "manage_technician_schedules", "view_technician_performance", "manage_technician_payments"]
+  },
+  workorders: {
+    name: "Work Order Management",
+    icon: FileText,
+    color: "bg-indigo-500",
+    permissions: ["view_work_orders", "create_work_orders", "edit_work_orders", "delete_work_orders", "assign_work_orders", "approve_work_orders", "close_work_orders", "view_work_order_history"]
+  },
+  proposals: {
+    name: "Proposal Management",
+    icon: FileText,
+    color: "bg-teal-500",
+    permissions: ["view_proposals", "create_proposals", "edit_proposals", "approve_proposals", "proposal_analytics"]
+  },
+  parts: {
+    name: "Parts & Inventory",
+    icon: Database,
+    color: "bg-amber-500",
+    permissions: ["view_parts_requests", "create_parts_requests", "approve_parts_requests", "manage_inventory", "parts_procurement"]
+  },
+  files: {
+    name: "File & Document Management",
+    icon: FileText,
+    color: "bg-slate-500",
+    permissions: ["view_files", "upload_files", "delete_files", "manage_signatures"]
+  },
+  communication: {
+    name: "Communication & Chat",
+    icon: Activity,
+    color: "bg-pink-500",
+    permissions: ["view_chat", "send_messages", "manage_notifications", "broadcast_messages"]
+  },
+  payments: {
+    name: "Payment & Financial",
+    icon: DollarSign,
+    color: "bg-emerald-500",
+    permissions: ["view_payments", "process_payments", "manage_payment_methods", "financial_reports", "invoice_management", "payment_disputes"]
+  },
+  system: {
+    name: "System Administration",
+    icon: Settings,
+    color: "bg-red-500",
+    permissions: ["system_settings", "backup_restore", "audit_logs", "security_management", "integration_management", "system_monitoring"]
+  },
+  emergency: {
+    name: "Emergency & Override",
+    icon: AlertTriangle,
+    color: "bg-red-600",
+    permissions: ["emergency_access", "data_export", "system_maintenance", "super_admin"]
+  }
+};
+
+export function AdvancedRoleModal({ isOpen, onClose, role }: AdvancedRoleModalProps) {
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+  });
+  const [selectedPermissions, setSelectedPermissions] = useState<number[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: permissions } = useQuery<Permission[]>({
+    queryKey: ["/api/permissions"],
+  });
+
+  useEffect(() => {
+    if (role) {
+      setFormData({
+        name: role.name,
+        description: role.description || "",
+      });
+      setSelectedPermissions(role.permissions?.map(p => p.id) || []);
+    } else {
+      setFormData({ name: "", description: "" });
+      setSelectedPermissions([]);
+    }
+  }, [role]);
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/roles", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/roles"] });
+      toast({
+        title: "Success",
+        description: "Role created successfully",
+      });
+      onClose();
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("PUT", `/api/roles/${role?.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/roles"] });
+      toast({
+        title: "Success", 
+        description: "Role updated successfully",
+      });
+      onClose();
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const data = {
+      ...formData,
+      permissions: selectedPermissions,
+    };
+
+    if (role) {
+      updateMutation.mutate(data);
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  const handlePermissionChange = (permissionId: number, checked: boolean) => {
+    setSelectedPermissions(prev => 
+      checked 
+        ? [...prev, permissionId]
+        : prev.filter(id => id !== permissionId)
+    );
+  };
+
+  const handleCategoryChange = (categoryKey: string, checked: boolean) => {
+    const category = PERMISSION_CATEGORIES[categoryKey as keyof typeof PERMISSION_CATEGORIES];
+    const categoryPermissions = permissions?.filter(p => 
+      category.permissions.includes(p.name)
+    ) || [];
+    
+    if (checked) {
+      setSelectedPermissions(prev => [
+        ...prev,
+        ...categoryPermissions.map(p => p.id).filter(id => !prev.includes(id))
+      ]);
+    } else {
+      setSelectedPermissions(prev => 
+        prev.filter(id => !categoryPermissions.some(p => p.id === id))
+      );
+    }
+  };
+
+  const isCategoryChecked = (categoryKey: string) => {
+    const category = PERMISSION_CATEGORIES[categoryKey as keyof typeof PERMISSION_CATEGORIES];
+    const categoryPermissions = permissions?.filter(p => 
+      category.permissions.includes(p.name)
+    ) || [];
+    return categoryPermissions.length > 0 && categoryPermissions.every(p => selectedPermissions.includes(p.id));
+  };
+
+  const isCategoryPartiallyChecked = (categoryKey: string) => {
+    const category = PERMISSION_CATEGORIES[categoryKey as keyof typeof PERMISSION_CATEGORIES];
+    const categoryPermissions = permissions?.filter(p => 
+      category.permissions.includes(p.name)
+    ) || [];
+    const checkedCount = categoryPermissions.filter(p => selectedPermissions.includes(p.id)).length;
+    return checkedCount > 0 && checkedCount < categoryPermissions.length;
+  };
+
+  const filteredPermissions = permissions?.filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.description.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>
+            {role ? "Edit Role" : "Create New Role"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="name">Role Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                placeholder="Enter role name"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                placeholder="Enter role description"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <Label>Permissions ({selectedPermissions.length} selected)</Label>
+            <Tabs defaultValue="categories" className="mt-2">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="categories">By Category</TabsTrigger>
+                <TabsTrigger value="search">Search & Filter</TabsTrigger>
+                <TabsTrigger value="summary">Summary</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="categories" className="mt-4">
+                <ScrollArea className="h-96 border rounded-md p-4">
+                  <div className="space-y-6">
+                    {Object.entries(PERMISSION_CATEGORIES).map(([key, category]) => {
+                      const Icon = category.icon;
+                      const categoryPermissions = permissions?.filter(p => 
+                        category.permissions.includes(p.name)
+                      ) || [];
+                      
+                      return (
+                        <Card key={key} className="border-l-4" style={{borderLeftColor: category.color.replace('bg-', '').replace('-500', '')}}>
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center space-x-3">
+                              <div className={`p-2 rounded-md ${category.color} text-white`}>
+                                <Icon className="h-4 w-4" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox
+                                    checked={isCategoryChecked(key)}
+                                    onCheckedChange={(checked) => handleCategoryChange(key, checked as boolean)}
+                                    className={isCategoryPartiallyChecked(key) ? "data-[state=checked]:bg-orange-500" : ""}
+                                  />
+                                  <CardTitle className="text-sm">{category.name}</CardTitle>
+                                  <Badge variant="outline" className="text-xs">
+                                    {categoryPermissions.filter(p => selectedPermissions.includes(p.id)).length}/{categoryPermissions.length}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          
+                          <CardContent className="pt-0">
+                            <div className="space-y-2">
+                              {categoryPermissions.map((permission) => (
+                                <div key={permission.id} className="flex items-start space-x-2 p-2 hover:bg-gray-50 rounded">
+                                  <Checkbox
+                                    id={`permission-${permission.id}`}
+                                    checked={selectedPermissions.includes(permission.id)}
+                                    onCheckedChange={(checked) => handlePermissionChange(permission.id, checked as boolean)}
+                                    className="mt-0.5"
+                                  />
+                                  <div className="flex-1">
+                                    <Label 
+                                      htmlFor={`permission-${permission.id}`}
+                                      className="text-sm font-medium cursor-pointer"
+                                    >
+                                      {permission.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                    </Label>
+                                    <p className="text-xs text-gray-500 mt-1">{permission.description}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+              
+              <TabsContent value="search" className="mt-4">
+                <div className="space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search permissions..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  
+                  <ScrollArea className="h-80 border rounded-md p-4">
+                    <div className="space-y-2">
+                      {filteredPermissions.map((permission) => (
+                        <div key={permission.id} className="flex items-start space-x-2 p-2 hover:bg-gray-50 rounded">
+                          <Checkbox
+                            id={`search-permission-${permission.id}`}
+                            checked={selectedPermissions.includes(permission.id)}
+                            onCheckedChange={(checked) => handlePermissionChange(permission.id, checked as boolean)}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1">
+                            <Label 
+                              htmlFor={`search-permission-${permission.id}`}
+                              className="text-sm font-medium cursor-pointer"
+                            >
+                              {permission.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </Label>
+                            <p className="text-xs text-gray-500 mt-1">{permission.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="summary" className="mt-4">
+                <ScrollArea className="h-96 border rounded-md p-4">
+                  <div className="space-y-4">
+                    <div className="text-sm text-gray-600">
+                      <strong>{selectedPermissions.length}</strong> permissions selected out of <strong>{permissions?.length || 0}</strong> total
+                    </div>
+                    
+                    {Object.entries(PERMISSION_CATEGORIES).map(([key, category]) => {
+                      const categoryPermissions = permissions?.filter(p => 
+                        category.permissions.includes(p.name)
+                      ) || [];
+                      const selectedCount = categoryPermissions.filter(p => selectedPermissions.includes(p.id)).length;
+                      
+                      if (selectedCount === 0) return null;
+                      
+                      const Icon = category.icon;
+                      return (
+                        <div key={key} className="p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className={`p-1 rounded ${category.color} text-white`}>
+                              <Icon className="h-3 w-3" />
+                            </div>
+                            <span className="font-medium text-sm">{category.name}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {selectedCount}/{categoryPermissions.length}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {categoryPermissions
+                              .filter(p => selectedPermissions.includes(p.id))
+                              .map((permission) => (
+                                <Badge key={permission.id} variant="secondary" className="text-xs">
+                                  {permission.name.replace(/_/g, ' ')}
+                                </Badge>
+                              ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
+          </div>
+          
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              {createMutation.isPending || updateMutation.isPending
+                ? "Saving..." 
+                : role ? "Update Role" : "Create Role"
+              }
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

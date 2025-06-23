@@ -1,16 +1,99 @@
 import { useState } from "react";
-import { Plus, Edit, Check, X } from "lucide-react";
+import { Plus, Edit, Shield, Users, Activity, Settings, FileText, DollarSign, AlertTriangle, Database } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
-import { EditRoleModal } from "@/components/modals/edit-role-modal";
+import { AdvancedRoleModal } from "@/components/modals/advanced-role-modal";
 import type { RoleWithPermissions, Permission } from "@shared/schema";
+
+// Permission categories for display
+const PERMISSION_CATEGORIES = {
+  dashboard: {
+    name: "Dashboard & Analytics",
+    icon: Activity,
+    color: "bg-blue-500",
+    permissions: ["view_dashboard", "view_analytics", "export_reports"]
+  },
+  users: {
+    name: "User Management", 
+    icon: Users,
+    color: "bg-green-500",
+    permissions: ["view_users", "create_users", "edit_users", "delete_users", "manage_user_roles", "reset_passwords", "activate_deactivate_users"]
+  },
+  roles: {
+    name: "Role & Permission Management",
+    icon: Shield,
+    color: "bg-purple-500", 
+    permissions: ["view_roles", "create_roles", "edit_roles", "delete_roles", "manage_permissions"]
+  },
+  equipment: {
+    name: "Equipment Management",
+    icon: Settings,
+    color: "bg-orange-500",
+    permissions: ["view_equipment", "create_equipment", "edit_equipment", "delete_equipment", "equipment_maintenance", "equipment_reports"]
+  },
+  technicians: {
+    name: "Technician Management",
+    icon: Users,
+    color: "bg-cyan-500",
+    permissions: ["view_technicians", "create_technicians", "edit_technicians", "delete_technicians", "manage_technician_schedules", "view_technician_performance", "manage_technician_payments"]
+  },
+  workorders: {
+    name: "Work Order Management",
+    icon: FileText,
+    color: "bg-indigo-500",
+    permissions: ["view_work_orders", "create_work_orders", "edit_work_orders", "delete_work_orders", "assign_work_orders", "approve_work_orders", "close_work_orders", "view_work_order_history"]
+  },
+  proposals: {
+    name: "Proposal Management",
+    icon: FileText,
+    color: "bg-teal-500",
+    permissions: ["view_proposals", "create_proposals", "edit_proposals", "approve_proposals", "proposal_analytics"]
+  },
+  parts: {
+    name: "Parts & Inventory",
+    icon: Database,
+    color: "bg-amber-500",
+    permissions: ["view_parts_requests", "create_parts_requests", "approve_parts_requests", "manage_inventory", "parts_procurement"]
+  },
+  files: {
+    name: "File & Document Management",
+    icon: FileText,
+    color: "bg-slate-500",
+    permissions: ["view_files", "upload_files", "delete_files", "manage_signatures"]
+  },
+  communication: {
+    name: "Communication & Chat",
+    icon: Activity,
+    color: "bg-pink-500",
+    permissions: ["view_chat", "send_messages", "manage_notifications", "broadcast_messages"]
+  },
+  payments: {
+    name: "Payment & Financial",
+    icon: DollarSign,
+    color: "bg-emerald-500",
+    permissions: ["view_payments", "process_payments", "manage_payment_methods", "financial_reports", "invoice_management", "payment_disputes"]
+  },
+  system: {
+    name: "System Administration",
+    icon: Settings,
+    color: "bg-red-500",
+    permissions: ["system_settings", "backup_restore", "audit_logs", "security_management", "integration_management", "system_monitoring"]
+  },
+  emergency: {
+    name: "Emergency & Override",
+    icon: AlertTriangle,
+    color: "bg-red-600",
+    permissions: ["emergency_access", "data_export", "system_maintenance", "super_admin"]
+  }
+};
 
 export default function Roles() {
   const [editingRole, setEditingRole] = useState<RoleWithPermissions | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState(false);
   
   const { data: roles = [] } = useQuery<RoleWithPermissions[]>({
     queryKey: ["/api/roles"],
