@@ -375,10 +375,14 @@ export class SqliteStorage implements IStorage {
   }
 
   async verifyPassword(username: string, password: string): Promise<User | null> {
+    console.log(`Verifying password for username: ${username}`);
     const user = await this.getUserByUsername(username);
+    console.log(`User found in database:`, user ? `${user.username} (id: ${user.id})` : 'null');
+    
     if (!user) return null;
 
     const isValid = await bcrypt.compare(password, user.password);
+    console.log(`Password verification result: ${isValid}`);
     return isValid ? user : null;
   }
 
