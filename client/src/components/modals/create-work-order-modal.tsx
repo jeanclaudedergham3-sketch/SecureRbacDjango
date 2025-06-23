@@ -48,6 +48,9 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     status: "active",
   });
 
+  const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
+  const [paymentDetails, setPaymentDetails] = useState<any>({});
+
   // Fetch users for assignment dropdown
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -79,6 +82,16 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         assignedUserIds: workOrder.assignedUsers?.map(user => user.id) || [],
         status: workOrder.status || "active",
       });
+      
+      try {
+        const methods = workOrder.paymentMethods ? JSON.parse(workOrder.paymentMethods) : [];
+        const details = workOrder.paymentDetails ? JSON.parse(workOrder.paymentDetails) : {};
+        setSelectedPaymentMethods(methods);
+        setPaymentDetails(details);
+      } catch {
+        setSelectedPaymentMethods([]);
+        setPaymentDetails({});
+      }
     } else {
       setFormData({
         clientName: "",
@@ -103,8 +116,37 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         assignedUserIds: [],
         status: "active",
       });
+      setSelectedPaymentMethods([]);
+      setPaymentDetails({});
     }
   }, [workOrder, isOpen]);
+
+  const handlePaymentMethodChange = (method: string, checked: boolean) => {
+    if (checked) {
+      setSelectedPaymentMethods(prev => [...prev, method]);
+      if (!paymentDetails[method]) {
+        setPaymentDetails(prev => ({
+          ...prev,
+          [method]: method === "cash" ? {} : {}
+        }));
+      }
+    } else {
+      setSelectedPaymentMethods(prev => prev.filter(m => m !== method));
+      const newDetails = { ...paymentDetails };
+      delete newDetails[method];
+      setPaymentDetails(newDetails);
+    }
+  };
+
+  const handlePaymentDetailChange = (method: string, field: string, value: string) => {
+    setPaymentDetails(prev => ({
+      ...prev,
+      [method]: {
+        ...prev[method],
+        [field]: value
+      }
+    }));
+  };
 
   const createWorkOrderMutation = useMutation({
     mutationFn: (data: any) => 
@@ -158,6 +200,8 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     const submitData = {
       ...formData,
       assignedUserIds: JSON.stringify(formData.assignedUserIds),
+      paymentMethods: JSON.stringify(selectedPaymentMethods),
+      paymentDetails: JSON.stringify(paymentDetails),
       startDate: formData.startDate,
       endDate: formData.endDate,
     };
@@ -514,6 +558,139 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
               </div>
             </div>
           </div>
+
+          {/* Payment Methods */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Accepted Payment Methods</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {[
+                { value: "paypal", label: "PayPal" },
+                { value: "credit_card", label: "Credit Card" },
+                { value: "cash", label: "Cash" },
+                { value: "bank_transfer", label: "Bank Transfer" },
+                { value: "check", label: "Check" },
+              ].map((option) => (
+                <div key={option.value} className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={option.value}
+                      checked={selectedPaymentMethods.includes(option.value)}
+                      onCheckedChange={(checked) => 
+                        handlePaymentMethodChange(option.value, checked as boolean)
+                      }
+                    />
+                    <Label htmlFor={option.value} className="font-medium">
+                      {option.label}
+                    </Label>
+                  </div>
+
+                  {/* Dynamic fields based on payment method */}
+                  {selectedPaymentMethods.includes(option.value) && (
+                    <div className="ml-6 space-y-2 p-3 bg-gray-50 rounded-md">
+                      {option.value === "paypal" && (
+                        <>
+                          <div>
+                            <Label>PayPal Email</Label>
+                            <Input
+                              value={paymentDetails.paypal?.email || ""}
+                              onChange={(e) => handlePaymentDetailChange("paypal", "email", e.target.value)}
+                              placeholder="payments@company.com"
+                            />
+                          </div>
+                          <div>
+                            <Label>PayPal Link</Label>
+                            <Input
+                              value={paymentDetails.paypal?.link || ""}
+                              onChange={(e) => handlePaymentDetailChange("paypal", "link", e.target.value)}
+                              placeholder="https://paypal.me/company"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {option.value === "credit_card" && (
+                        <>
+                          <div>
+                            <Label>Processor</Label>
+                            <Input
+                              value={paymentDetails.credit_card?.processor || ""}
+                              onChange={(e) => handlePaymentDetailChange("credit_card", "processor", e.target.value)}
+                              placeholder="Stripe, Square, etc."
+                            />
+                          </div>
+                          <div>
+                            <Label>Accepted Cards</Label>
+                            <Input
+                              value={paymentDetails.credit_card?.acceptedCards || ""}
+                              onChange={(e) => handlePaymentDetailChange("credit_card", "acceptedCards", e.target.value)}
+                              placeholder="Visa, MasterCard, Amex"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {option.value === "bank_transfer" && (
+                        <>
+                          <div>
+                            <Label>Account Number</Label>
+                            <Input
+                              value={paymentDetails.bank_transfer?.accountNumber || ""}
+                              onChange={(e) => handlePaymentDetailChange("bank_transfer", "accountNumber", e.target.value)}
+                              placeholder="Account number"
+                            />
+                          </div>
+                          <div>
+                            <Label>Routing Number</Label>
+                            <Input
+                              value={paymentDetails.bank_transfer?.routingNumber || ""}
+                              onChange={(e) => handlePaymentDetailChange("bank_transfer", "routingNumber", e.target.value)}
+                              placeholder="Routing number"
+                            />
+                          </div>
+                          <div>
+                            <Label>Bank Name</Label>
+                            <Input
+                              value={paymentDetails.bank_transfer?.bankName || ""}
+                              onChange={(e) => handlePaymentDetailChange("bank_transfer", "bankName", e.target.value)}
+                              placeholder="Bank Name"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {option.value === "check" && (
+                        <>
+                          <div>
+                            <Label>Make Checks Payable To</Label>
+                            <Input
+                              value={paymentDetails.check?.payableTo || ""}
+                              onChange={(e) => handlePaymentDetailChange("check", "payableTo", e.target.value)}
+                              placeholder="Company Name"
+                            />
+                          </div>
+                          <div>
+                            <Label>Mailing Address</Label>
+                            <Textarea
+                              value={paymentDetails.check?.mailingAddress || ""}
+                              onChange={(e) => handlePaymentDetailChange("check", "mailingAddress", e.target.value)}
+                              placeholder="Complete mailing address for checks"
+                              rows={2}
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {option.value === "cash" && (
+                        <p className="text-sm text-gray-600">Cash payments accepted on-site. No additional setup required.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
 
           <div className="flex justify-end space-x-3 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
