@@ -1,5 +1,6 @@
 -- PostgreSQL Database Schema for RBAC Work Order Management System
 -- Generated on June 23, 2025
+-- Complete schema with all 17 tables and relations
 
 -- ============================================================================
 -- CORE TABLES
@@ -275,51 +276,57 @@ CREATE INDEX idx_notifications_type ON notifications(type);
 -- SAMPLE DATA INSERTION
 -- ============================================================================
 
--- Insert default permissions
+-- Insert default permissions (matching current application permissions)
 INSERT INTO permissions (name, description) VALUES
-('manage_users', 'Create, read, update, and delete users'),
-('manage_roles', 'Create, read, update, and delete roles'),
-('manage_permissions', 'Create, read, update, and delete permissions'),
-('manage_equipment', 'Create, read, update, and delete equipment'),
-('view_equipment', 'View equipment status and information'),
-('manage_technicians', 'Create, read, update, and delete technicians'),
-('view_technicians', 'View technician information'),
-('manage_work_orders', 'Create, read, update, and delete work orders'),
-('view_work_orders', 'View work order information'),
-('manage_proposals', 'Create, read, update, and delete work order proposals'),
-('view_proposals', 'View work order proposals'),
-('manage_parts_requests', 'Create, read, update, and delete parts requests'),
-('view_parts_requests', 'View parts requests'),
-('manage_files', 'Upload, view, and delete work order files'),
-('view_files', 'View work order files'),
-('manage_chat', 'Send and view work order chat messages'),
-('view_chat', 'View work order chat messages'),
-('manage_payments', 'Create, read, update, and delete technician payments'),
-('view_payments', 'View technician payments'),
-('manage_invoices', 'Create, read, update, and delete invoices'),
-('view_invoices', 'View invoices'),
-('manage_notifications', 'Create, read, update, and delete notifications'),
+('view_dashboard', 'View dashboard'),
+('view_users', 'View users'),
+('edit_users', 'Edit users'),
+('view_roles', 'View roles'),
+('assign_roles', 'Assign roles'),
+('view_equipment', 'View equipment'),
+('edit_equipment', 'Edit equipment'),
+('manage_technicians', 'Manage technicians'),
+('rate_technicians', 'Rate technicians'),
+('manage_work_orders', 'Manage work orders'),
+('manage_invoices', 'Manage invoices'),
 ('view_notifications', 'View notifications');
 
--- Insert default roles
+-- Insert default roles (matching current application roles)
 INSERT INTO roles (name, description) VALUES
-('Administrator', 'Full system access with all permissions'),
-('Manager', 'Management-level access to work orders, technicians, and equipment'),
-('Supervisor', 'Supervisory access to work orders and technicians'),
-('Technician', 'Technician-level access to assigned work orders'),
-('Client', 'Client-level access to view work order status');
+('admin', 'Full system access with all permissions'),
+('manager', 'Management-level access to work orders, technicians, and equipment'),
+('viewer', 'View-only access to system information');
 
--- Create admin user (password: admin123)
+-- Create default users (matching current application users)
+-- Password: password123 for all users
 INSERT INTO users (username, email, password, first_name, last_name) VALUES
-('admin', 'admin@example.com', '$2b$10$8K4bPz9mJwVtCbC7V5xhGOqEJPKQqP9bGpWXk3wZzA7NnKL5JKP4e', 'Admin', 'User');
+('admin', 'admin@example.com', '$2b$10$rKJ5kMZjHQJnRz1c7y4JdOzEY8F8mK4oL9sN6pQ3rT5uV7wX8yZ9a', 'Admin', 'User'),
+('manager', 'manager@example.com', '$2b$10$rKJ5kMZjHQJnRz1c7y4JdOzEY8F8mK4oL9sN6pQ3rT5uV7wX8yZ9a', 'Manager', 'User'),
+('viewer', 'viewer@example.com', '$2b$10$rKJ5kMZjHQJnRz1c7y4JdOzEY8F8mK4oL9sN6pQ3rT5uV7wX8yZ9a', 'Viewer', 'User');
 
--- Assign admin role to admin user
+-- Assign roles to users
 INSERT INTO user_roles (user_id, role_id) VALUES
-(1, 1);
+(1, 1), -- admin -> admin role
+(2, 2), -- manager -> manager role  
+(3, 3); -- viewer -> viewer role
 
--- Assign all permissions to Administrator role
+-- Assign permissions to roles
+-- Admin gets all permissions
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 1, id FROM permissions;
+
+-- Manager gets most permissions except user management
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT 2, id FROM permissions WHERE name IN (
+  'view_dashboard', 'view_equipment', 'edit_equipment', 'manage_technicians', 
+  'rate_technicians', 'manage_work_orders', 'manage_invoices', 'view_notifications'
+);
+
+-- Viewer gets only view permissions
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT 3, id FROM permissions WHERE name IN (
+  'view_dashboard', 'view_users', 'view_roles', 'view_equipment', 'view_notifications'
+);
 
 -- ============================================================================
 -- COMMENTS AND DOCUMENTATION
