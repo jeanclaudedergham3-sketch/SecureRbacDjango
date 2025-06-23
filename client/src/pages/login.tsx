@@ -5,25 +5,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Shield } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Shield, AlertCircle, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const { login } = useAuth();
   const [, setLocation] = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setLoginError("");
 
-    const success = await login(username, password);
-    if (success) {
-      setLocation("/dashboard");
+    try {
+      const success = await login(username, password);
+      if (success) {
+        setLocation("/");
+      } else {
+        setLoginError("Invalid username or password. Please check your credentials and try again.");
+      }
+    } catch (error: any) {
+      setLoginError("Invalid username or password. Please check your credentials and try again.");
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
