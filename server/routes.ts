@@ -166,11 +166,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(201).json(user);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating user:", error);
+      
+      let message = "Failed to create user";
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+        if (error.message.includes('username')) {
+          message = "Username already exists. Please choose a different username.";
+        } else if (error.message.includes('email')) {
+          message = "Email address already exists. Please use a different email.";
+        } else {
+          message = "User with this information already exists.";
+        }
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+      
       res.status(400).json({ 
-        message: "Failed to create user", 
-        error: error instanceof Error ? error.message : String(error) 
+        message,
+        error: error.code || error.message
       });
     }
   });

@@ -56,6 +56,7 @@ export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
       onClose();
     },
     onError: (error: any) => {
+      console.error("Create user error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create user",
