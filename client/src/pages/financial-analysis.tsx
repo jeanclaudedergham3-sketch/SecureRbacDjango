@@ -30,7 +30,7 @@ export default function FinancialAnalysis() {
   });
 
   const { data: invoices = [] } = useQuery({
-    queryKey: ["/api/invoices"],
+    queryKey: ["/api/invoices/all"],
   });
 
   const calculateProposalTotal = (proposal: any) => {
@@ -66,11 +66,18 @@ export default function FinancialAnalysis() {
     return parseFloat(invoice.totalAmount || "0");
   };
 
+  // Debug logging
+  console.log("Debug - Work Orders:", workOrders);
+  console.log("Debug - Proposals:", proposals);
+  console.log("Debug - Invoices:", invoices);
+
   // Get financial data for paid invoices only
   const financialData: WorkOrderFinancial[] = workOrders
     .map((workOrder: any) => {
       const proposal = proposals.find((p: any) => p.workOrderId === workOrder.id);
       const invoice = invoices.find((i: any) => i.workOrderId === workOrder.id);
+      
+      console.log(`Debug - WO ${workOrder.id}: proposal=${!!proposal}, invoice=${!!invoice}, status=${invoice?.status}`);
       
       // Only include if invoice exists and is paid
       if (!invoice || invoice.status !== "paid") return null;
@@ -79,6 +86,8 @@ export default function FinancialAnalysis() {
       const invoiceTotal = calculateInvoiceTotal(invoice);
       const difference = invoiceTotal - proposalTotal;
       const isProfitable = difference > 0;
+      
+      console.log(`Debug - WO ${workOrder.id}: proposalTotal=${proposalTotal}, invoiceTotal=${invoiceTotal}, difference=${difference}`);
       
       return {
         workOrder,
@@ -91,6 +100,8 @@ export default function FinancialAnalysis() {
       };
     })
     .filter(Boolean) as WorkOrderFinancial[];
+
+  console.log("Debug - Final financial data:", financialData);
 
   // Calculate totals
   const totalProfit = financialData
