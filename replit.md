@@ -150,7 +150,7 @@ Changelog:
 - June 22, 2025. Added Technician Payments Overview page showing payment summaries and totals for all technicians
 - June 22, 2025. Implemented Invoice Management system within work orders with automatic tax calculations and status tracking
 - June 23, 2025. Created Financial Analysis page comparing proposal vs invoice amounts to show profit/loss on paid work orders
-- June 23, 2025. Implemented Google Maps integration in Technician Map page with interactive markers, info windows, and automatic bounds fitting
+- June 23, 2025. Implemented free OpenStreetMap integration in Technician Map page with overlay markers and hover tooltips
 ```
 
 ## User Preferences
