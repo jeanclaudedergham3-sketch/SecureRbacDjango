@@ -301,8 +301,7 @@ export class SqliteStorage implements IStorage {
         status: "available",
         latitude: 40.7580,
         longitude: -73.9855,
-        firstName: "Sarah",
-        lastName: "Johnson",
+
         bankAccount: "9876543210",
         routingNumber: "011000015",
         bankName: "Bank of America",
