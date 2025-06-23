@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Edit, Phone, Star, CreditCard, Award } from "lucide-react";
+import { Plus, Edit, Phone, Star, CreditCard, Award, Mail, MapPin, Wrench, DollarSign, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
