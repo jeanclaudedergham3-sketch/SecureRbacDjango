@@ -42,16 +42,7 @@ export const rolePermissions = sqliteTable("role_permissions", {
   createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
-export const equipment = sqliteTable("equipment", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  type: text("type").notNull(),
-  description: text("description"),
-  status: text("status").notNull().default("online"),
-  cpuUsage: integer("cpu_usage").default(0),
-  memoryUsage: integer("memory_usage").default(0),
-  createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+
 
 export const technicians = sqliteTable("technicians", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -209,10 +200,7 @@ export const insertPermissionSchema = createInsertSchema(permissions).omit({
   createdAt: true,
 });
 
-export const insertEquipmentSchema = createInsertSchema(equipment).omit({
-  id: true,
-  createdAt: true,
-});
+
 
 export const insertTechnicianSchema = createInsertSchema(technicians).omit({
   id: true,
@@ -292,7 +280,7 @@ export const loginSchema = z.object({
 export type User = typeof users.$inferSelect;
 export type Role = typeof roles.$inferSelect;
 export type Permission = typeof permissions.$inferSelect;
-export type Equipment = typeof equipment.$inferSelect;
+
 export type UserRole = typeof userRoles.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
 export type Technician = typeof technicians.$inferSelect;
@@ -309,7 +297,7 @@ export type Notification = typeof notifications.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertPermission = z.infer<typeof insertPermissionSchema>;
-export type InsertEquipment = z.infer<typeof insertEquipmentSchema>;
+
 export type InsertTechnician = z.infer<typeof insertTechnicianSchema>;
 export type InsertRating = z.infer<typeof insertRatingSchema>;
 export type InsertWorkOrder = z.infer<typeof insertWorkOrderSchema>;

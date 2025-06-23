@@ -291,50 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Equipment routes
-  app.get("/api/equipment", requireAuth, requirePermission("view_equipment"), async (req, res) => {
-    try {
-      const equipment = await storage.getAllEquipment();
-      res.json(equipment);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get equipment" });
-    }
-  });
 
-  app.post("/api/equipment", requireAuth, requirePermission("edit_equipment"), async (req, res) => {
-    try {
-      const equipment = await storage.createEquipment(req.body);
-      res.status(201).json(equipment);
-    } catch (error) {
-      res.status(400).json({ message: "Failed to create equipment" });
-    }
-  });
-
-  app.put("/api/equipment/:id", requireAuth, requirePermission("edit_equipment"), async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const equipment = await storage.updateEquipment(id, req.body);
-      if (!equipment) {
-        return res.status(404).json({ message: "Equipment not found" });
-      }
-      res.json(equipment);
-    } catch (error) {
-      res.status(400).json({ message: "Failed to update equipment" });
-    }
-  });
-
-  app.delete("/api/equipment/:id", requireAuth, requirePermission("edit_equipment"), async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const deleted = await storage.deleteEquipment(id);
-      if (!deleted) {
-        return res.status(404).json({ message: "Equipment not found" });
-      }
-      res.json({ message: "Equipment deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete equipment" });
-    }
-  });
 
   // Technician routes
   app.get("/api/technicians", requireAuth, requirePermission("manage_technicians"), async (req, res) => {

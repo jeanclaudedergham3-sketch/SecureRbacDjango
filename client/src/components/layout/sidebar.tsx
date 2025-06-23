@@ -18,7 +18,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { name: "Dashboard", href: "/dashboard", icon: BarChart3, permission: "view_dashboard" },
     { name: "Users", href: "/users", icon: Users, permission: "view_users" },
     { name: "Roles & Permissions", href: "/roles", icon: UserCheck, permission: "view_roles" },
-    { name: "Equipment", href: "/equipment", icon: Cog, permission: "view_equipment" },
+
     { name: "Technicians", href: "/technicians", icon: Users, permission: "manage_technicians" },
     { name: "Technician Map", href: "/technician-map", icon: Map, permission: "manage_technicians" },
     { name: "Work Orders", href: "/work-orders", icon: ClipboardList, permission: "view_work_orders" },

@@ -1,12 +1,12 @@
 import { db } from "./database";
 import { 
-  users, roles, permissions, userRoles, rolePermissions, equipment, technicians, technicianRatings,
+  users, roles, permissions, userRoles, rolePermissions, technicians, technicianRatings,
   workOrders, workOrderProposals, workOrderPartsRequests, workOrderFiles, workOrderChats, 
   workOrderTechnicianPayments, workOrderInvoices, notifications,
-  type User, type Role, type Permission, type Equipment, type Technician, type TechnicianRating,
+  type User, type Role, type Permission, type Technician, type TechnicianRating,
   type WorkOrder, type WorkOrderProposal, type WorkOrderPartsRequest, type WorkOrderFile, 
   type WorkOrderChat, type WorkOrderTechnicianPayment, type WorkOrderInvoice, type Notification,
-  type InsertUser, type InsertRole, type InsertPermission, type InsertEquipment, 
+  type InsertUser, type InsertRole, type InsertPermission, 
   type InsertTechnician, type InsertRating, type InsertWorkOrder, type InsertWorkOrderProposal,
   type InsertWorkOrderPartsRequest, type InsertWorkOrderFile, type InsertWorkOrderChat,
   type InsertWorkOrderTechnicianPayment, type InsertWorkOrderInvoice, type InsertNotification,
@@ -53,12 +53,7 @@ export interface IStorage {
   getRolePermissions(roleId: number): Promise<Permission[]>;
   getUserPermissions(userId: number): Promise<Permission[]>;
   
-  // Equipment operations
-  getEquipment(id: number): Promise<Equipment | undefined>;
-  createEquipment(equipment: InsertEquipment): Promise<Equipment>;
-  updateEquipment(id: number, equipment: Partial<InsertEquipment>): Promise<Equipment | undefined>;
-  deleteEquipment(id: number): Promise<boolean>;
-  getAllEquipment(): Promise<Equipment[]>;
+
   
   // Technician operations
   getTechnician(id: number): Promise<Technician | undefined>;
@@ -233,33 +228,7 @@ export class SqliteStorage implements IStorage {
       await this.assignUserRole(managerUser.id, managerRole.id);
       await this.assignUserRole(viewerUser.id, viewerRole.id);
 
-      // Create sample equipment
-      await this.createEquipment({
-        name: "Server #01",
-        type: "server",
-        description: "Main Database Server",
-        status: "online",
-        cpuUsage: 45,
-        memoryUsage: 67,
-      });
 
-      await this.createEquipment({
-        name: "Network Switch",
-        type: "network",
-        description: "Core Network Device",
-        status: "online",
-        cpuUsage: 50,
-        memoryUsage: 85,
-      });
-
-      await this.createEquipment({
-        name: "Storage Array",
-        type: "storage",
-        description: "Backup Storage System",
-        status: "offline",
-        cpuUsage: 0,
-        memoryUsage: 0,
-      });
 
       // Create sample technicians
       await this.createTechnician({
@@ -540,39 +509,9 @@ export class SqliteStorage implements IStorage {
     return this.getRolePermissions(userRole.id);
   }
 
-  async getEquipment(id: number): Promise<Equipment | undefined> {
-    const result = await db.select().from(equipment).where(eq(equipment.id, id)).limit(1);
-    return result[0];
-  }
 
-  async createEquipment(insertEquipment: InsertEquipment): Promise<Equipment> {
-    const result = await db.insert(equipment).values({
-      ...insertEquipment,
-      status: insertEquipment.status ?? "online",
-      description: insertEquipment.description ?? null,
-      cpuUsage: insertEquipment.cpuUsage ?? null,
-      memoryUsage: insertEquipment.memoryUsage ?? null,
-      createdAt: new Date(),
-    }).returning();
-    return result[0];
-  }
 
-  async updateEquipment(id: number, updateData: Partial<InsertEquipment>): Promise<Equipment | undefined> {
-    const result = await db.update(equipment)
-      .set(updateData)
-      .where(eq(equipment.id, id))
-      .returning();
-    return result[0];
-  }
 
-  async deleteEquipment(id: number): Promise<boolean> {
-    const result = await db.delete(equipment).where(eq(equipment.id, id));
-    return result.changes > 0;
-  }
-
-  async getAllEquipment(): Promise<Equipment[]> {
-    return await db.select().from(equipment);
-  }
 
   // Technician operations
   async getTechnician(id: number): Promise<Technician | undefined> {

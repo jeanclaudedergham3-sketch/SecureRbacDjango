@@ -27,8 +27,8 @@ export default function Dashboard() {
     },
     {
       id: 3,
-      type: "equipment_offline",
-      description: "Equipment Server #23 went offline",
+      type: "work_order_created",
+      description: "New work order WO-2025-002 created",
       time: "6 hours ago",
       icon: Cog,
       color: "bg-amber-500",
@@ -103,33 +103,7 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          <PermissionGuard permission="view_equipment">
-            <Card>
-              <CardContent className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Cog className="h-6 w-6 text-amber-600" />
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Equipment
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {stats?.equipment || 0}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </CardContent>
-              <div className="bg-gray-50 px-5 py-3">
-                <div className="text-sm">
-                  <span className="text-green-600 font-medium">95%</span>
-                  <span className="text-gray-500 ml-1">operational</span>
-                </div>
-              </div>
-            </Card>
-          </PermissionGuard>
+
 
           <Card>
             <CardContent className="p-5">

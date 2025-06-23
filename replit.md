@@ -30,7 +30,7 @@ The application uses a comprehensive RBAC schema with the following entities:
 - **Permissions**: Granular permissions for system operations
 - **User Roles**: Many-to-many relationship between users and roles
 - **Role Permissions**: Many-to-many relationship between roles and permissions
-- **Equipment**: System equipment with monitoring capabilities
+
 
 ## Key Components
 
@@ -58,11 +58,7 @@ The application uses a comprehensive RBAC schema with the following entities:
 - Visual permission matrices
 - Role hierarchy display
 
-### Equipment Monitoring
-- Equipment status tracking (online/offline/maintenance)
-- Resource usage monitoring (CPU, memory, etc.)
-- Equipment type categorization
-- Real-time status updates
+
 
 ## Data Flow
 
@@ -151,7 +147,8 @@ Changelog:
 - June 22, 2025. Implemented Invoice Management system within work orders with automatic tax calculations and status tracking
 - June 23, 2025. Created Financial Analysis page comparing proposal vs invoice amounts to show profit/loss on paid work orders
 - June 23, 2025. Implemented free OpenStreetMap integration in Technician Map page with overlay markers and hover tooltips
-- June 23, 2025. Built complete notification system with real-time alerts, unread count badges, and mark-as-read functionality for work orders, payments, equipment, and system events
+- June 23, 2025. Built complete notification system with real-time alerts, unread count badges, and mark-as-read functionality for work orders, payments, and system events
+- June 23, 2025. Completely removed equipment management page and all related functionality per user request
 ```
 
 ## User Preferences
