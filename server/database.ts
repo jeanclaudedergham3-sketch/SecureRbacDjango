@@ -105,6 +105,17 @@ export function initializeDatabase() {
         total_ratings INTEGER DEFAULT 0,
         latitude REAL,
         longitude REAL,
+        bank_account TEXT,
+        routing_number TEXT,
+        bank_name TEXT,
+        paypal_email TEXT,
+        paypal_link TEXT,
+        venmo_handle TEXT,
+        venmo_qr TEXT,
+        cashapp_handle TEXT,
+        cashapp_qr TEXT,
+        zelle_info TEXT,
+        mailing_address TEXT,
         payment_methods TEXT,
         payment_details TEXT,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
@@ -169,7 +180,7 @@ export function initializeDatabase() {
         file_path TEXT NOT NULL,
         file_type TEXT NOT NULL,
         category TEXT NOT NULL,
-        uploaded_at INTEGER NOT NULL,
+        uploaded_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
       );
 
@@ -180,7 +191,7 @@ export function initializeDatabase() {
         message TEXT,
         file_url TEXT,
         message_type TEXT DEFAULT 'text' NOT NULL,
-        created_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
         FOREIGN KEY (user_id) REFERENCES users(id)
       );
