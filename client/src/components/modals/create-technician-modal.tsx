@@ -42,17 +42,6 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
     certifications: "",
     hourlyRate: "",
     status: "available",
-    firstName: "",
-    lastName: "",
-    bankAccount: "",
-    routingNumber: "",
-    bankName: "",
-    paypalEmail: "",
-    paypalLink: "",
-    venmoHandle: "",
-    cashappHandle: "",
-    zelleInfo: "",
-    mailingAddress: "",
   });
 
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
@@ -73,17 +62,6 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
         certifications: technician.certifications || "",
         hourlyRate: technician.hourlyRate || "",
         status: technician.status || "available",
-        firstName: technician.firstName || "",
-        lastName: technician.lastName || "",
-        bankAccount: technician.bankAccount || "",
-        routingNumber: technician.routingNumber || "",
-        bankName: technician.bankName || "",
-        paypalEmail: technician.paypalEmail || "",
-        paypalLink: technician.paypalLink || "",
-        venmoHandle: technician.venmoHandle || "",
-        cashappHandle: technician.cashappHandle || "",
-        zelleInfo: technician.zelleInfo || "",
-        mailingAddress: technician.mailingAddress || "",
       });
       
       try {
@@ -108,17 +86,6 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
         certifications: "",
         hourlyRate: "",
         status: "available",
-        firstName: "",
-        lastName: "",
-        bankAccount: "",
-        routingNumber: "",
-        bankName: "",
-        paypalEmail: "",
-        paypalLink: "",
-        venmoHandle: "",
-        cashappHandle: "",
-        zelleInfo: "",
-        mailingAddress: "",
       });
       setSelectedPaymentMethods([]);
       setPaymentDetails({});
