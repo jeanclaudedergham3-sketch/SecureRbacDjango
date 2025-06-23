@@ -1,4 +1,4 @@
-import { db } from "./database";
+import { db } from "./db";
 import { 
   users, roles, permissions, userRoles, rolePermissions, equipment, technicians, technicianRatings,
   workOrders, workOrderProposals, workOrderPartsRequests, workOrderFiles, workOrderChats, 
