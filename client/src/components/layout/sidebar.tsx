@@ -82,9 +82,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           {/* User Info */}
-          <div className="mt-2 px-4 mb-6">
-            <div className="flex items-center p-3 bg-gradient-to-r from-slate-700/60 to-slate-800/60 backdrop-blur-sm rounded-xl border border-slate-600/30 shadow-lg">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md ring-2 ring-emerald-400/30">
+          <div className={cn(
+            "mt-2 mb-6 transition-all duration-500",
+            isHovered ? "px-4" : "px-3"
+          )}>
+            <div className={cn(
+              "flex items-center transition-all duration-500 shadow-lg",
+              isHovered 
+                ? "p-3 bg-gradient-to-r from-slate-700/60 to-slate-800/60 backdrop-blur-sm rounded-xl border border-slate-600/30" 
+                : "p-2 bg-transparent rounded-full justify-center"
+            )}>
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md ring-2 ring-emerald-400/30 flex-shrink-0">
                 <span className="text-white font-bold text-sm">
                   {user ? getInitials(user.firstName, user.lastName) : ""}
                 </span>
