@@ -63,8 +63,10 @@ export function EditRoleModal({ isOpen, onClose, role }: EditRoleModalProps) {
   });
 
   const updatePermissionsMutation = useMutation({
-    mutationFn: (data: { roleId: number; permissionIds: number[] }) =>
-      apiRequest("POST", `/api/roles/${data.roleId}/permissions`, { permissionIds: data.permissionIds }),
+    mutationFn: (data: { roleId: number; permissionIds: number[] }) => {
+      console.log("Updating role permissions:", data);
+      return apiRequest("POST", `/api/roles/${data.roleId}/permissions`, { permissionIds: data.permissionIds });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/roles"] });
       toast({
@@ -74,6 +76,7 @@ export function EditRoleModal({ isOpen, onClose, role }: EditRoleModalProps) {
       onClose();
     },
     onError: (error: any) => {
+      console.error("Update permissions error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update permissions",

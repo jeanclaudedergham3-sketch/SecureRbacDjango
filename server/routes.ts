@@ -256,8 +256,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { name, description, permissionIds = [] } = req.body;
       
+      console.log("Creating role with data:", { name, description, permissionIds });
+      
       // Create the role
       const role = await storage.createRole({ name, description });
+      console.log("Role created:", role);
       
       // Assign permissions to the role
       for (const permissionId of permissionIds) {
@@ -268,9 +271,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const roleWithPermissions = await storage.getAllRoles();
       const createdRole = roleWithPermissions.find(r => r.id === role.id);
       
-      res.status(201).json(createdRole);
+      res.status(201).json(createdRole || role);
     } catch (error) {
-      res.status(400).json({ message: "Failed to create role" });
+      console.error("Error creating role:", error);
+      res.status(400).json({ 
+        message: "Failed to create role", 
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -288,6 +295,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const roleId = parseInt(req.params.id);
       const { permissionIds } = req.body;
       
+      console.log(`Updating permissions for role ${roleId}:`, permissionIds);
+      
       // Remove existing permissions
       const existingPermissions = await storage.getRolePermissions(roleId);
       for (const perm of existingPermissions) {
@@ -301,7 +310,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ message: "Permissions updated successfully" });
     } catch (error) {
-      res.status(400).json({ message: "Failed to update permissions" });
+      console.error("Error updating role permissions:", error);
+      res.status(400).json({ 
+        message: "Failed to update permissions",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
