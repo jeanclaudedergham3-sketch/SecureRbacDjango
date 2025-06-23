@@ -32,7 +32,7 @@ const PERMISSION_CATEGORIES = {
     permissions: ["view_dashboard", "view_analytics", "export_reports"]
   },
   users: {
-    name: "User Management", 
+    name: "User Management",
     icon: Users,
     color: "bg-green-500",
     permissions: ["view_users", "create_users", "edit_users", "delete_users", "manage_user_roles", "reset_passwords", "activate_deactivate_users"]
@@ -40,68 +40,68 @@ const PERMISSION_CATEGORIES = {
   roles: {
     name: "Role & Permission Management",
     icon: Shield,
-    color: "bg-purple-500", 
+    color: "bg-purple-500",
     permissions: ["view_roles", "create_roles", "edit_roles", "delete_roles", "manage_permissions"]
   },
   equipment: {
     name: "Equipment Management",
-    icon: Settings,
-    color: "bg-orange-500",
+    icon: Database,
+    color: "bg-indigo-500",
     permissions: ["view_equipment", "create_equipment", "edit_equipment", "delete_equipment", "equipment_maintenance", "equipment_reports"]
   },
   technicians: {
     name: "Technician Management",
     icon: Users,
-    color: "bg-cyan-500",
+    color: "bg-teal-500",
     permissions: ["view_technicians", "create_technicians", "edit_technicians", "delete_technicians", "manage_technician_schedules", "view_technician_performance", "manage_technician_payments"]
   },
   workorders: {
     name: "Work Order Management",
     icon: FileText,
-    color: "bg-indigo-500",
+    color: "bg-orange-500",
     permissions: ["view_work_orders", "create_work_orders", "edit_work_orders", "delete_work_orders", "assign_work_orders", "approve_work_orders", "close_work_orders", "view_work_order_history"]
   },
   proposals: {
     name: "Proposal Management",
     icon: FileText,
-    color: "bg-teal-500",
-    permissions: ["view_proposals", "create_proposals", "edit_proposals", "approve_proposals", "proposal_analytics"]
+    color: "bg-yellow-500",
+    permissions: ["view_proposals", "create_proposals", "edit_proposals", "delete_proposals", "approve_proposals", "proposal_analytics"]
   },
   parts: {
     name: "Parts & Inventory",
     icon: Database,
-    color: "bg-amber-500",
-    permissions: ["view_parts_requests", "create_parts_requests", "approve_parts_requests", "manage_inventory", "parts_procurement"]
+    color: "bg-pink-500",
+    permissions: ["view_parts_requests", "create_parts_requests", "edit_parts_requests", "approve_parts_requests", "manage_inventory", "parts_analytics"]
   },
   files: {
     name: "File & Document Management",
     icon: FileText,
-    color: "bg-slate-500",
-    permissions: ["view_files", "upload_files", "delete_files", "manage_signatures"]
+    color: "bg-cyan-500",
+    permissions: ["view_files", "upload_files", "delete_files", "manage_signatures", "file_analytics"]
   },
   communication: {
     name: "Communication & Chat",
-    icon: Activity,
-    color: "bg-pink-500",
-    permissions: ["view_chat", "send_messages", "manage_notifications", "broadcast_messages"]
+    icon: Settings,
+    color: "bg-gray-500",
+    permissions: ["view_chat", "send_messages", "delete_messages", "manage_notifications", "communication_analytics"]
   },
   payments: {
     name: "Payment & Financial",
     icon: DollarSign,
     color: "bg-emerald-500",
-    permissions: ["view_payments", "process_payments", "manage_payment_methods", "financial_reports", "invoice_management", "payment_disputes"]
+    permissions: ["view_payments", "create_payments", "process_payments", "approve_payments", "financial_reports", "invoice_management", "payment_analytics"]
   },
   system: {
     name: "System Administration",
     icon: Settings,
-    color: "bg-red-500",
-    permissions: ["system_settings", "backup_restore", "audit_logs", "security_management", "integration_management", "system_monitoring"]
+    color: "bg-slate-500",
+    permissions: ["system_settings", "manage_backups", "view_audit_logs", "system_maintenance", "manage_integrations"]
   },
   emergency: {
     name: "Emergency & Override",
     icon: AlertTriangle,
-    color: "bg-red-600",
-    permissions: ["emergency_access", "data_export", "system_maintenance", "super_admin"]
+    color: "bg-red-500",
+    permissions: ["emergency_access", "override_permissions", "system_override", "emergency_shutdown", "critical_alerts"]
   }
 };
 
@@ -115,8 +115,9 @@ export function AdvancedRoleModal({ isOpen, onClose, role }: AdvancedRoleModalPr
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: permissions } = useQuery<Permission[]>({
+  const { data: permissions } = useQuery({
     queryKey: ["/api/permissions"],
+    enabled: isOpen,
   });
 
   useEffect(() => {
@@ -248,191 +249,103 @@ export function AdvancedRoleModal({ isOpen, onClose, role }: AdvancedRoleModalPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             {role ? "Edit Role" : "Create New Role"}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="name">Role Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                placeholder="Enter role name"
-                required
-              />
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="name">Role Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  placeholder="Enter role name"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  placeholder="Enter role description"
+                />
+              </div>
             </div>
+            
             <div>
-              <Label htmlFor="description">Description</Label>
-              <Input
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                placeholder="Enter role description"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <Label>Permissions ({selectedPermissions.length} selected)</Label>
-            <Tabs defaultValue="categories" className="mt-2">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="categories">By Category</TabsTrigger>
-                <TabsTrigger value="search">Search & Filter</TabsTrigger>
-                <TabsTrigger value="summary">Summary</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="categories" className="mt-4">
-                <ScrollArea className="h-96 border rounded-md p-4">
-                  <div className="space-y-6">
-                    {Object.entries(PERMISSION_CATEGORIES).map(([key, category]) => {
-                      const Icon = category.icon;
-                      const categoryPermissions = permissions?.filter(p => 
-                        category.permissions.includes(p.name)
-                      ) || [];
-                      
-                      return (
-                        <Card key={key} className="border-l-4" style={{borderLeftColor: category.color.replace('bg-', '').replace('-500', '')}}>
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center space-x-3">
-                              <div className={`p-2 rounded-md ${category.color} text-white`}>
-                                <Icon className="h-4 w-4" />
-                              </div>
-                              <div className="flex-1">
+              <Label>Permissions ({selectedPermissions.length} selected)</Label>
+              <Tabs defaultValue="categories" className="mt-2">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="categories">By Category</TabsTrigger>
+                  <TabsTrigger value="search">Search & Filter</TabsTrigger>
+                  <TabsTrigger value="summary">Summary</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="categories" className="mt-4">
+                  <ScrollArea className="h-96 border rounded-md p-4">
+                    <div className="space-y-6">
+                      {Object.entries(PERMISSION_CATEGORIES).map(([key, category]) => {
+                        const Icon = category.icon;
+                        const categoryPermissions = permissions?.filter(p => 
+                          category.permissions.includes(p.name)
+                        ) || [];
+                        
+                        return (
+                          <Card key={key} className="border-l-4" style={{borderLeftColor: category.color.replace('bg-', '').replace('-500', '')}}>
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-2">
-                                  <Checkbox
-                                    checked={isCategoryChecked(key)}
-                                    onCheckedChange={(checked) => handleCategoryChange(key, checked as boolean)}
-                                    className={isCategoryPartiallyChecked(key) ? "data-[state=checked]:bg-orange-500" : ""}
-                                  />
-                                  <CardTitle className="text-sm">{category.name}</CardTitle>
-                                  <Badge variant="outline" className="text-xs">
+                                  <Icon className="h-5 w-5" />
+                                  <CardTitle className="text-lg">{category.name}</CardTitle>
+                                  <Badge variant="secondary">
                                     {categoryPermissions.filter(p => selectedPermissions.includes(p.id)).length}/{categoryPermissions.length}
                                   </Badge>
                                 </div>
+                                <Checkbox
+                                  checked={isCategoryChecked(key)}
+                                  onCheckedChange={(checked) => handleCategoryChange(key, checked as boolean)}
+                                />
                               </div>
-                            </div>
-                          </CardHeader>
-                          
-                          <CardContent className="pt-0">
-                            <div className="space-y-2">
-                              {categoryPermissions.map((permission) => (
-                                <div key={permission.id} className="flex items-start space-x-2 p-2 hover:bg-gray-50 rounded">
-                                  <Checkbox
-                                    id={`permission-${permission.id}`}
-                                    checked={selectedPermissions.includes(permission.id)}
-                                    onCheckedChange={(checked) => handlePermissionChange(permission.id, checked as boolean)}
-                                    className="mt-0.5"
-                                  />
-                                  <div className="flex-1">
+                            </CardHeader>
+                            <CardContent>
+                              <div className="grid grid-cols-1 gap-3">
+                                {categoryPermissions.map((permission) => (
+                                  <div key={permission.id} className="flex items-center space-x-3">
+                                    <Checkbox
+                                      id={`permission-${permission.id}`}
+                                      checked={selectedPermissions.includes(permission.id)}
+                                      onCheckedChange={(checked) => handlePermissionChange(permission.id, checked as boolean)}
+                                    />
                                     <Label 
                                       htmlFor={`permission-${permission.id}`}
-                                      className="text-sm font-medium cursor-pointer"
+                                      className="flex-1 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                     >
                                       {permission.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                     </Label>
-                                    <p className="text-xs text-gray-500 mt-1">{permission.description}</p>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              </TabsContent>
-              
-              <TabsContent value="search" className="mt-4">
-                <div className="space-y-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search permissions..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  
-                  <ScrollArea className="h-80 border rounded-md p-4">
-                    <div className="space-y-2">
-                      {filteredPermissions.map((permission) => (
-                        <div key={permission.id} className="flex items-start space-x-2 p-2 hover:bg-gray-50 rounded">
-                          <Checkbox
-                            id={`search-permission-${permission.id}`}
-                            checked={selectedPermissions.includes(permission.id)}
-                            onCheckedChange={(checked) => handlePermissionChange(permission.id, checked as boolean)}
-                            className="mt-0.5"
-                          />
-                          <div className="flex-1">
-                            <Label 
-                              htmlFor={`search-permission-${permission.id}`}
-                              className="text-sm font-medium cursor-pointer"
-                            >
-                              {permission.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                            </Label>
-                            <p className="text-xs text-gray-500 mt-1">{permission.description}</p>
-                          </div>
-                        </div>
-                      ))}
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
                   </ScrollArea>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="summary" className="mt-4">
-                <ScrollArea className="h-96 border rounded-md p-4">
-                  <div className="space-y-4">
-                    <div className="text-sm text-gray-600">
-                      <strong>{selectedPermissions.length}</strong> permissions selected out of <strong>{permissions?.length || 0}</strong> total
-                    </div>
-                    
-                    {Object.entries(PERMISSION_CATEGORIES).map(([key, category]) => {
-                      const categoryPermissions = permissions?.filter(p => 
-                        category.permissions.includes(p.name)
-                      ) || [];
-                      const selectedCount = categoryPermissions.filter(p => selectedPermissions.includes(p.id)).length;
-                      
-                      if (selectedCount === 0) return null;
-                      
-                      const Icon = category.icon;
-                      return (
-                        <div key={key} className="p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <div className={`p-1 rounded ${category.color} text-white`}>
-                              <Icon className="h-3 w-3" />
-                            </div>
-                            <span className="font-medium text-sm">{category.name}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {selectedCount}/{categoryPermissions.length}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {categoryPermissions
-                              .filter(p => selectedPermissions.includes(p.id))
-                              .map((permission) => (
-                                <Badge key={permission.id} variant="secondary" className="text-xs">
-                                  {permission.name.replace(/_/g, ' ')}
-                                </Badge>
-                              ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              </TabsContent>
-            </Tabs>
+                </TabsContent>
+              </Tabs>
+            </div>
           </div>
           
-          <div className="flex justify-end space-x-3 pt-4 border-t">
+          {/* Fixed footer with buttons */}
+          <div className="flex-shrink-0 flex justify-end gap-2 pt-4 border-t mt-4 bg-white">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
@@ -440,10 +353,14 @@ export function AdvancedRoleModal({ isOpen, onClose, role }: AdvancedRoleModalPr
               type="submit" 
               disabled={createMutation.isPending || updateMutation.isPending}
             >
-              {createMutation.isPending || updateMutation.isPending
-                ? "Saving..." 
-                : role ? "Update Role" : "Create Role"
-              }
+              {createMutation.isPending || updateMutation.isPending ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                  {role ? "Updating..." : "Creating..."}
+                </>
+              ) : (
+                role ? "Update Role" : "Create Role"
+              )}
             </Button>
           </div>
         </form>
