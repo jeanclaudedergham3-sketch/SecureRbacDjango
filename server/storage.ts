@@ -315,8 +315,8 @@ export class SqliteStorage implements IStorage {
         username: "admin",
         email: "admin@example.com",
         password: await bcrypt.hash("admin123", 10),
-        firstName: "John",
-        lastName: "Doe",
+        firstName: "Super",
+        lastName: "Admin",
         isActive: true,
       });
 

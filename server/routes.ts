@@ -238,7 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roles", requireAuth, requirePermission("assign_roles"), async (req, res) => {
+  app.post("/api/roles", requireAuth, requirePermission("create_roles"), async (req, res) => {
     try {
       const { name, description, permissionIds = [] } = req.body;
       
@@ -337,7 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Technician routes
-  app.get("/api/technicians", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+  app.get("/api/technicians", requireAuth, requirePermission("view_technicians"), async (req, res) => {
     try {
       const technicians = await storage.getAllTechnicians();
       res.json(technicians);
@@ -346,7 +346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/technicians", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+  app.post("/api/technicians", requireAuth, requirePermission("create_technicians"), async (req, res) => {
     try {
       const technicianData = insertTechnicianSchema.parse(req.body);
       const technician = await storage.createTechnician(technicianData);
@@ -360,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/technicians/:id", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+  app.put("/api/technicians/:id", requireAuth, requirePermission("edit_technicians"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const technicianData = insertTechnicianSchema.partial().parse(req.body);
@@ -374,7 +374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/technicians/:id", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+  app.delete("/api/technicians/:id", requireAuth, requirePermission("delete_technicians"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteTechnician(id);
