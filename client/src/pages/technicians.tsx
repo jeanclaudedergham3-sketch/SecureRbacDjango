@@ -49,6 +49,38 @@ export default function Technicians() {
     return "bg-red-100 text-red-800";
   };
 
+  const getPaymentMethodIcon = (method: string) => {
+    const icons: { [key: string]: string } = {
+      paypal: "💳",
+      credit_card: "💎",
+      bank_transfer: "🏦",
+      digital_wallet: "📱",
+      cash: "💵",
+      check: "📝",
+      venmo: "📲",
+      cashapp: "💸",
+      zelle: "⚡",
+      crypto: "₿"
+    };
+    return icons[method] || "💳";
+  };
+
+  const formatPaymentMethod = (method: string) => {
+    const labels: { [key: string]: string } = {
+      paypal: "PayPal",
+      credit_card: "Credit/Debit Cards",
+      bank_transfer: "Bank Transfer",
+      digital_wallet: "Digital Wallets",
+      cash: "Cash Payment",
+      check: "Check Payment",
+      venmo: "Venmo",
+      cashapp: "Cash App",
+      zelle: "Zelle",
+      crypto: "Cryptocurrency"
+    };
+    return labels[method] || method;
+  };
+
   const renderStars = (rating: number) => {
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
@@ -92,15 +124,7 @@ export default function Technicians() {
     }
   };
 
-  const formatPaymentMethod = (method: string) => {
-    const methodNames = {
-      paypal: "PayPal",
-      credit_card: "Credit Card",
-      cash: "Cash",
-      bank_transfer: "Bank Transfer"
-    };
-    return methodNames[method] || method;
-  };
+
 
   return (
     <div className="py-6">
