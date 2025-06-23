@@ -265,22 +265,32 @@ export class SqliteStorage implements IStorage {
       await this.createTechnician({
         name: "John Smith",
         phoneNumber: "+1-555-0123",
+        email: "john@example.com",
+        address: "123 Main St, New York, NY 10001",
+        taxNumber: "12-3456789",
+        hourlyRate: "75",
         specialties: "HVAC, Electrical",
         certifications: "EPA Certified",
         status: "available",
         latitude: 40.7128,
         longitude: -74.0060,
-        firstName: "John",
-        lastName: "Smith",
         bankAccount: "1234567890",
         routingNumber: "021000021",
         bankName: "Chase Bank",
         paypalEmail: "john.smith@paypal.com",
         paypalLink: "https://paypal.me/johnsmith",
         venmoHandle: "@johnsmith",
+        venmoQr: "",
         cashappHandle: "$johnsmith",
-        zelleInfo: "john.smith@example.com",
+        cashappQr: "",
+        zelleInfo: "john.smith@chase.com",
         mailingAddress: "123 Main St, New York, NY 10001",
+        paymentMethods: JSON.stringify(["paypal", "bank_transfer", "cash"]),
+        paymentDetails: JSON.stringify({
+          paypal: { link: "https://paypal.me/johnsmith", qrCode: "" },
+          bank_transfer: { iban: "US64SVBKUS6S123456789", bankName: "Chase Bank", accountName: "John Smith" },
+          cash: {}
+        })
       });
 
       await this.createTechnician({
