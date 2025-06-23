@@ -154,6 +154,7 @@ Changelog:
 - June 23, 2025. Added custom scrollbar to sidebar with elegant styling matching the dark theme
 - June 23, 2025. Reorganized sidebar navigation into logical categories: Overview, User Management, Operations, Technicians, and Payments
 - June 23, 2025. Created personalized dashboard with role-based progress indicators for each user type
+- June 23, 2025. Enhanced login page with beautiful error messages, password visibility toggle, and modern gradient design
 ```
 
 ## User Preferences
