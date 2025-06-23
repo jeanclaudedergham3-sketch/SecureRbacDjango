@@ -116,27 +116,63 @@ export default function Technicians() {
                 </CardHeader>
                 
                 <CardContent className="space-y-3">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Phone className="h-4 w-4 mr-2" />
-                    {technician.phoneNumber}
-                  </div>
-                  
-                  {technician.specialties && (
+                  {/* Contact Information */}
+                  <div className="space-y-2">
                     <div className="flex items-center text-sm text-gray-600">
-                      <Badge variant="outline" className="text-xs">
-                        {technician.specialties}
-                      </Badge>
+                      <Phone className="h-4 w-4 mr-2" />
+                      {technician.phoneNumber}
                     </div>
-                  )}
-                  
-                  {technician.certifications && (
-                    <div className="flex items-start text-sm text-gray-600">
-                      <Star className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                      <span className="line-clamp-2">{technician.certifications}</span>
-                    </div>
-                  )}
+                    
+                    {technician.email && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Mail className="h-4 w-4 mr-2" />
+                        <span className="text-blue-600">{technician.email}</span>
+                      </div>
+                    )}
 
-                  <div className="flex items-center text-sm text-gray-600">
+                    {technician.address && (
+                      <div className="flex items-start text-sm text-gray-600">
+                        <MapPin className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                        <span className="line-clamp-2">{technician.address}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Professional Information */}
+                  <div className="space-y-2 pt-2 border-t">
+                    {technician.specialties && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Wrench className="h-4 w-4 mr-2" />
+                        <Badge variant="outline" className="text-xs">
+                          {technician.specialties}
+                        </Badge>
+                      </div>
+                    )}
+                    
+                    {technician.certifications && (
+                      <div className="flex items-start text-sm text-gray-600">
+                        <Award className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                        <span className="line-clamp-2">{technician.certifications}</span>
+                      </div>
+                    )}
+
+                    {technician.hourlyRate && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <DollarSign className="h-4 w-4 mr-2" />
+                        <span><strong>${technician.hourlyRate}/hour</strong></span>
+                      </div>
+                    )}
+
+                    {technician.taxNumber && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <FileText className="h-4 w-4 mr-2" />
+                        <span>Tax #: {technician.taxNumber}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex items-center text-sm text-gray-600 pt-2 border-t">
                     <div className={`h-2 w-2 rounded-full mr-2 ${
                       technician.status === 'available' ? 'bg-green-500' : 
                       technician.status === 'busy' ? 'bg-yellow-500' : 'bg-red-500'
@@ -144,18 +180,45 @@ export default function Technicians() {
                     <span className="capitalize">{technician.status}</span>
                   </div>
 
+                  {/* Payment Methods */}
                   {paymentMethods.length > 0 && (
-                    <div>
+                    <div className="pt-2 border-t">
                       <div className="flex items-center text-sm font-medium text-gray-700 mb-1">
                         <CreditCard className="h-4 w-4 mr-1" />
                         Payment Methods:
                       </div>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1 mb-2">
                         {paymentMethods.map((method, index) => (
                           <Badge key={index} variant="outline" className="text-xs">
                             {method}
                           </Badge>
                         ))}
+                      </div>
+                      
+                      {/* Payment Details Preview */}
+                      <div className="text-xs text-gray-500 space-y-1">
+                        {technician.bankAccount && (
+                          <div>Bank: ***{technician.bankAccount.slice(-4)}</div>
+                        )}
+                        {technician.paypalEmail && (
+                          <div>PayPal: {technician.paypalEmail}</div>
+                        )}
+                        {technician.venmoHandle && (
+                          <div>Venmo: @{technician.venmoHandle}</div>
+                        )}
+                        {technician.cashappHandle && (
+                          <div>CashApp: ${technician.cashappHandle}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Location Coordinates (if available) */}
+                  {technician.latitude && technician.longitude && (
+                    <div className="pt-2 border-t">
+                      <div className="flex items-center text-xs text-gray-500">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        GPS: {parseFloat(technician.latitude).toFixed(4)}, {parseFloat(technician.longitude).toFixed(4)}
                       </div>
                     </div>
                   )}
