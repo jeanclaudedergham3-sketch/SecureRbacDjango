@@ -33,7 +33,7 @@ export default function Login() {
           <div className="mx-auto h-12 w-12 bg-primary rounded-lg flex items-center justify-center">
             <Shield className="h-6 w-6 text-white" />
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">AdminPanel</h2>
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">UVG-CMMS</h2>
           <p className="mt-2 text-sm text-gray-600">Sign in to your account</p>
         </div>
 
