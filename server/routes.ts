@@ -242,12 +242,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { name, description, permissionIds = [] } = req.body;
       
-      // Create the role
-      const role = await storage.createRole({ name, description });
+      console.log('Creating role with data:', { name, description, permissionIds });
       
-      // Assign permissions to the role
-      for (const permissionId of permissionIds) {
-        await storage.assignRolePermission(role.id, permissionId);
+      // Validate required fields
+      if (!name || name.trim() === '') {
+        throw new Error('Role name is required');
+      }
+      
+      // Create the role
+      const role = await storage.createRole({ name: name.trim(), description: description?.trim() || '' });
+      console.log('Role created:', role);
+      
+      // Assign permissions to the role if any provided
+      if (permissionIds && permissionIds.length > 0) {
+        console.log(`Assigning ${permissionIds.length} permissions to role ${role.id}`);
+        for (const permissionId of permissionIds) {
+          if (typeof permissionId === 'number' && permissionId > 0) {
+            const success = await storage.assignRolePermission(role.id, permissionId);
+            console.log(`Permission ${permissionId} assignment result:`, success);
+          }
+        }
       }
       
       // Return the role with permissions
@@ -256,7 +270,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(createdRole);
     } catch (error) {
-      res.status(400).json({ message: "Failed to create role" });
+      console.error("Role creation error:", error);
+      res.status(400).json({ 
+        message: "Failed to create role", 
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

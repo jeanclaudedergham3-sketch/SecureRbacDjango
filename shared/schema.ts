@@ -40,7 +40,9 @@ export const rolePermissions = sqliteTable("role_permissions", {
   roleId: integer("role_id").notNull().references(() => roles.id),
   permissionId: integer("permission_id").notNull().references(() => permissions.id),
   createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+}, (table) => ({
+  uniqueRolePermission: sql`UNIQUE(${table.roleId}, ${table.permissionId})`
+}));
 
 export const equipment = sqliteTable("equipment", {
   id: integer("id").primaryKey({ autoIncrement: true }),

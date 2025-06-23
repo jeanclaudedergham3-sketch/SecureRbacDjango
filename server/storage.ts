@@ -624,6 +624,11 @@ export class SqliteStorage implements IStorage {
       });
       return true;
     } catch (error) {
+      console.error(`Failed to assign permission ${permissionId} to role ${roleId}:`, error);
+      // Check if it's a duplicate entry error (which is OK)
+      if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
+        return true; // Permission already assigned
+      }
       return false;
     }
   }
