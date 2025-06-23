@@ -315,7 +315,7 @@ export class SqliteStorage implements IStorage {
       // Create sample work orders
       await this.createWorkOrder({
         clientName: "ABC Corporation",
-        country: "United States",
+        country: "United States", 
         city: "New York",
         street: "123 Business Ave",
         nte: "5000.00",
@@ -329,7 +329,7 @@ export class SqliteStorage implements IStorage {
       await this.createWorkOrder({
         clientName: "XYZ Industries",
         country: "Canada",
-        city: "Toronto",
+        city: "Toronto", 
         street: "789 Tech Boulevard",
         nte: "8000.00",
         tnte: "8800.00",

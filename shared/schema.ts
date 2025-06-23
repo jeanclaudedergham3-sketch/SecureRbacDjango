@@ -106,7 +106,6 @@ export const workOrders = sqliteTable("work_orders", {
   tnte: text("tnte").notNull(), // amount including tax
   startDate: integer("start_date", { mode: 'timestamp' }).notNull(),
   endDate: integer("end_date", { mode: 'timestamp' }).notNull(),
-  description: text("description"),
   assignedUserIds: text("assigned_user_ids").notNull(), // JSON array of user IDs
   status: text("status").notNull().default("active"), // active, completed, cancelled
   isLocked: integer("is_locked", { mode: "boolean" }).default(false), // true when invoice is paid
