@@ -153,6 +153,7 @@ Changelog:
 - June 23, 2025. Implemented free OpenStreetMap integration in Technician Map page with overlay markers and hover tooltips
 - June 23, 2025. Built complete notification system with real-time alerts, unread count badges, and mark-as-read functionality for work orders, payments, equipment, and system events
 - June 23, 2025. Migrated from SQLite to PostgreSQL database with complete schema conversion and relation mapping
+- June 23, 2025. Fixed authentication system after PostgreSQL migration - all login credentials working correctly
 ```
 
 ## User Preferences
