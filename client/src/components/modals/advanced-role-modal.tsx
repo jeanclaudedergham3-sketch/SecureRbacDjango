@@ -134,8 +134,19 @@ export function AdvancedRoleModal({ isOpen, onClose, role }: AdvancedRoleModalPr
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/roles", data);
-      return response.json();
+      // Create role first
+      const roleResponse = await apiRequest("POST", "/api/roles", {
+        name: data.name,
+        description: data.description
+      });
+      const newRole = await roleResponse.json();
+      
+      // Assign permissions to the new role
+      for (const permissionId of data.permissions) {
+        await apiRequest("POST", `/api/roles/${newRole.id}/permissions`, { permissionId });
+      }
+      
+      return newRole;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/roles"] });
@@ -149,8 +160,19 @@ export function AdvancedRoleModal({ isOpen, onClose, role }: AdvancedRoleModalPr
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("PUT", `/api/roles/${role?.id}`, data);
-      return response.json();
+      if (!role?.id) return;
+      // Update role basic info first
+      const roleResponse = await apiRequest("PUT", `/api/roles/${role.id}`, {
+        name: data.name,
+        description: data.description
+      });
+      
+      // Update permissions separately
+      for (const permissionId of data.permissions) {
+        await apiRequest("POST", `/api/roles/${role.id}/permissions`, { permissionId });
+      }
+      
+      return roleResponse.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/roles"] });

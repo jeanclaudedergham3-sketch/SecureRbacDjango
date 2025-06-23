@@ -143,8 +143,11 @@ export default function Roles() {
               Configure roles and their associated permissions.
             </p>
           </div>
-          <PermissionGuard permission="assign_roles">
-            <Button onClick={() => setIsCreating(true)}>
+          <PermissionGuard permission="create_roles">
+            <Button onClick={() => {
+              setEditingRole(null);
+              setIsAdvancedModalOpen(true);
+            }}>
               <Plus className="h-4 w-4 mr-2" />
               Create Role
             </Button>
@@ -185,11 +188,14 @@ export default function Roles() {
                 </div>
               </CardContent>
               <div className="px-6 py-3 bg-gray-50 border-t">
-                <PermissionGuard permission="assign_roles">
+                <PermissionGuard permission="edit_roles">
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    onClick={() => setEditingRole(role)}
+                    onClick={() => {
+                      setEditingRole(role);
+                      setIsAdvancedModalOpen(true);
+                    }}
                   >
                     <Edit className="h-3 w-3 mr-1" />
                     Edit Permissions
@@ -249,16 +255,13 @@ export default function Roles() {
         </div>
       </div>
 
-      <EditRoleModal
-        isOpen={!!editingRole}
-        onClose={() => setEditingRole(null)}
+      <AdvancedRoleModal
+        isOpen={isAdvancedModalOpen}
+        onClose={() => {
+          setIsAdvancedModalOpen(false);
+          setEditingRole(null);
+        }}
         role={editingRole}
-      />
-      
-      <EditRoleModal
-        isOpen={isCreating}
-        onClose={() => setIsCreating(false)}
-        role={null}
       />
     </div>
   );
