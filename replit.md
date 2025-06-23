@@ -152,6 +152,7 @@ Changelog:
 - June 23, 2025. Created Financial Analysis page comparing proposal vs invoice amounts to show profit/loss on paid work orders
 - June 23, 2025. Implemented free OpenStreetMap integration in Technician Map page with overlay markers and hover tooltips
 - June 23, 2025. Built complete notification system with real-time alerts, unread count badges, and mark-as-read functionality for work orders, payments, equipment, and system events
+- June 23, 2025. Enhanced permission system with 71 granular permissions across 13 categories and advanced role management interface with search, filtering, and visual organization
 ```
 
 ## User Preferences
