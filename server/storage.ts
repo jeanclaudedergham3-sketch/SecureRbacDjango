@@ -609,7 +609,7 @@ export class SqliteStorage implements IStorage {
     
     await db.update(technicians)
       .set({
-        averageRating: average.toFixed(1),
+        averageRating: average,
         totalRatings: ratings.length,
       })
       .where(eq(technicians.id, technicianId));
