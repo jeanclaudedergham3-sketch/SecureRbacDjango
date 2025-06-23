@@ -33,11 +33,17 @@ interface PaymentRequestModalProps {
 }
 
 const paymentMethodsInfo = {
+  credit_card: {
+    name: "Credit/Debit Cards",
+    icon: "💎",
+    description: "Visa, MasterCard, American Express",
+    details: ["Cardholder Name", "Card Number", "Expiry Date"]
+  },
   bank_transfer: {
     name: "Bank Transfer",
     icon: "🏦",
     description: "Direct bank transfer",
-    details: ["Account Number", "Routing Number", "Bank Name"]
+    details: ["IBAN", "Bank Name", "Account Name"]
   },
   paypal: {
     name: "PayPal",
@@ -68,6 +74,30 @@ const paymentMethodsInfo = {
     icon: "📝",
     description: "Paper check",
     details: ["Mailing Address"]
+  },
+  cash: {
+    name: "Cash Payment",
+    icon: "💵",
+    description: "Physical cash payment",
+    details: []
+  },
+  digital_wallet: {
+    name: "Digital Wallets",
+    icon: "📱",
+    description: "Apple Pay, Google Pay, Samsung Pay",
+    details: []
+  },
+  cryptocurrency: {
+    name: "Cryptocurrency",
+    icon: "₿",
+    description: "Bitcoin, Ethereum, and other digital currencies",
+    details: []
+  },
+  financing: {
+    name: "Financing Options",
+    icon: "📊",
+    description: "Payment plans and financing",
+    details: []
   }
 };
 
@@ -317,7 +347,39 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                                 <div className="space-y-2">
                                   <div className="font-medium text-sm text-blue-800">Payment Details:</div>
                                   {methodInfo.details.map((detail, idx) => {
-                                    const value = technicianDetails[method]?.[detail];
+                                    let value = technicianDetails[method]?.[detail];
+                                    
+                                    // Handle new payment details format
+                                    if (!value && selectedTechnician.paymentDetails) {
+                                      try {
+                                        const paymentDetails = JSON.parse(selectedTechnician.paymentDetails);
+                                        const methodDetails = paymentDetails[method];
+                                        
+                                        if (methodDetails) {
+                                          // Map detail names to actual field names
+                                          if (detail === "Account Number") value = methodDetails.bankAccount || methodDetails.iban;
+                                          else if (detail === "Routing Number") value = methodDetails.routingNumber;
+                                          else if (detail === "Bank Name") value = methodDetails.bankName;
+                                          else if (detail === "PayPal Link") value = methodDetails.paypalLink;
+                                          else if (detail === "Email Address") value = methodDetails.paypalEmail || methodDetails.zelleInfo;
+                                          else if (detail === "Venmo") value = methodDetails.venmoHandle;
+                                          else if (detail === "CashApp") value = methodDetails.cashappHandle;
+                                          else if (detail === "QR Code") value = methodDetails.venmoQR || methodDetails.cashappQR;
+                                          else if (detail === "Mailing Address") value = methodDetails.mailingAddress;
+                                          else if (detail === "Phone Number") value = selectedTechnician.phoneNumber;
+                                          
+                                          // For credit card
+                                          else if (detail === "Cardholder Name") value = methodDetails.cardholderName;
+                                          else if (detail === "Card Number") value = methodDetails.cardNumber;
+                                          else if (detail === "Expiry Date") value = methodDetails.expiryDate;
+                                          else if (detail === "IBAN") value = methodDetails.iban;
+                                          else if (detail === "Account Name") value = methodDetails.accountName;
+                                        }
+                                      } catch (error) {
+                                        console.error('Error parsing payment details:', error);
+                                      }
+                                    }
+                                    
                                     if (!value) return null;
                                     
                                     return (
@@ -331,6 +393,8 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                                               <span className="text-sm">QR Code Available</span>
                                               <div className="w-6 h-6 bg-gray-200 border border-gray-300 rounded flex items-center justify-center text-xs">QR</div>
                                             </div>
+                                          ) : detail === "Card Number" ? (
+                                            <span>****-****-****-{value.slice(-4)}</span>
                                           ) : (
                                             <span>{value}</span>
                                           )}
