@@ -82,7 +82,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="flex flex-col flex-grow pt-6 pb-4 overflow-y-auto scrollbar-thin">
+        <div className="flex flex-col h-full pt-6 pb-4 overflow-hidden">
           {/* Mobile close button */}
           <div className="flex items-center justify-between px-4 lg:hidden">
             <div className="flex items-center">
@@ -112,7 +112,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
           {/* User Info */}
           <div className={cn(
-            "mt-2 mb-6 transition-all duration-500",
+            "mt-2 mb-4 flex-shrink-0 transition-all duration-500",
             isHovered ? "px-4" : "px-3"
           )}>
             <div className={cn(
@@ -177,7 +177,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 space-y-4 overflow-y-auto scrollbar-thin">
+          <nav className="flex-1 px-3 py-2 space-y-3 overflow-y-auto scrollbar-thin">
             {navigationSections.map((section) => {
               // Check if user has permission for any item in this section
               const hasAnyPermission = section.items.some(item => 
@@ -191,7 +191,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   {/* Section Title */}
                   <div className={cn(
                     "transition-all duration-500",
-                    isHovered ? "opacity-100 px-2 py-1" : "opacity-0 h-0 overflow-hidden"
+                    isHovered ? "opacity-100 px-2 py-1 mb-1" : "opacity-0 h-0 overflow-hidden mb-0"
                   )}>
                     <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                       {section.title}
@@ -199,7 +199,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   </div>
                   
                   {/* Section Items */}
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     {section.items.map((item) => {
                       const isActive = location === item.href;
                       const Icon = item.icon;
@@ -210,7 +210,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             <Link href={item.href}>
                               <button
                                 className={cn(
-                                  "w-full group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
+                                  "w-full group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
                                   isActive
                                     ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30"
                                     : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
@@ -240,7 +240,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         <Link key={item.name} href={item.href}>
                           <button
                             className={cn(
-                              "w-full group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
+                              "w-full group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
                               isActive
                                 ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30"
                                 : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
