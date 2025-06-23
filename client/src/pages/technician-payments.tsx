@@ -43,6 +43,7 @@ interface TechnicianPaymentSummary {
 }
 
 export default function TechnicianPayments() {
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedTechnician, setSelectedTechnician] = useState<TechnicianPaymentSummary | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 

@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, DollarSign, Calculator, Eye } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Calculator, Eye, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface WorkOrderFinancial {
@@ -20,6 +21,7 @@ interface WorkOrderFinancial {
 export default function FinancialAnalysis() {
   const [selectedPeriod, setSelectedPeriod] = useState("all");
   const [viewingWorkOrder, setViewingWorkOrder] = useState<WorkOrderFinancial | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { data: workOrders = [] } = useQuery({
     queryKey: ["/api/work-orders"],
@@ -66,18 +68,13 @@ export default function FinancialAnalysis() {
     return parseFloat(invoice.totalAmount || "0");
   };
 
-  // Debug logging
-  console.log("Debug - Work Orders:", workOrders);
-  console.log("Debug - Proposals:", proposals);
-  console.log("Debug - Invoices:", invoices);
+  // Remove debug logging for production
 
   // Get financial data for paid invoices only
   const financialData: WorkOrderFinancial[] = workOrders
     .map((workOrder: any) => {
       const proposal = proposals.find((p: any) => p.workOrderId === workOrder.id);
       const invoice = invoices.find((i: any) => i.workOrderId === workOrder.id);
-      
-      console.log(`Debug - WO ${workOrder.id}: proposal=${!!proposal}, invoice=${!!invoice}, status=${invoice?.status}`);
       
       // Only include if invoice exists and is paid
       if (!invoice || invoice.status !== "paid") return null;
@@ -86,8 +83,6 @@ export default function FinancialAnalysis() {
       const invoiceTotal = calculateInvoiceTotal(invoice);
       const difference = invoiceTotal - proposalTotal;
       const isProfitable = difference > 0;
-      
-      console.log(`Debug - WO ${workOrder.id}: proposalTotal=${proposalTotal}, invoiceTotal=${invoiceTotal}, difference=${difference}`);
       
       return {
         workOrder,
@@ -101,9 +96,19 @@ export default function FinancialAnalysis() {
     })
     .filter(Boolean) as WorkOrderFinancial[];
 
-  console.log("Debug - Final financial data:", financialData);
+  // Calculate totals from filtered data
 
-  // Calculate totals
+  // Filter financial data based on search term
+  const filteredFinancialData = financialData.filter((item) => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      item.workOrder.workOrderNumber.toLowerCase().includes(searchLower) ||
+      item.workOrder.clientName.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Calculate totals from all data (not filtered by search)
   const totalProfit = financialData
     .filter(item => item.isProfitable)
     .reduce((sum, item) => sum + item.difference, 0);
@@ -127,6 +132,15 @@ export default function FinancialAnalysis() {
         </div>
         
         <div className="flex items-center space-x-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search by work order or client..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-64"
+            />
+          </div>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
             <SelectTrigger className="w-40">
               <SelectValue />
@@ -205,14 +219,14 @@ export default function FinancialAnalysis() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {financialData.length === 0 ? (
+            {filteredFinancialData.length === 0 ? (
               <div className="text-center py-8">
                 <Calculator className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                 <h3 className="text-lg font-medium mb-2">No Financial Data</h3>
                 <p className="text-gray-600">No completed work orders with paid invoices found.</p>
               </div>
             ) : (
-              financialData.map((item) => (
+              filteredFinancialData.map((item) => (
                 <div key={item.workOrder.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3">
