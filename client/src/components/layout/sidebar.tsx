@@ -71,8 +71,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           {/* Logo */}
-          <div className="hidden md:flex items-center flex-shrink-0 px-4 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-blue-400/20">
+          <div className={cn(
+            "hidden md:flex items-center flex-shrink-0 mb-8 transition-all duration-500",
+            isHovered ? "px-4" : "px-3 justify-center"
+          )}>
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-blue-400/20 flex-shrink-0">
               <Shield className="h-5 w-5 text-white" />
             </div>
             <h1 className={cn(
