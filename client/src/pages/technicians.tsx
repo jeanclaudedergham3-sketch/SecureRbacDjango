@@ -1,19 +1,45 @@
 import { useState } from "react";
-import { Plus, Edit, Phone, Star, CreditCard, Award, Mail, MapPin, Wrench, DollarSign, FileText } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Plus, Edit, Phone, Star, CreditCard, Award, Mail, MapPin, Wrench, DollarSign, FileText, Trash2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { CreateTechnicianModal } from "@/components/modals/create-technician-modal";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { Technician } from "@shared/schema";
 
 export default function Technicians() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingTechnician, setEditingTechnician] = useState<Technician | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: technicians = [] } = useQuery<Technician[]>({
     queryKey: ["/api/technicians"],
+  });
+
+  const deleteTechnicianMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/technicians/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Technician deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete technician",
+        variant: "destructive",
+      });
+    },
   });
 
   const getStatusColor = (rating: number) => {
@@ -261,17 +287,51 @@ export default function Technicians() {
                 </CardContent>
 
                 <div className="px-6 py-3 bg-gray-50 border-t">
-                  <PermissionGuard permission="manage_technicians">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingTechnician(technician)}
-                      className="w-full"
-                    >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Edit Details
-                    </Button>
-                  </PermissionGuard>
+                  <div className="flex space-x-2">
+                    <PermissionGuard permission="manage_technicians">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingTechnician(technician)}
+                        className="flex-1"
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                    </PermissionGuard>
+                    
+                    <PermissionGuard permission="manage_technicians">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Technician</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete {technician.name}? This action cannot be undone and will remove all associated data including ratings and work assignments.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteTechnicianMutation.mutate(technician.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              {deleteTechnicianMutation.isPending ? "Deleting..." : "Delete"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </PermissionGuard>
+                  </div>
                 </div>
               </Card>
             );
