@@ -49,14 +49,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 sidebar-bg transform transition-all duration-300 ease-in-out md:translate-x-0 md:static md:inset-0",
+          "fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl border-r border-slate-600/30 transform transition-all duration-500 ease-in-out md:translate-x-0 md:static md:inset-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
           isHovered ? "w-64" : "w-16"
         )}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="flex flex-col flex-grow pt-5 pb-4 overflow-y-auto">
+        <div className="flex flex-col flex-grow pt-6 pb-4 overflow-y-auto">
           {/* Mobile close button */}
           <div className="flex items-center justify-between px-4 md:hidden">
             <div className="flex items-center">
@@ -71,32 +71,32 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           {/* Logo */}
-          <div className="hidden md:flex items-center flex-shrink-0 px-4">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Shield className="h-4 w-4 text-white" />
+          <div className="hidden md:flex items-center flex-shrink-0 px-4 mb-8">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-blue-400/20">
+              <Shield className="h-5 w-5 text-white" />
             </div>
             <h1 className={cn(
-              "ml-3 text-xl font-semibold text-white transition-all duration-300",
+              "ml-4 text-xl font-bold text-white transition-all duration-500 bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent",
               isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
             )}>AdminPanel</h1>
           </div>
 
           {/* User Info */}
-          <div className="mt-6 px-4">
-            <div className="flex items-center p-3 bg-slate-700 rounded-lg">
-              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-white font-semibold text-sm">
+          <div className="mt-2 px-4 mb-6">
+            <div className="flex items-center p-3 bg-gradient-to-r from-slate-700/60 to-slate-800/60 backdrop-blur-sm rounded-xl border border-slate-600/30 shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md ring-2 ring-emerald-400/30">
+                <span className="text-white font-bold text-sm">
                   {user ? getInitials(user.firstName, user.lastName) : ""}
                 </span>
               </div>
               <div className={cn(
-                "ml-3 transition-all duration-300",
+                "ml-3 transition-all duration-500",
                 isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
               )}>
-                <p className="text-sm font-medium text-white whitespace-nowrap">
+                <p className="text-sm font-semibold text-white whitespace-nowrap">
                   {user ? `${user.firstName} ${user.lastName}` : ""}
                 </p>
-                <p className="text-xs text-slate-300 capitalize whitespace-nowrap">
+                <p className="text-xs text-slate-300 capitalize whitespace-nowrap font-medium">
                   {role?.name || ""}
                 </p>
               </div>
@@ -104,7 +104,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="mt-6 flex-1 px-2 space-y-1 overflow-y-auto">
+          <nav className="flex-1 px-3 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
             {navigation.map((item) => {
               const isActive = location === item.href;
               const Icon = item.icon;
@@ -115,23 +115,24 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <Link href={item.href}>
                       <button
                         className={cn(
-                          "w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors text-left relative",
+                          "w-full group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
                           isActive
-                            ? "bg-slate-700 text-white"
-                            : "text-slate-300 hover:bg-slate-700 hover:text-white"
+                            ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30"
+                            : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
                         )}
                         onClick={onClose}
                       >
-                        <Icon className="h-4 w-4 flex-shrink-0" />
+                        <Icon className="h-5 w-5 flex-shrink-0" />
                         <span className={cn(
-                          "ml-3 transition-all duration-300 whitespace-nowrap",
+                          "ml-3 transition-all duration-500 whitespace-nowrap font-medium",
                           isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
                         )}>
                           {item.name}
                         </span>
                         {!isHovered && (
-                          <div className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
+                          <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
                             {item.name}
+                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
                           </div>
                         )}
                       </button>
@@ -144,23 +145,24 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <Link key={item.name} href={item.href}>
                   <button
                     className={cn(
-                      "w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors text-left relative",
+                      "w-full group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
                       isActive
-                        ? "bg-slate-700 text-white"
-                        : "text-slate-300 hover:bg-slate-700 hover:text-white"
+                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30"
+                        : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
                     )}
                     onClick={onClose}
                   >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <Icon className="h-5 w-5 flex-shrink-0" />
                     <span className={cn(
-                      "ml-3 transition-all duration-300 whitespace-nowrap",
+                      "ml-3 transition-all duration-500 whitespace-nowrap font-medium",
                       isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
                     )}>
                       {item.name}
                     </span>
                     {!isHovered && (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
+                      <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
                         {item.name}
+                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
                       </div>
                     )}
                   </button>
@@ -170,22 +172,23 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </nav>
 
           {/* Logout */}
-          <div className="flex-shrink-0 flex border-t border-slate-700 p-4">
+          <div className="flex-shrink-0 flex border-t border-slate-600/30 p-4 mt-4">
             <button
               onClick={logout}
-              className="flex-shrink-0 w-full group block text-left hover:bg-slate-700 rounded-md p-2 transition-colors relative"
+              className="flex-shrink-0 w-full group block text-left hover:bg-gradient-to-r hover:from-red-600/20 hover:to-red-700/20 rounded-xl p-3 transition-all duration-300 relative transform hover:scale-105 active:scale-95 border border-transparent hover:border-red-500/30"
             >
               <div className="flex items-center">
-                <LogOut className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                <LogOut className="h-5 w-5 text-slate-400 group-hover:text-red-400 flex-shrink-0 transition-colors duration-300" />
                 <span className={cn(
-                  "ml-3 text-sm font-medium text-slate-300 group-hover:text-white transition-all duration-300 whitespace-nowrap",
+                  "ml-3 text-sm font-medium text-slate-300 group-hover:text-red-300 transition-all duration-500 whitespace-nowrap",
                   isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
                 )}>
                   Logout
                 </span>
                 {!isHovered && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
+                  <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
                     Logout
+                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
                   </div>
                 )}
               </div>
