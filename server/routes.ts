@@ -278,6 +278,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/roles/:id", requireAuth, requirePermission("edit_roles"), async (req, res) => {
+    try {
+      const roleId = parseInt(req.params.id);
+      const { name, description } = req.body;
+      
+      console.log('Updating role:', { roleId, name, description });
+      
+      // Validate required fields
+      if (!name || name.trim() === '') {
+        throw new Error('Role name is required');
+      }
+      
+      // Update the role
+      const updatedRole = await storage.updateRole(roleId, { 
+        name: name.trim(), 
+        description: description?.trim() || '' 
+      });
+      
+      if (!updatedRole) {
+        return res.status(404).json({ message: "Role not found" });
+      }
+      
+      console.log('Role updated successfully:', updatedRole);
+      res.json(updatedRole);
+    } catch (error) {
+      console.error("Role update error:", error);
+      res.status(400).json({ 
+        message: "Failed to update role", 
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   app.get("/api/permissions", requireAuth, requirePermission("view_roles"), async (req, res) => {
     try {
       const permissions = await storage.getAllPermissions();
