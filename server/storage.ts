@@ -113,6 +113,9 @@ export interface IStorage {
   getInvoiceById(id: number): Promise<WorkOrderInvoice | undefined>;
   deleteInvoice(id: number): Promise<boolean>;
   lockWorkOrder(workOrderId: number): Promise<boolean>;
+  
+  // Proposal operations for financial analysis
+  getAllProposals(): Promise<WorkOrderProposal[]>;
 }
 
 export class SqliteStorage implements IStorage {
