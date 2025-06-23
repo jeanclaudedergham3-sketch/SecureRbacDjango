@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DollarSign, Eye, Calculator, TrendingUp } from "lucide-react";
+import { DollarSign, Eye, Calculator, TrendingUp, CreditCard, CheckCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Technician {
   id: number;
@@ -43,9 +47,14 @@ interface TechnicianPaymentSummary {
 }
 
 export default function TechnicianPayments() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTechnician, setSelectedTechnician] = useState<TechnicianPaymentSummary | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentRequest | null>(null);
+  const [isCompletePaymentOpen, setIsCompletePaymentOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
 
   const { data: technicians = [] } = useQuery<Technician[]>({
     queryKey: ["/api/technicians"],
@@ -91,6 +100,39 @@ export default function TechnicianPayments() {
   const handleViewHistory = (summary: TechnicianPaymentSummary) => {
     setSelectedTechnician(summary);
     setIsHistoryModalOpen(true);
+  };
+
+  const handleCompletePayment = (payment: PaymentRequest) => {
+    setSelectedPayment(payment);
+    const approved = parseFloat(payment.amountApproved || "0");
+    const paid = parseFloat(payment.amountPaid || "0");
+    const remaining = approved - paid;
+    setPaymentAmount(remaining.toString());
+    setIsCompletePaymentOpen(true);
+  };
+
+  const handleSubmitPayment = () => {
+    if (!selectedPayment || !paymentAmount) return;
+    
+    const currentPaid = parseFloat(selectedPayment.amountPaid || "0");
+    const additionalAmount = parseFloat(paymentAmount);
+    const newTotalPaid = currentPaid + additionalAmount;
+    
+    completePaymentMutation.mutate({
+      paymentId: selectedPayment.id,
+      amount: newTotalPaid.toString()
+    });
+  };
+
+  const getPaymentStatus = (payment: PaymentRequest) => {
+    const approved = parseFloat(payment.amountApproved || "0");
+    const paid = parseFloat(payment.amountPaid || "0");
+
+    if (payment.status === "rejected") return "rejected";
+    if (paid >= approved && approved > 0) return "paid";
+    if (paid > 0 && paid < approved) return "partially_paid";
+    if (approved > 0) return "approved";
+    return "pending";
   };
 
   const getStatusColor = (status: string) => {
