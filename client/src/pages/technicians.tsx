@@ -97,8 +97,6 @@ export default function Technicians() {
         {/* Technician Cards */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {technicians.map((technician) => {
-            const paymentMethods = getAvailablePaymentMethods(technician);
-            
             return (
               <Card key={technician.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
@@ -201,7 +199,8 @@ export default function Technicians() {
                             ))}
                           </div>
                         );
-                      } catch {
+                      } catch (error) {
+                        console.error('Error parsing payment methods:', error);
                         // Fallback for old format
                         const methods = getAvailablePaymentMethods(technician);
                         if (methods.length === 0) {
@@ -216,6 +215,36 @@ export default function Technicians() {
                             ))}
                           </div>
                         );
+                      }
+                    })()}
+                    
+                    {/* Payment Details Preview */}
+                    {(() => {
+                      try {
+                        const details = JSON.parse(technician.paymentDetails || "{}");
+                        if (Object.keys(details).length === 0) return null;
+                        
+                        return (
+                          <div className="text-xs text-gray-500 space-y-1 mt-1">
+                            {details.credit_card && (
+                              <div>💳 Card: ****{details.credit_card.cardNumber?.slice(-4)}</div>
+                            )}
+                            {details.bank_transfer && (
+                              <div>🏦 Bank: {details.bank_transfer.bankName}</div>
+                            )}
+                            {details.paypal && (
+                              <div>💳 PayPal: {details.paypal.paypalEmail}</div>
+                            )}
+                            {details.venmo && (
+                              <div>📱 Venmo: @{details.venmo.venmoHandle}</div>
+                            )}
+                            {details.cashapp && (
+                              <div>💰 CashApp: ${details.cashapp.cashappHandle}</div>
+                            )}
+                          </div>
+                        );
+                      } catch {
+                        return null;
                       }
                     })()}
                   </div>
