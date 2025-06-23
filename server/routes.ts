@@ -935,14 +935,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const users = await storage.getAllUsers();
       const roles = await storage.getAllRoles();
-      const equipment = await storage.getAllEquipment();
       const technicians = await storage.getAllTechnicians();
       const workOrders = await storage.getAllWorkOrders();
       
       const stats = {
         totalUsers: users.length,
         activeRoles: roles.length,
-        equipment: equipment.length,
         technicians: technicians.length,
         workOrders: workOrders.length,
         securityEvents: 0,

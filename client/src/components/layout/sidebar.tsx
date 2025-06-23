@@ -91,7 +91,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="mt-6 flex-1 px-2 space-y-1">
+          <nav className="mt-6 flex-1 px-2 space-y-1 overflow-y-auto">
             {navigation.map((item) => {
               const isActive = location === item.href;
               const Icon = item.icon;
