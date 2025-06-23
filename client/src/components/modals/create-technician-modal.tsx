@@ -396,11 +396,11 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
                       </div>
                       <p className="text-sm text-gray-600 mb-2">{option.description}</p>
                       <div className="flex flex-wrap gap-1">
-                        {option.features.map((feature, index) => (
+                        {option.features?.map((feature, index) => (
                           <span key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                             {feature}
                           </span>
-                        ))}
+                        )) || null}
                       </div>
                     </div>
                   </div>
