@@ -106,8 +106,6 @@ export const workOrders = sqliteTable("work_orders", {
   tnte: text("tnte").notNull(), // amount including tax
   startDate: integer("start_date", { mode: 'timestamp' }).notNull(),
   endDate: integer("end_date", { mode: 'timestamp' }).notNull(),
-  clientPhone: text("client_phone"),
-  clientEmail: text("client_email"),
   zipCode: text("zip_code"),
   description: text("description"),
   urgency: text("urgency").default("medium"),
