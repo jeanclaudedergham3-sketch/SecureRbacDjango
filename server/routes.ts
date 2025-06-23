@@ -238,30 +238,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roles", requireAuth, requirePermission("create_roles"), async (req, res) => {
+  app.post("/api/roles", requireAuth, requirePermission("assign_roles"), async (req, res) => {
     try {
       const { name, description, permissionIds = [] } = req.body;
       
-      console.log('Creating role with data:', { name, description, permissionIds });
-      
-      // Validate required fields
-      if (!name || name.trim() === '') {
-        throw new Error('Role name is required');
-      }
-      
       // Create the role
-      const role = await storage.createRole({ name: name.trim(), description: description?.trim() || '' });
-      console.log('Role created:', role);
+      const role = await storage.createRole({ name, description });
       
-      // Assign permissions to the role if any provided
-      if (permissionIds && permissionIds.length > 0) {
-        console.log(`Assigning ${permissionIds.length} permissions to role ${role.id}`);
-        for (const permissionId of permissionIds) {
-          if (typeof permissionId === 'number' && permissionId > 0) {
-            const success = await storage.assignRolePermission(role.id, permissionId);
-            console.log(`Permission ${permissionId} assignment result:`, success);
-          }
-        }
+      // Assign permissions to the role
+      for (const permissionId of permissionIds) {
+        await storage.assignRolePermission(role.id, permissionId);
       }
       
       // Return the role with permissions
@@ -270,44 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(createdRole);
     } catch (error) {
-      console.error("Role creation error:", error);
-      res.status(400).json({ 
-        message: "Failed to create role", 
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
-
-  app.put("/api/roles/:id", requireAuth, requirePermission("edit_roles"), async (req, res) => {
-    try {
-      const roleId = parseInt(req.params.id);
-      const { name, description } = req.body;
-      
-      console.log('Updating role:', { roleId, name, description });
-      
-      // Validate required fields
-      if (!name || name.trim() === '') {
-        throw new Error('Role name is required');
-      }
-      
-      // Update the role
-      const updatedRole = await storage.updateRole(roleId, { 
-        name: name.trim(), 
-        description: description?.trim() || '' 
-      });
-      
-      if (!updatedRole) {
-        return res.status(404).json({ message: "Role not found" });
-      }
-      
-      console.log('Role updated successfully:', updatedRole);
-      res.json(updatedRole);
-    } catch (error) {
-      console.error("Role update error:", error);
-      res.status(400).json({ 
-        message: "Failed to update role", 
-        error: error instanceof Error ? error.message : String(error)
-      });
+      res.status(400).json({ message: "Failed to create role" });
     }
   });
 
@@ -320,30 +269,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roles/:id/permissions", requireAuth, requirePermission("manage_permissions"), async (req, res) => {
+  app.post("/api/roles/:id/permissions", requireAuth, requirePermission("assign_roles"), async (req, res) => {
     try {
       const roleId = parseInt(req.params.id);
-      const { permissionId, permissionIds } = req.body;
+      const { permissionIds } = req.body;
       
-      if (permissionIds) {
-        // Batch update - remove existing permissions first
-        const existingPermissions = await storage.getRolePermissions(roleId);
-        for (const perm of existingPermissions) {
-          await storage.removeRolePermission(roleId, perm.id);
-        }
-        
-        // Assign new permissions
-        for (const id of permissionIds) {
-          await storage.assignRolePermission(roleId, id);
-        }
-      } else if (permissionId) {
-        // Single permission assignment
+      // Remove existing permissions
+      const existingPermissions = await storage.getRolePermissions(roleId);
+      for (const perm of existingPermissions) {
+        await storage.removeRolePermission(roleId, perm.id);
+      }
+      
+      // Assign new permissions
+      for (const permissionId of permissionIds) {
         await storage.assignRolePermission(roleId, permissionId);
       }
       
       res.json({ message: "Permissions updated successfully" });
     } catch (error) {
-      console.error("Permission assignment error:", error);
       res.status(400).json({ message: "Failed to update permissions" });
     }
   });
@@ -394,7 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Technician routes
-  app.get("/api/technicians", requireAuth, requirePermission("view_technicians"), async (req, res) => {
+  app.get("/api/technicians", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
     try {
       const technicians = await storage.getAllTechnicians();
       res.json(technicians);
@@ -403,7 +346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/technicians", requireAuth, requirePermission("create_technicians"), async (req, res) => {
+  app.post("/api/technicians", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
     try {
       const technicianData = insertTechnicianSchema.parse(req.body);
       const technician = await storage.createTechnician(technicianData);
@@ -417,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/technicians/:id", requireAuth, requirePermission("edit_technicians"), async (req, res) => {
+  app.put("/api/technicians/:id", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const technicianData = insertTechnicianSchema.partial().parse(req.body);
@@ -431,7 +374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/technicians/:id", requireAuth, requirePermission("delete_technicians"), async (req, res) => {
+  app.delete("/api/technicians/:id", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteTechnician(id);

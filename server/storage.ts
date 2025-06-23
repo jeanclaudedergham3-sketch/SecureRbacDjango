@@ -147,103 +147,20 @@ export class SqliteStorage implements IStorage {
         return; // Data already seeded
       }
 
-      // Create comprehensive permissions with categories
+      // Create permissions
       const permissionsList = [
-        // Dashboard & Analytics
-        { name: "view_dashboard", description: "Access main dashboard with overview statistics" },
-        { name: "view_analytics", description: "Access detailed analytics and reporting" },
-        { name: "export_reports", description: "Export reports and data to various formats" },
-        
-        // User Management
-        { name: "view_users", description: "View user list and basic information" },
-        { name: "create_users", description: "Create new user accounts" },
-        { name: "edit_users", description: "Modify user information and settings" },
-        { name: "delete_users", description: "Remove user accounts from the system" },
-        { name: "manage_user_roles", description: "Assign and modify user roles" },
-        { name: "reset_passwords", description: "Reset user passwords" },
-        { name: "activate_deactivate_users", description: "Enable or disable user accounts" },
-        
-        // Role & Permission Management
-        { name: "view_roles", description: "View roles and their permissions" },
-        { name: "create_roles", description: "Create new system roles" },
-        { name: "edit_roles", description: "Modify existing roles and permissions" },
-        { name: "delete_roles", description: "Remove roles from the system" },
-        { name: "manage_permissions", description: "Assign permissions to roles" },
-        
-        // Equipment Management
-        { name: "view_equipment", description: "View equipment inventory and status" },
-        { name: "create_equipment", description: "Add new equipment to inventory" },
-        { name: "edit_equipment", description: "Modify equipment details and status" },
-        { name: "delete_equipment", description: "Remove equipment from inventory" },
-        { name: "equipment_maintenance", description: "Schedule and manage equipment maintenance" },
-        { name: "equipment_reports", description: "Generate equipment usage and status reports" },
-        
-        // Technician Management
-        { name: "view_technicians", description: "View technician profiles and information" },
-        { name: "create_technicians", description: "Add new technicians to the system" },
-        { name: "edit_technicians", description: "Modify technician profiles and details" },
-        { name: "delete_technicians", description: "Remove technicians from the system" },
-        { name: "manage_technician_schedules", description: "Manage technician availability and schedules" },
-        { name: "view_technician_performance", description: "Access technician ratings and performance metrics" },
-        { name: "manage_technician_payments", description: "Handle technician payment methods and requests" },
-        
-        // Work Order Management
-        { name: "view_work_orders", description: "View work orders and their details" },
-        { name: "create_work_orders", description: "Create new work orders" },
-        { name: "edit_work_orders", description: "Modify work order information" },
-        { name: "delete_work_orders", description: "Remove work orders from the system" },
-        { name: "assign_work_orders", description: "Assign work orders to technicians" },
-        { name: "approve_work_orders", description: "Approve or reject work order proposals" },
-        { name: "close_work_orders", description: "Mark work orders as completed" },
-        { name: "view_work_order_history", description: "Access work order history and audit trail" },
-        
-        // Proposal Management
-        { name: "view_proposals", description: "View work order proposals and estimates" },
-        { name: "create_proposals", description: "Create proposals for work orders" },
-        { name: "edit_proposals", description: "Modify existing proposals" },
-        { name: "approve_proposals", description: "Approve or reject client proposals" },
-        { name: "proposal_analytics", description: "View proposal conversion and success rates" },
-        
-        // Parts & Inventory Management
-        { name: "view_parts_requests", description: "View parts requests and inventory" },
-        { name: "create_parts_requests", description: "Request parts for work orders" },
-        { name: "approve_parts_requests", description: "Approve or deny parts requests" },
-        { name: "manage_inventory", description: "Manage parts inventory and stock levels" },
-        { name: "parts_procurement", description: "Handle parts ordering and procurement" },
-        
-        // File & Document Management
-        { name: "view_files", description: "View uploaded files and documents" },
-        { name: "upload_files", description: "Upload files and documents" },
-        { name: "delete_files", description: "Remove files from the system" },
-        { name: "manage_signatures", description: "Handle digital signatures and approvals" },
-        
-        // Communication & Chat
-        { name: "view_chat", description: "View work order chat messages" },
-        { name: "send_messages", description: "Send messages in work order chats" },
-        { name: "manage_notifications", description: "Configure and manage system notifications" },
-        { name: "broadcast_messages", description: "Send system-wide announcements" },
-        
-        // Payment & Financial Management
-        { name: "view_payments", description: "View payment information and history" },
-        { name: "process_payments", description: "Process and approve payments" },
-        { name: "manage_payment_methods", description: "Configure payment methods and settings" },
-        { name: "financial_reports", description: "Access financial reports and analysis" },
-        { name: "invoice_management", description: "Create and manage invoices" },
-        { name: "payment_disputes", description: "Handle payment disputes and refunds" },
-        
-        // System Administration
-        { name: "system_settings", description: "Configure system-wide settings" },
-        { name: "backup_restore", description: "Perform system backups and restores" },
-        { name: "audit_logs", description: "View system audit logs and activity" },
-        { name: "security_management", description: "Manage security settings and policies" },
-        { name: "integration_management", description: "Configure external integrations" },
-        { name: "system_monitoring", description: "Monitor system performance and health" },
-        
-        // Emergency & Override Permissions
-        { name: "emergency_access", description: "Override restrictions in emergency situations" },
-        { name: "data_export", description: "Export system data for compliance or backup" },
-        { name: "system_maintenance", description: "Perform system maintenance operations" },
-        { name: "super_admin", description: "Full unrestricted system access" },
+        { name: "view_dashboard", description: "View dashboard" },
+        { name: "view_users", description: "View users" },
+        { name: "edit_users", description: "Edit users" },
+        { name: "view_roles", description: "View roles" },
+        { name: "assign_roles", description: "Assign roles" },
+        { name: "view_equipment", description: "View equipment" },
+        { name: "edit_equipment", description: "Edit equipment" },
+        { name: "manage_technicians", description: "Manage technicians" },
+        { name: "rate_technicians", description: "Rate technicians" },
+        { name: "manage_work_orders", description: "Manage work orders" },
+        { name: "view_work_orders", description: "View work orders" },
+        { name: "manage_payments", description: "Manage technician payments" },
       ];
 
       const createdPermissions = [];
@@ -263,60 +180,33 @@ export class SqliteStorage implements IStorage {
         await this.assignRolePermission(adminRole.id, perm.id);
       }
 
-      // Manager - comprehensive operational permissions
-      const managerPermissionNames = [
-        // Dashboard & Analytics
-        "view_dashboard", "view_analytics", "export_reports",
-        // User Management (limited)
-        "view_users", "create_users", "edit_users", "manage_user_roles", "reset_passwords",
-        // Equipment Management
-        "view_equipment", "create_equipment", "edit_equipment", "equipment_maintenance", "equipment_reports",
-        // Technician Management
-        "view_technicians", "create_technicians", "edit_technicians", "manage_technician_schedules", 
-        "view_technician_performance", "manage_technician_payments",
-        // Work Order Management
-        "view_work_orders", "create_work_orders", "edit_work_orders", "assign_work_orders", 
-        "approve_work_orders", "close_work_orders", "view_work_order_history",
-        // Proposal Management
-        "view_proposals", "create_proposals", "edit_proposals", "approve_proposals", "proposal_analytics",
-        // Parts Management
-        "view_parts_requests", "create_parts_requests", "approve_parts_requests", "manage_inventory",
-        // File Management
-        "view_files", "upload_files", "manage_signatures",
-        // Communication
-        "view_chat", "send_messages", "manage_notifications",
-        // Payment Management
-        "view_payments", "process_payments", "financial_reports", "invoice_management"
-      ];
-      
-      for (const permissionName of managerPermissionNames) {
-        const permission = createdPermissions.find(p => p.name === permissionName);
-        if (permission) {
-          await this.assignRolePermission(managerRole.id, permission.id);
-        }
-      }
+      // Manager - limited permissions
+      await this.assignRolePermission(managerRole.id, createdPermissions[0].id); // view_dashboard
+      await this.assignRolePermission(managerRole.id, createdPermissions[1].id); // view_users
+      await this.assignRolePermission(managerRole.id, createdPermissions[3].id); // view_roles
+      await this.assignRolePermission(managerRole.id, createdPermissions[5].id); // view_equipment
+      await this.assignRolePermission(managerRole.id, createdPermissions[6].id); // edit_equipment
+      await this.assignRolePermission(managerRole.id, createdPermissions[7].id); // manage_technicians
+      await this.assignRolePermission(managerRole.id, createdPermissions[8].id); // rate_technicians
+      await this.assignRolePermission(managerRole.id, createdPermissions[9].id); // manage_work_orders
+      await this.assignRolePermission(managerRole.id, createdPermissions[10].id); // view_work_orders
+      await this.assignRolePermission(managerRole.id, createdPermissions[11].id); // manage_payments
 
-      // Viewer - basic view permissions only
-      const viewerPermissionNames = [
-        "view_dashboard", "view_users", "view_roles", "view_equipment", "view_technicians", 
-        "view_work_orders", "view_proposals", "view_parts_requests", "view_files", 
-        "view_chat", "view_payments"
-      ];
-      
-      for (const permissionName of viewerPermissionNames) {
-        const permission = createdPermissions.find(p => p.name === permissionName);
-        if (permission) {
-          await this.assignRolePermission(viewerRole.id, permission.id);
-        }
-      }
+      // Viewer - read-only permissions
+      await this.assignRolePermission(viewerRole.id, createdPermissions[0].id); // view_dashboard
+      await this.assignRolePermission(viewerRole.id, createdPermissions[1].id); // view_users
+      await this.assignRolePermission(viewerRole.id, createdPermissions[3].id); // view_roles
+      await this.assignRolePermission(viewerRole.id, createdPermissions[5].id); // view_equipment
+      await this.assignRolePermission(viewerRole.id, createdPermissions[8].id); // rate_technicians
+      await this.assignRolePermission(viewerRole.id, createdPermissions[10].id); // view_work_orders
 
       // Create default users
       const adminUser = await this.createUser({
         username: "admin",
         email: "admin@example.com",
         password: await bcrypt.hash("admin123", 10),
-        firstName: "Super",
-        lastName: "Admin",
+        firstName: "John",
+        lastName: "Doe",
         isActive: true,
       });
 
@@ -624,11 +514,6 @@ export class SqliteStorage implements IStorage {
       });
       return true;
     } catch (error) {
-      console.error(`Failed to assign permission ${permissionId} to role ${roleId}:`, error);
-      // Check if it's a duplicate entry error (which is OK)
-      if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
-        return true; // Permission already assigned
-      }
       return false;
     }
   }
