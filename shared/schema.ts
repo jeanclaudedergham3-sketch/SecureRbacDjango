@@ -78,6 +78,8 @@ export const technicians = sqliteTable("technicians", {
   cashappQR: text("cashapp_qr"),
   zelleInfo: text("zelle_info"),
   mailingAddress: text("mailing_address"),
+  paymentMethods: text("payment_methods"), // JSON array of selected payment methods
+  paymentDetails: text("payment_details"), // JSON object with payment method details
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
 
@@ -101,6 +103,19 @@ export const workOrders = sqliteTable("work_orders", {
   tnte: text("tnte").notNull(), // amount including tax
   startDate: integer("start_date", { mode: 'timestamp' }).notNull(),
   endDate: integer("end_date", { mode: 'timestamp' }).notNull(),
+  clientPhone: text("client_phone"),
+  clientEmail: text("client_email"),
+  zipCode: text("zip_code"),
+  description: text("description"),
+  urgency: text("urgency").default("medium"),
+  equipmentType: text("equipment_type"),
+  problemDescription: text("problem_description"),
+  estimatedHours: text("estimated_hours"),
+  specialInstructions: text("special_instructions"),
+  accessInstructions: text("access_instructions"),
+  safetyRequirements: text("safety_requirements"),
+  paymentMethods: text("payment_methods"), // JSON array of accepted payment methods
+  paymentDetails: text("payment_details"), // JSON object with payment method details
   assignedUserIds: text("assigned_user_ids").notNull(), // JSON array of user IDs
   status: text("status").notNull().default("active"), // active, completed, cancelled
   isLocked: integer("is_locked", { mode: "boolean" }).default(false), // true when invoice is paid

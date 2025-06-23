@@ -163,6 +163,40 @@ export default function PaymentManager() {
     }
   };
 
+  const formatPaymentMethod = (method: string) => {
+    const methodLabels: { [key: string]: string } = {
+      paypal: "PayPal",
+      credit_card: "Credit/Debit Cards",
+      bank_transfer: "Bank Transfer",
+      digital_wallet: "Digital Wallets",
+      cryptocurrency: "Cryptocurrency",
+      cash: "Cash Payment",
+      venmo: "Venmo",
+      cashapp: "Cash App",
+      zelle: "Zelle",
+      check: "Check Payment",
+      financing: "Financing Options"
+    };
+    return methodLabels[method] || method;
+  };
+
+  const getPaymentMethodIcon = (method: string) => {
+    const methodIcons: { [key: string]: string } = {
+      paypal: "💳",
+      credit_card: "💎",
+      bank_transfer: "🏦",
+      digital_wallet: "📱",
+      cryptocurrency: "₿",
+      cash: "💵",
+      venmo: "📲",
+      cashapp: "💸",
+      zelle: "⚡",
+      check: "📝",
+      financing: "📊"
+    };
+    return methodIcons[method] || "💳";
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -230,14 +264,28 @@ export default function PaymentManager() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <div className="text-sm font-medium">
-                            {JSON.parse(payment.paymentMethod || "[]").join(", ")}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {paymentMethods.length} methods available
-                          </div>
-                        </div>
+                        {(() => {
+                          const technician = technicians.find(t => t.id === payment.technicianId);
+                          if (!technician) return <Badge variant="outline">{payment.paymentMethod}</Badge>;
+                          
+                          const methods = getPaymentMethods(technician);
+                          if (methods.length === 0) return <Badge variant="outline">No methods configured</Badge>;
+                          
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {methods.slice(0, 2).map((method: string, index: number) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {getPaymentMethodIcon(method)} {formatPaymentMethod(method)}
+                                </Badge>
+                              ))}
+                              {methods.length > 2 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{methods.length - 2} more
+                                </Badge>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>${parseFloat(payment.amountRequested).toFixed(2)}</TableCell>
                       <TableCell>
