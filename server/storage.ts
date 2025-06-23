@@ -1,4 +1,4 @@
-import { db } from "./database";
+import { db } from "./db";
 import { 
   users, roles, permissions, userRoles, rolePermissions, equipment, technicians, technicianRatings,
   workOrders, workOrderProposals, workOrderPartsRequests, workOrderFiles, workOrderChats, 
@@ -124,12 +124,23 @@ export interface IStorage {
   markAllNotificationsAsRead(userId: number): Promise<boolean>;
 }
 
-export class SqliteStorage implements IStorage {
+export class PostgreSQLStorage implements IStorage {
   private initialized = false;
 
   constructor() {
-    // Seed data immediately since database should be initialized by now
-    this.seedData();
+    this.initializeDatabase();
+  }
+
+  private async initializeDatabase() {
+    if (!this.initialized) {
+      try {
+        await this.seedData();
+        this.initialized = true;
+        console.log("PostgreSQL database initialized successfully");
+      } catch (error) {
+        console.error("Failed to initialize PostgreSQL database:", error);
+      }
+    }
   }
 
   private async seedData() {
@@ -385,7 +396,7 @@ export class SqliteStorage implements IStorage {
 
   async deleteUser(id: number): Promise<boolean> {
     const result = await db.delete(users).where(eq(users.id, id));
-    return result.changes > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getAllUsers(): Promise<UserWithRole[]> {
@@ -437,7 +448,7 @@ export class SqliteStorage implements IStorage {
 
   async deleteRole(id: number): Promise<boolean> {
     const result = await db.delete(roles).where(eq(roles.id, id));
-    return result.changes > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getAllRoles(): Promise<RoleWithPermissions[]> {
@@ -491,7 +502,7 @@ export class SqliteStorage implements IStorage {
   async removeUserRole(userId: number, roleId: number): Promise<boolean> {
     const result = await db.delete(userRoles)
       .where(sql`${userRoles.userId} = ${userId} AND ${userRoles.roleId} = ${roleId}`);
-    return result.changes > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getUserRole(userId: number): Promise<Role | undefined> {
@@ -521,7 +532,7 @@ export class SqliteStorage implements IStorage {
   async removeRolePermission(roleId: number, permissionId: number): Promise<boolean> {
     const result = await db.delete(rolePermissions)
       .where(sql`${rolePermissions.roleId} = ${roleId} AND ${rolePermissions.permissionId} = ${permissionId}`);
-    return result.changes > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getRolePermissions(roleId: number): Promise<Permission[]> {
@@ -567,7 +578,7 @@ export class SqliteStorage implements IStorage {
 
   async deleteEquipment(id: number): Promise<boolean> {
     const result = await db.delete(equipment).where(eq(equipment.id, id));
-    return result.changes > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getAllEquipment(): Promise<Equipment[]> {
@@ -595,7 +606,7 @@ export class SqliteStorage implements IStorage {
 
   async deleteTechnician(id: number): Promise<boolean> {
     const result = await db.delete(technicians).where(eq(technicians.id, id));
-    return result.changes > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getAllTechnicians(): Promise<Technician[]> {
@@ -659,7 +670,7 @@ export class SqliteStorage implements IStorage {
 
   async deleteWorkOrder(id: number): Promise<boolean> {
     const result = await db.delete(workOrders).where(eq(workOrders.id, id));
-    return result.changes > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getAllWorkOrders(): Promise<WorkOrderWithUsers[]> {
@@ -755,7 +766,7 @@ export class SqliteStorage implements IStorage {
     const result = await db.update(workOrderPartsRequests)
       .set({ status })
       .where(eq(workOrderPartsRequests.id, id));
-    return result.changes > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   // Work Order File operations
@@ -777,7 +788,7 @@ export class SqliteStorage implements IStorage {
 
   async deleteWorkOrderFile(id: number): Promise<boolean> {
     const result = await db.delete(workOrderFiles).where(eq(workOrderFiles.id, id));
-    return result.changes > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   // Work Order Chat operations
@@ -854,7 +865,7 @@ export class SqliteStorage implements IStorage {
 
   async deleteInvoice(id: number): Promise<boolean> {
     const result = await db.delete(workOrderInvoices).where(eq(workOrderInvoices.id, id));
-    return result.changes > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async lockWorkOrder(workOrderId: number): Promise<boolean> {
@@ -862,8 +873,9 @@ export class SqliteStorage implements IStorage {
     const result = await db.update(workOrders)
       .set({ isLocked: true })
       .where(eq(workOrders.id, workOrderId));
-    console.log(`Storage: Work order ${workOrderId} lock result:`, result.changes > 0);
-    return result.changes > 0;
+    const success = result.rowCount ? result.rowCount > 0 : false;
+    console.log(`Storage: Work order ${workOrderId} lock result:`, success);
+    return success;
   }
 
   async getAllProposals(): Promise<WorkOrderProposal[]> {
@@ -967,4 +979,4 @@ export class SqliteStorage implements IStorage {
   }
 }
 
-export const storage = new SqliteStorage();
+export const storage = new PostgreSQLStorage();

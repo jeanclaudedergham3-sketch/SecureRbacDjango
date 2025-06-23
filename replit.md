@@ -17,8 +17,8 @@ This is a full-stack web application built with React, TypeScript, and Express.j
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
-- **Database ORM**: Drizzle ORM with SQLite dialect
-- **Database Provider**: SQLite (better-sqlite3)
+- **Database ORM**: Drizzle ORM with PostgreSQL dialect
+- **Database Provider**: PostgreSQL (Neon serverless)
 - **Session Management**: Express sessions with in-memory store
 - **Authentication**: Session-based authentication with bcrypt password hashing
 - **Authorization**: Role-based access control (RBAC) middleware
@@ -120,16 +120,16 @@ The application uses a comprehensive RBAC schema with the following entities:
 - Environment-based configuration
 
 ### Database
-- SQLite database with better-sqlite3
+- PostgreSQL database with Neon serverless
 - Drizzle ORM for type-safe database operations
-- Automatic schema initialization
+- Automatic schema initialization and migration
 - In-memory session storage for development
 
 ### Hosting
 - Configured for Replit deployment
 - Auto-scaling deployment target
 - Port 5000 for application server
-- SQLite database file storage
+- PostgreSQL database with Neon serverless hosting
 
 ## Changelog
 
@@ -152,6 +152,7 @@ Changelog:
 - June 23, 2025. Created Financial Analysis page comparing proposal vs invoice amounts to show profit/loss on paid work orders
 - June 23, 2025. Implemented free OpenStreetMap integration in Technician Map page with overlay markers and hover tooltips
 - June 23, 2025. Built complete notification system with real-time alerts, unread count badges, and mark-as-read functionality for work orders, payments, equipment, and system events
+- June 23, 2025. Migrated from SQLite to PostgreSQL database with complete schema conversion and relation mapping
 ```
 
 ## User Preferences
