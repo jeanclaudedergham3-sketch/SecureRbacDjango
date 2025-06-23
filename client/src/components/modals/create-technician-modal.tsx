@@ -317,79 +317,54 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="specialties">Specialties</Label>
-              <Input
+              <Textarea
                 id="specialties"
                 value={formData.specialties}
                 onChange={(e) => setFormData(prev => ({ ...prev, specialties: e.target.value }))}
-                placeholder="HVAC, Electrical, Plumbing"
+                placeholder="HVAC, Electrical, Plumbing..."
+                rows={2}
               />
             </div>
             <div>
-              <Label htmlFor="hourlyRate">Hourly Rate</Label>
+              <Label htmlFor="certifications">Certifications</Label>
+              <Textarea
+                id="certifications"
+                value={formData.certifications}
+                onChange={(e) => setFormData(prev => ({ ...prev, certifications: e.target.value }))}
+                placeholder="EPA, OSHA, Trade licenses..."
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
               <Input
                 id="hourlyRate"
                 type="number"
+                step="0.01"
                 value={formData.hourlyRate}
                 onChange={(e) => setFormData(prev => ({ ...prev, hourlyRate: e.target.value }))}
-                placeholder="75"
+                placeholder="50.00"
               />
+            </div>
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <select
+                id="status"
+                value={formData.status}
+                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="available">Available</option>
+                <option value="busy">Busy</option>
+                <option value="offline">Offline</option>
+              </select>
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="certifications">Certifications</Label>
-            <Textarea
-              id="certifications"
-              value={formData.certifications}
-              onChange={(e) => setFormData(prev => ({ ...prev, certifications: e.target.value }))}
-              placeholder="EPA Certified, Licensed Electrician, etc."
-              rows={2}
-            />
-          </div>
 
-          {/* Payment Account Details */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="bankAccount">Bank Account</Label>
-              <Input
-                id="bankAccount"
-                value={formData.bankAccount}
-                onChange={(e) => setFormData(prev => ({ ...prev, bankAccount: e.target.value }))}
-                placeholder="Account number"
-              />
-            </div>
-            <div>
-              <Label htmlFor="paypalEmail">PayPal Email</Label>
-              <Input
-                id="paypalEmail"
-                type="email"
-                value={formData.paypalEmail}
-                onChange={(e) => setFormData(prev => ({ ...prev, paypalEmail: e.target.value }))}
-                placeholder="paypal@example.com"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="venmoHandle">Venmo Handle</Label>
-              <Input
-                id="venmoHandle"
-                value={formData.venmoHandle}
-                onChange={(e) => setFormData(prev => ({ ...prev, venmoHandle: e.target.value }))}
-                placeholder="@username"
-              />
-            </div>
-            <div>
-              <Label htmlFor="cashappHandle">CashApp Handle</Label>
-              <Input
-                id="cashappHandle"
-                value={formData.cashappHandle}
-                onChange={(e) => setFormData(prev => ({ ...prev, cashappHandle: e.target.value }))}
-                placeholder="$username"
-              />
-            </div>
-          </div>
 
           {/* Payment Methods */}
           <Card className="border-2 border-blue-100">
