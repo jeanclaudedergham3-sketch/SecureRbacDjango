@@ -87,7 +87,7 @@ export function initializeDatabase() {
         status TEXT DEFAULT 'online' NOT NULL,
         cpu_usage INTEGER DEFAULT 0,
         memory_usage INTEGER DEFAULT 0,
-        created_at INTEGER NOT NULL
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
 
       CREATE TABLE IF NOT EXISTS technicians (
@@ -107,7 +107,7 @@ export function initializeDatabase() {
         longitude REAL,
         payment_methods TEXT,
         payment_details TEXT,
-        created_at INTEGER NOT NULL
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
 
       CREATE TABLE IF NOT EXISTS technician_ratings (
@@ -116,7 +116,7 @@ export function initializeDatabase() {
         user_id INTEGER NOT NULL,
         rating INTEGER NOT NULL,
         comment TEXT,
-        created_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         FOREIGN KEY (technician_id) REFERENCES technicians(id),
         FOREIGN KEY (user_id) REFERENCES users(id)
       );
@@ -195,7 +195,7 @@ export function initializeDatabase() {
         amount_paid TEXT DEFAULT '0',
         status TEXT DEFAULT 'pending' NOT NULL,
         description TEXT,
-        requested_at INTEGER NOT NULL,
+        requested_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         FOREIGN KEY (work_order_id) REFERENCES work_orders(id),
         FOREIGN KEY (technician_id) REFERENCES technicians(id)
       );
@@ -210,7 +210,7 @@ export function initializeDatabase() {
         total_amount TEXT,
         status TEXT,
         notes TEXT,
-        created_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
       );
 

@@ -915,7 +915,7 @@ export class SqliteStorage implements IStorage {
         },
         {
           userId: adminUser[0].id,
-          title: "Payment Request Submitted",
+          title: "Payment Request Submitted", 
           message: "Technician John Smith has submitted a payment request for $450.00",
           type: "warning" as const,
           relatedEntity: "payment",
@@ -926,8 +926,24 @@ export class SqliteStorage implements IStorage {
           title: "Invoice Generated",
           message: "Invoice #INV-2025-001 has been generated for work order #WO-2025-001",
           type: "success" as const,
-          relatedEntity: "invoice",
+          relatedEntity: "invoice", 
           relatedId: 1
+        },
+        {
+          userId: adminUser[0].id,
+          title: "Equipment Maintenance Due",
+          message: "Server #01 is due for scheduled maintenance inspection within 7 days",
+          type: "warning" as const,
+          relatedEntity: "equipment",
+          relatedId: 1
+        },
+        {
+          userId: adminUser[0].id,
+          title: "New Technician Registered",
+          message: "Mike Wilson has been registered as a new technician and is available for assignments",
+          type: "success" as const,
+          relatedEntity: "technician",
+          relatedId: 3
         }
       ];
 
