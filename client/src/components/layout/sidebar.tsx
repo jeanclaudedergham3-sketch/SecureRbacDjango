@@ -41,23 +41,24 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {/* Mobile sidebar overlay */}
       {isOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={onClose} />
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity" onClick={onClose} />
         </div>
       )}
       {/* Sidebar */}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl border-r border-slate-600/30 transform transition-all duration-500 ease-in-out md:translate-x-0 md:static md:inset-0",
+          "fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl border-r border-slate-600/30 transform transition-all duration-500 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
-          isHovered ? "w-64" : "w-16"
+          "lg:w-16 lg:hover:w-64",
+          isHovered ? "w-64" : "w-64 lg:w-16"
         )}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="flex flex-col flex-grow pt-6 pb-4 overflow-y-auto">
           {/* Mobile close button */}
-          <div className="flex items-center justify-between px-4 md:hidden">
+          <div className="flex items-center justify-between px-4 lg:hidden">
             <div className="flex items-center">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <Shield className="h-4 w-4 text-white" />
@@ -71,7 +72,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
           {/* Logo */}
           <div className={cn(
-            "hidden md:flex items-center flex-shrink-0 mb-8 transition-all duration-500",
+            "hidden lg:flex items-center flex-shrink-0 mb-8 transition-all duration-500",
             isHovered ? "px-4" : "px-3 justify-center"
           )}>
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-blue-400/20 flex-shrink-0">
