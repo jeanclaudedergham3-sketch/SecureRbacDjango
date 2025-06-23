@@ -26,13 +26,24 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
   // Form state
   const [formData, setFormData] = useState({
     clientName: "",
+    clientPhone: "",
+    clientEmail: "",
     country: "",
     city: "",
     street: "",
+    zipCode: "",
+    description: "",
+    urgency: "medium",
+    equipmentType: "",
+    problemDescription: "",
     nte: "",
     tnte: "",
     startDate: "",
     endDate: "",
+    estimatedHours: "",
+    specialInstructions: "",
+    accessInstructions: "",
+    safetyRequirements: "",
     assignedUserIds: [] as number[],
     status: "active",
   });
@@ -47,26 +58,48 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     if (workOrder) {
       setFormData({
         clientName: workOrder.clientName || "",
+        clientPhone: workOrder.clientPhone || "",
+        clientEmail: workOrder.clientEmail || "",
         country: workOrder.country || "",
         city: workOrder.city || "",
         street: workOrder.street || "",
+        zipCode: workOrder.zipCode || "",
+        description: workOrder.description || "",
+        urgency: workOrder.urgency || "medium",
+        equipmentType: workOrder.equipmentType || "",
+        problemDescription: workOrder.problemDescription || "",
         nte: workOrder.nte || "",
         tnte: workOrder.tnte || "",
         startDate: workOrder.startDate ? new Date(workOrder.startDate).toISOString().split('T')[0] : "",
         endDate: workOrder.endDate ? new Date(workOrder.endDate).toISOString().split('T')[0] : "",
+        estimatedHours: workOrder.estimatedHours || "",
+        specialInstructions: workOrder.specialInstructions || "",
+        accessInstructions: workOrder.accessInstructions || "",
+        safetyRequirements: workOrder.safetyRequirements || "",
         assignedUserIds: workOrder.assignedUsers?.map(user => user.id) || [],
         status: workOrder.status || "active",
       });
     } else {
       setFormData({
         clientName: "",
+        clientPhone: "",
+        clientEmail: "",
         country: "",
         city: "",
         street: "",
+        zipCode: "",
+        description: "",
+        urgency: "medium",
+        equipmentType: "",
+        problemDescription: "",
         nte: "",
         tnte: "",
         startDate: "",
         endDate: "",
+        estimatedHours: "",
+        specialInstructions: "",
+        accessInstructions: "",
+        safetyRequirements: "",
         assignedUserIds: [],
         status: "active",
       });
@@ -100,7 +133,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     
     // Basic validation
     if (!formData.clientName.trim() || !formData.country.trim() || !formData.city.trim() || 
-        !formData.street.trim() || !formData.nte.trim() || !formData.tnte.trim() ||
+        !formData.street.trim() || !formData.description.trim() || !formData.nte.trim() || !formData.tnte.trim() ||
         !formData.startDate || !formData.endDate || formData.assignedUserIds.length === 0) {
       toast({
         title: "Error",
@@ -153,18 +186,39 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Client Information</h3>
             
-            <div>
-              <Label htmlFor="clientName">Client Name *</Label>
-              <Input
-                id="clientName"
-                value={formData.clientName}
-                onChange={(e) => setFormData(prev => ({ ...prev, clientName: e.target.value }))}
-                placeholder="Enter client name"
-                required
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="clientName">Client Name *</Label>
+                <Input
+                  id="clientName"
+                  value={formData.clientName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, clientName: e.target.value }))}
+                  placeholder="Enter client name"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="clientPhone">Client Phone</Label>
+                <Input
+                  id="clientPhone"
+                  value={formData.clientPhone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, clientPhone: e.target.value }))}
+                  placeholder="+1-555-0123"
+                />
+              </div>
+              <div>
+                <Label htmlFor="clientEmail">Client Email</Label>
+                <Input
+                  id="clientEmail"
+                  type="email"
+                  value={formData.clientEmail}
+                  onChange={(e) => setFormData(prev => ({ ...prev, clientEmail: e.target.value }))}
+                  placeholder="client@example.com"
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="country">Country *</Label>
                 <Input
@@ -195,6 +249,121 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
                   required
                 />
               </div>
+              <div>
+                <Label htmlFor="zipCode">ZIP Code</Label>
+                <Input
+                  id="zipCode"
+                  value={formData.zipCode}
+                  onChange={(e) => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
+                  placeholder="12345"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Work Details */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Work Details</h3>
+            
+            <div>
+              <Label htmlFor="description">Work Description *</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Describe the work to be performed..."
+                rows={3}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="urgency">Urgency Level</Label>
+                <Select
+                  value={formData.urgency}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, urgency: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="emergency">Emergency</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="equipmentType">Equipment Type</Label>
+                <Input
+                  id="equipmentType"
+                  value={formData.equipmentType}
+                  onChange={(e) => setFormData(prev => ({ ...prev, equipmentType: e.target.value }))}
+                  placeholder="HVAC, Electrical, Plumbing..."
+                />
+              </div>
+              <div>
+                <Label htmlFor="estimatedHours">Estimated Hours</Label>
+                <Input
+                  id="estimatedHours"
+                  type="number"
+                  step="0.5"
+                  value={formData.estimatedHours}
+                  onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: e.target.value }))}
+                  placeholder="8.0"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="problemDescription">Problem Description</Label>
+              <Textarea
+                id="problemDescription"
+                value={formData.problemDescription}
+                onChange={(e) => setFormData(prev => ({ ...prev, problemDescription: e.target.value }))}
+                placeholder="Detailed description of the problem or issue..."
+                rows={2}
+              />
+            </div>
+          </div>
+
+          {/* Additional Instructions */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Instructions & Requirements</h3>
+            
+            <div>
+              <Label htmlFor="specialInstructions">Special Instructions</Label>
+              <Textarea
+                id="specialInstructions"
+                value={formData.specialInstructions}
+                onChange={(e) => setFormData(prev => ({ ...prev, specialInstructions: e.target.value }))}
+                placeholder="Any special instructions for the technician..."
+                rows={2}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="accessInstructions">Access Instructions</Label>
+              <Textarea
+                id="accessInstructions"
+                value={formData.accessInstructions}
+                onChange={(e) => setFormData(prev => ({ ...prev, accessInstructions: e.target.value }))}
+                placeholder="How to access the site, key codes, contact person..."
+                rows={2}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="safetyRequirements">Safety Requirements</Label>
+              <Textarea
+                id="safetyRequirements"
+                value={formData.safetyRequirements}
+                onChange={(e) => setFormData(prev => ({ ...prev, safetyRequirements: e.target.value }))}
+                placeholder="PPE requirements, safety protocols, hazards to be aware of..."
+                rows={2}
+              />
             </div>
           </div>
 
