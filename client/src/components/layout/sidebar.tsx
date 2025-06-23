@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -15,23 +16,47 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [location] = useLocation();
   const { user, role, logout } = useAuth();
+  const { hasPermission } = usePermissions();
   const [isHovered, setIsHovered] = useState(false);
 
-  const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: BarChart3, permission: "view_dashboard" },
-    { name: "Users", href: "/users", icon: Users, permission: "view_users" },
-    { name: "Roles & Permissions", href: "/roles", icon: UserCheck, permission: "view_roles" },
-
-    { name: "Technicians", href: "/technicians", icon: Users, permission: "manage_technicians" },
-    { name: "Technician Map", href: "/technician-map", icon: Map, permission: "manage_technicians" },
-    { name: "Work Orders", href: "/work-orders", icon: ClipboardList, permission: "view_work_orders" },
-    { name: "Proposals", href: "/proposals", icon: FileText, permission: "view_work_orders" },
-    { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "view_work_orders" },
-    { name: "Payment Manager", href: "/payment-manager", icon: DollarSign, permission: "manage_work_orders" },
-    { name: "Technician Payments", href: "/technician-payments", icon: BarChart3, permission: "view_work_orders" },
-    { name: "ABC Invoices", href: "/invoices", icon: FileText, permission: "view_work_orders" },
-    { name: "Financial Analysis", href: "/financial-analysis", icon: TrendingUp, permission: "view_dashboard" },
-
+  const navigationSections = [
+    {
+      title: "Overview",
+      items: [
+        { name: "Dashboard", href: "/", icon: BarChart3, permission: "view_dashboard" },
+        { name: "Financial Analysis", href: "/financial-analysis", icon: TrendingUp, permission: "manage_payments" },
+      ]
+    },
+    {
+      title: "User Management", 
+      items: [
+        { name: "Users", href: "/users", icon: Users, permission: "view_users" },
+        { name: "Roles & Permissions", href: "/roles", icon: UserCheck, permission: "view_roles" },
+      ]
+    },
+    {
+      title: "Operations",
+      items: [
+        { name: "Work Orders", href: "/work-orders", icon: ClipboardList, permission: "view_work_orders" },
+        { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "view_work_orders" },
+        { name: "Proposals", href: "/proposals", icon: FileText, permission: "view_work_orders" },
+        { name: "Invoices", href: "/invoices", icon: FileText, permission: "view_work_orders" },
+      ]
+    },
+    {
+      title: "Technicians",
+      items: [
+        { name: "Technician List", href: "/technicians", icon: Settings, permission: "manage_technicians" },
+        { name: "Technician Map", href: "/technician-map", icon: Map, permission: "manage_technicians" },
+      ]
+    },
+    {
+      title: "Payments",
+      items: [
+        { name: "Payment Manager", href: "/payment-manager", icon: DollarSign, permission: "manage_payments" },
+        { name: "Technician Payments", href: "/technician-payments", icon: DollarSign, permission: "manage_payments" },
+      ]
+    }
   ];
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -152,69 +177,95 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
-            {navigation.map((item) => {
-              const isActive = location === item.href;
-              const Icon = item.icon;
-
-              if (item.permission) {
-                return (
-                  <PermissionGuard key={item.name} permission={item.permission}>
-                    <Link href={item.href}>
-                      <button
-                        className={cn(
-                          "w-full group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
-                          isActive
-                            ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30"
-                            : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
-                        )}
-                        onClick={onClose}
-                      >
-                        <Icon className="h-5 w-5 flex-shrink-0" />
-                        <span className={cn(
-                          "ml-3 transition-all duration-500 whitespace-nowrap font-medium",
-                          isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
-                        )}>
-                          {item.name}
-                        </span>
-                        {!isHovered && (
-                          <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
-                            {item.name}
-                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
-                          </div>
-                        )}
-                      </button>
-                    </Link>
-                  </PermissionGuard>
-                );
-              }
-
+          <nav className="flex-1 px-3 space-y-4 overflow-y-auto scrollbar-thin">
+            {navigationSections.map((section) => {
+              // Check if user has permission for any item in this section
+              const hasAnyPermission = section.items.some(item => 
+                !item.permission || true // We'll check permissions per item below
+              );
+              
+              if (!hasAnyPermission) return null;
+              
               return (
-                <Link key={item.name} href={item.href}>
-                  <button
-                    className={cn(
-                      "w-full group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
-                      isActive
-                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30"
-                        : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
-                    )}
-                    onClick={onClose}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    <span className={cn(
-                      "ml-3 transition-all duration-500 whitespace-nowrap font-medium",
-                      isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
-                    )}>
-                      {item.name}
-                    </span>
-                    {!isHovered && (
-                      <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
-                        {item.name}
-                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
-                      </div>
-                    )}
-                  </button>
-                </Link>
+                <div key={section.title} className="space-y-1">
+                  {/* Section Title */}
+                  <div className={cn(
+                    "transition-all duration-500",
+                    isHovered ? "opacity-100 px-2 py-1" : "opacity-0 h-0 overflow-hidden"
+                  )}>
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      {section.title}
+                    </h3>
+                  </div>
+                  
+                  {/* Section Items */}
+                  <div className="space-y-1">
+                    {section.items.map((item) => {
+                      const isActive = location === item.href;
+                      const Icon = item.icon;
+                      
+                      if (item.permission) {
+                        return (
+                          <PermissionGuard key={item.name} permission={item.permission}>
+                            <Link href={item.href}>
+                              <button
+                                className={cn(
+                                  "w-full group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
+                                  isActive
+                                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30"
+                                    : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
+                                )}
+                                onClick={onClose}
+                              >
+                                <Icon className="h-4 w-4 flex-shrink-0" />
+                                <span className={cn(
+                                  "ml-3 transition-all duration-500 whitespace-nowrap font-medium",
+                                  isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
+                                )}>
+                                  {item.name}
+                                </span>
+                                {!isHovered && (
+                                  <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
+                                    {item.name}
+                                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
+                                  </div>
+                                )}
+                              </button>
+                            </Link>
+                          </PermissionGuard>
+                        );
+                      }
+
+                      return (
+                        <Link key={item.name} href={item.href}>
+                          <button
+                            className={cn(
+                              "w-full group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
+                              isActive
+                                ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30"
+                                : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
+                            )}
+                            onClick={onClose}
+                          >
+                            <Icon className="h-4 w-4 flex-shrink-0" />
+                            <span className={cn(
+                              "ml-3 transition-all duration-500 whitespace-nowrap font-medium",
+                              isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
+                            )}>
+                              {item.name}
+                            </span>
+                            {!isHovered && (
+                              <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
+                                {item.name}
+                                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
+                              </div>
+                            )}
+                          </button>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </nav>
