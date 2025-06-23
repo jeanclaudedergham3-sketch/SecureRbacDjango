@@ -1,6 +1,7 @@
 import { Search, Bell, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NotificationDropdown } from "@/components/notifications/notification-dropdown";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -37,9 +38,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         </div>
         
         <div className="ml-4 flex items-center md:ml-6">
-          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-500">
-            <Bell className="h-5 w-5" />
-          </Button>
+          <NotificationDropdown />
         </div>
       </div>
     </div>

@@ -189,6 +189,18 @@ export const workOrderInvoices = sqliteTable("work_order_invoices", {
   createdAt: integer("created_at", { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
+export const notifications = sqliteTable("notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull().default("info"), // info, success, warning, error
+  isRead: integer("is_read", { mode: "boolean" }).default(false),
+  relatedEntity: text("related_entity"),
+  relatedId: integer("related_id"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -277,6 +289,11 @@ export const insertWorkOrderInvoiceSchema = createInsertSchema(workOrderInvoices
   createdAt: true,
 });
 
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
@@ -297,6 +314,7 @@ export type WorkOrderFile = typeof workOrderFiles.$inferSelect;
 export type WorkOrderChat = typeof workOrderChats.$inferSelect;
 export type WorkOrderTechnicianPayment = typeof workOrderTechnicianPayments.$inferSelect;
 export type WorkOrderInvoice = typeof workOrderInvoices.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
@@ -311,6 +329,7 @@ export type InsertWorkOrderFile = z.infer<typeof insertWorkOrderFileSchema>;
 export type InsertWorkOrderChat = z.infer<typeof insertWorkOrderChatSchema>;
 export type InsertWorkOrderTechnicianPayment = z.infer<typeof insertWorkOrderTechnicianPaymentSchema>;
 export type InsertWorkOrderInvoice = z.infer<typeof insertWorkOrderInvoiceSchema>;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
 
 export type UserWithRole = User & {

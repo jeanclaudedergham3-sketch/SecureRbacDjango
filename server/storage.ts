@@ -2,14 +2,14 @@ import { db } from "./database";
 import { 
   users, roles, permissions, userRoles, rolePermissions, equipment, technicians, technicianRatings,
   workOrders, workOrderProposals, workOrderPartsRequests, workOrderFiles, workOrderChats, 
-  workOrderTechnicianPayments, workOrderInvoices,
+  workOrderTechnicianPayments, workOrderInvoices, notifications,
   type User, type Role, type Permission, type Equipment, type Technician, type TechnicianRating,
   type WorkOrder, type WorkOrderProposal, type WorkOrderPartsRequest, type WorkOrderFile, 
-  type WorkOrderChat, type WorkOrderTechnicianPayment, type WorkOrderInvoice,
+  type WorkOrderChat, type WorkOrderTechnicianPayment, type WorkOrderInvoice, type Notification,
   type InsertUser, type InsertRole, type InsertPermission, type InsertEquipment, 
   type InsertTechnician, type InsertRating, type InsertWorkOrder, type InsertWorkOrderProposal,
   type InsertWorkOrderPartsRequest, type InsertWorkOrderFile, type InsertWorkOrderChat,
-  type InsertWorkOrderTechnicianPayment, type InsertWorkOrderInvoice,
+  type InsertWorkOrderTechnicianPayment, type InsertWorkOrderInvoice, type InsertNotification,
   type UserWithRole, type RoleWithPermissions, type WorkOrderWithUsers
 } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
@@ -116,6 +116,12 @@ export interface IStorage {
   
   // Proposal operations for financial analysis
   getAllProposals(): Promise<WorkOrderProposal[]>;
+  
+  // Notification operations
+  getNotifications(userId?: number): Promise<Notification[]>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: number): Promise<boolean>;
+  markAllNotificationsAsRead(userId: number): Promise<boolean>;
 }
 
 export class SqliteStorage implements IStorage {
@@ -849,6 +855,90 @@ export class SqliteStorage implements IStorage {
       .where(eq(workOrders.id, workOrderId));
     console.log(`Storage: Work order ${workOrderId} lock result:`, result.changes > 0);
     return result.changes > 0;
+  }
+
+  async getAllProposals(): Promise<WorkOrderProposal[]> {
+    return await db.select().from(workOrderProposals);
+  }
+
+  async getNotifications(userId?: number): Promise<Notification[]> {
+    if (userId) {
+      return await db.select()
+        .from(notifications)
+        .where(eq(notifications.userId, userId))
+        .orderBy(sql`${notifications.createdAt} DESC`);
+    }
+    return await db.select()
+      .from(notifications)
+      .orderBy(sql`${notifications.createdAt} DESC`);
+  }
+
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const [notification] = await db.insert(notifications)
+      .values(insertNotification)
+      .returning();
+    return notification;
+  }
+
+  async markNotificationAsRead(id: number): Promise<boolean> {
+    const result = await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async markAllNotificationsAsRead(userId: number): Promise<boolean> {
+    const result = await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.userId, userId))
+      .returning();
+    return result.length > 0;
+  }
+
+  private async createSampleNotifications() {
+    try {
+      const existingNotifications = await db.select().from(notifications).limit(1);
+      if (existingNotifications.length > 0) return;
+
+      const adminUser = await db.select().from(users).where(eq(users.username, 'admin')).limit(1);
+      if (adminUser.length === 0) return;
+
+      const sampleNotifications = [
+        {
+          userId: adminUser[0].id,
+          title: "New Work Order Created",
+          message: "Work order #WO-2025-001 has been created and assigned to technician Sarah Johnson",
+          type: "info" as const,
+          relatedEntity: "work_order",
+          relatedId: 1
+        },
+        {
+          userId: adminUser[0].id,
+          title: "Payment Request Submitted",
+          message: "Technician John Smith has submitted a payment request for $450.00",
+          type: "warning" as const,
+          relatedEntity: "payment",
+          relatedId: 1
+        },
+        {
+          userId: adminUser[0].id,
+          title: "Invoice Generated",
+          message: "Invoice #INV-2025-001 has been generated for work order #WO-2025-001",
+          type: "success" as const,
+          relatedEntity: "invoice",
+          relatedId: 1
+        }
+      ];
+
+      for (const notification of sampleNotifications) {
+        await db.insert(notifications).values(notification);
+      }
+
+      console.log('Sample notifications created');
+    } catch (error) {
+      console.error('Error creating sample notifications:', error);
+    }
   }
 }
 
