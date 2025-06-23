@@ -37,6 +37,21 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
     latitude: "",
     longitude: "",
     taxNumber: "",
+    specialties: "",
+    certifications: "",
+    hourlyRate: "",
+    status: "available",
+    firstName: "",
+    lastName: "",
+    bankAccount: "",
+    routingNumber: "",
+    bankName: "",
+    paypalEmail: "",
+    paypalLink: "",
+    venmoHandle: "",
+    cashappHandle: "",
+    zelleInfo: "",
+    mailingAddress: "",
   });
 
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
@@ -53,6 +68,21 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
         latitude: technician.latitude || "",
         longitude: technician.longitude || "",
         taxNumber: technician.taxNumber || "",
+        specialties: technician.specialties || "",
+        certifications: technician.certifications || "",
+        hourlyRate: technician.hourlyRate || "",
+        status: technician.status || "available",
+        firstName: technician.firstName || "",
+        lastName: technician.lastName || "",
+        bankAccount: technician.bankAccount || "",
+        routingNumber: technician.routingNumber || "",
+        bankName: technician.bankName || "",
+        paypalEmail: technician.paypalEmail || "",
+        paypalLink: technician.paypalLink || "",
+        venmoHandle: technician.venmoHandle || "",
+        cashappHandle: technician.cashappHandle || "",
+        zelleInfo: technician.zelleInfo || "",
+        mailingAddress: technician.mailingAddress || "",
       });
       
       try {
@@ -73,6 +103,21 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
         latitude: "",
         longitude: "",
         taxNumber: "",
+        specialties: "",
+        certifications: "",
+        hourlyRate: "",
+        status: "available",
+        firstName: "",
+        lastName: "",
+        bankAccount: "",
+        routingNumber: "",
+        bankName: "",
+        paypalEmail: "",
+        paypalLink: "",
+        venmoHandle: "",
+        cashappHandle: "",
+        zelleInfo: "",
+        mailingAddress: "",
       });
       setSelectedPaymentMethods([]);
       setPaymentDetails({});
@@ -246,6 +291,84 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
               onChange={(e) => setFormData(prev => ({ ...prev, taxNumber: e.target.value }))}
               placeholder="TAX123456"
             />
+          </div>
+
+          {/* Professional Information */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="specialties">Specialties</Label>
+              <Input
+                id="specialties"
+                value={formData.specialties}
+                onChange={(e) => setFormData(prev => ({ ...prev, specialties: e.target.value }))}
+                placeholder="HVAC, Electrical, Plumbing"
+              />
+            </div>
+            <div>
+              <Label htmlFor="hourlyRate">Hourly Rate</Label>
+              <Input
+                id="hourlyRate"
+                type="number"
+                value={formData.hourlyRate}
+                onChange={(e) => setFormData(prev => ({ ...prev, hourlyRate: e.target.value }))}
+                placeholder="75"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="certifications">Certifications</Label>
+            <Textarea
+              id="certifications"
+              value={formData.certifications}
+              onChange={(e) => setFormData(prev => ({ ...prev, certifications: e.target.value }))}
+              placeholder="EPA Certified, Licensed Electrician, etc."
+              rows={2}
+            />
+          </div>
+
+          {/* Payment Account Details */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="bankAccount">Bank Account</Label>
+              <Input
+                id="bankAccount"
+                value={formData.bankAccount}
+                onChange={(e) => setFormData(prev => ({ ...prev, bankAccount: e.target.value }))}
+                placeholder="Account number"
+              />
+            </div>
+            <div>
+              <Label htmlFor="paypalEmail">PayPal Email</Label>
+              <Input
+                id="paypalEmail"
+                type="email"
+                value={formData.paypalEmail}
+                onChange={(e) => setFormData(prev => ({ ...prev, paypalEmail: e.target.value }))}
+                placeholder="paypal@example.com"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="venmoHandle">Venmo Handle</Label>
+              <Input
+                id="venmoHandle"
+                value={formData.venmoHandle}
+                onChange={(e) => setFormData(prev => ({ ...prev, venmoHandle: e.target.value }))}
+                placeholder="@username"
+              />
+            </div>
+            <div>
+              <Label htmlFor="cashappHandle">CashApp Handle</Label>
+              <Input
+                id="cashappHandle"
+                value={formData.cashappHandle}
+                onChange={(e) => setFormData(prev => ({ ...prev, cashappHandle: e.target.value }))}
+                placeholder="$username"
+              />
+            </div>
           </div>
 
           {/* Payment Methods */}
