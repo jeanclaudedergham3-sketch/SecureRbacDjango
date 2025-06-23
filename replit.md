@@ -151,6 +151,8 @@ Changelog:
 - June 23, 2025. Completely removed equipment management page and all related functionality per user request
 - June 23, 2025. Enhanced sidebar with professional design: gradient backgrounds, improved animations, better typography, and polished visual elements
 - June 23, 2025. Added beautiful logout confirmation dialog below user info with professional styling and confirmation message
+- June 23, 2025. Added custom scrollbar to sidebar with elegant styling matching the dark theme
+- June 23, 2025. Reorganized sidebar navigation into logical categories: Overview, User Management, Operations, Technicians, and Payments
 ```
 
 ## User Preferences
