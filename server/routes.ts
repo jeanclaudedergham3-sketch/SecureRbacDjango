@@ -796,7 +796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           ...payment,
           workOrderNumber: workOrder?.workOrderNumber || "Unknown",
-          technicianName: technician ? `${technician.firstName} ${technician.lastName}` : "Unknown"
+          technicianName: technician?.name || "Unknown"
         };
       });
       

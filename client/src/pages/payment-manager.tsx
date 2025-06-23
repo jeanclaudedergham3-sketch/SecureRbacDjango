@@ -52,17 +52,8 @@ export default function PaymentManager() {
     adminNotes: ""
   });
 
-  const { data: payments = [], isLoading, error } = useQuery<PaymentRequest[]>({
+  const { data: payments = [], isLoading } = useQuery<PaymentRequest[]>({
     queryKey: ["/api/payments/all"],
-    refetchInterval: 5000, // Refresh every 5 seconds
-  });
-
-  // Debug logging
-  console.log("Payment Manager Debug:", {
-    payments,
-    isLoading,
-    error,
-    paymentsLength: payments?.length
   });
 
   const { data: technicians = [] } = useQuery<Technician[]>({

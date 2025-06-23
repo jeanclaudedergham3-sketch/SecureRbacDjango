@@ -733,33 +733,17 @@ export class SqliteStorage implements IStorage {
 
   // Work Order Technician Payment operations
   async getWorkOrderTechnicianPayments(workOrderId: number): Promise<WorkOrderTechnicianPayment[]> {
-    console.log(`Storage: Getting payments for work order ${workOrderId}`);
-    
     if (workOrderId === 0) {
       // Get all payments
-      const allPayments = await db.select().from(workOrderTechnicianPayments).orderBy(workOrderTechnicianPayments.requestedAt);
-      console.log(`Storage: Found ${allPayments.length} total payments:`, allPayments);
-      return allPayments;
+      return await db.select().from(workOrderTechnicianPayments);
     }
-    
-    const payments = await db.select()
+    return await db.select()
       .from(workOrderTechnicianPayments)
-      .where(eq(workOrderTechnicianPayments.workOrderId, workOrderId))
-      .orderBy(workOrderTechnicianPayments.requestedAt);
-    
-    console.log(`Storage: Found ${payments.length} payments for work order ${workOrderId}:`, payments);
-    return payments;
+      .where(eq(workOrderTechnicianPayments.workOrderId, workOrderId));
   }
 
   async createWorkOrderTechnicianPayment(insertPayment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment> {
-    console.log("Storage: Creating payment with data:", insertPayment);
-    const paymentData = {
-      ...insertPayment,
-      requestedAt: new Date()
-    };
-    console.log("Storage: Final payment data:", paymentData);
-    const result = await db.insert(workOrderTechnicianPayments).values(paymentData).returning();
-    console.log("Storage: Created payment result:", result[0]);
+    const result = await db.insert(workOrderTechnicianPayments).values(insertPayment).returning();
     return result[0];
   }
 
