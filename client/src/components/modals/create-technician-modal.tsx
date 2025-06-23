@@ -199,10 +199,62 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
   };
 
   const paymentMethodOptions = [
-    { value: "paypal", label: "PayPal" },
-    { value: "credit_card", label: "Credit Card" },
-    { value: "cash", label: "Cash" },
-    { value: "bank_transfer", label: "Bank Transfer" },
+    { 
+      value: "paypal", 
+      label: "PayPal", 
+      icon: "💳",
+      description: "Secure online payments via PayPal",
+      features: ["Instant transfers", "Buyer protection", "Mobile payments"]
+    },
+    { 
+      value: "credit_card", 
+      label: "Credit/Debit Cards", 
+      icon: "💎",
+      description: "Accept all major credit and debit cards",
+      features: ["Visa, MasterCard, Amex", "Secure processing", "Real-time approval"]
+    },
+    { 
+      value: "bank_transfer", 
+      label: "Bank Transfer", 
+      icon: "🏦",
+      description: "Direct bank-to-bank transfers",
+      features: ["ACH transfers", "Wire transfers", "Lower fees"]
+    },
+    { 
+      value: "cash", 
+      label: "Cash Payment", 
+      icon: "💵",
+      description: "Cash payments accepted on-site",
+      features: ["No processing fees", "Immediate payment", "Receipt provided"]
+    },
+    { 
+      value: "venmo", 
+      label: "Venmo", 
+      icon: "📲",
+      description: "Popular peer-to-peer payment app",
+      features: ["Social payments", "Instant transfers", "Mobile-first"]
+    },
+    { 
+      value: "cashapp", 
+      label: "Cash App", 
+      icon: "💸",
+      description: "Square's mobile payment service",
+      features: ["Bitcoin support", "Stock investing", "Direct deposit"]
+    },
+    { 
+      value: "zelle", 
+      label: "Zelle", 
+      icon: "⚡",
+      description: "Bank-to-bank transfers in minutes",
+      features: ["Direct bank integration", "Fast transfers", "No fees"]
+    },
+    { 
+      value: "crypto", 
+      label: "Cryptocurrency", 
+      icon: "₿",
+      description: "Bitcoin, Ethereum, and other cryptocurrencies",
+      features: ["Decentralized", "Global payments", "Low transaction fees"]
+    },
   ];
 
   return (
