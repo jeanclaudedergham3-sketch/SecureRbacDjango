@@ -23,38 +23,38 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     {
       title: "Overview",
       items: [
-        { name: "Dashboard", href: "/", icon: BarChart3, permission: "view_dashboard" },
-        { name: "Financial Analysis", href: "/financial-analysis", icon: TrendingUp, permission: "view_dashboard" },
+        { name: "Dashboard", href: "/", icon: BarChart3, permission: "dashboard.view" },
+        { name: "Analytics", href: "/analytics", icon: TrendingUp, permission: "analytics.view" },
       ]
     },
     {
       title: "User Management", 
       items: [
-        { name: "Users", href: "/users", icon: Users, permission: "view_users" },
-        { name: "Roles & Permissions", href: "/roles", icon: UserCheck, permission: "view_roles" },
+        { name: "Users", href: "/users", icon: Users, permission: "users.view" },
+        { name: "Roles & Permissions", href: "/roles", icon: UserCheck, permission: "roles.view" },
       ]
     },
     {
       title: "Operations",
       items: [
-        { name: "Work Orders", href: "/work-orders", icon: ClipboardList, permission: "view_work_orders" },
-        { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "view_work_orders" },
-        { name: "Proposals", href: "/proposals", icon: FileText, permission: "view_work_orders" },
-        { name: "Invoices", href: "/invoices", icon: FileText, permission: "view_work_orders" },
+        { name: "Work Orders", href: "/work-orders", icon: ClipboardList, permission: "workorders.view" },
+        { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "workorders.view" },
+        { name: "Proposals", href: "/proposals", icon: FileText, permission: "workorders.view" },
+        { name: "Invoices", href: "/invoices", icon: FileText, permission: "workorders.view" },
       ]
     },
     {
       title: "Technicians",
       items: [
-        { name: "Technician List", href: "/technicians", icon: Settings, permission: "manage_technicians" },
-        { name: "Technician Map", href: "/technician-map", icon: Map, permission: "manage_technicians" },
+        { name: "Technician List", href: "/technicians", icon: Settings, permission: "technicians.view" },
+        { name: "Technician Map", href: "/technician-map", icon: Map, permission: "technicians.view" },
       ]
     },
     {
       title: "Payments",
       items: [
-        { name: "Payment Manager", href: "/payment-manager", icon: DollarSign, permission: "manage_work_orders" },
-        { name: "Technician Payments", href: "/technician-payments", icon: DollarSign, permission: "view_work_orders" },
+        { name: "Payment Manager", href: "/payment-manager", icon: DollarSign, permission: "payments.view" },
+        { name: "Technician Payments", href: "/technician-payments", icon: DollarSign, permission: "payments.view" },
       ]
     }
   ];
