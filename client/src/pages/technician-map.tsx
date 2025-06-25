@@ -49,8 +49,8 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
 
       const center = techsWithCoords.length > 0 
         ? [
-            techsWithCoords.reduce((sum, tech) => sum + parseFloat(tech.latitude!), 0) / techsWithCoords.length,
-            techsWithCoords.reduce((sum, tech) => sum + parseFloat(tech.longitude!), 0) / techsWithCoords.length
+            techsWithCoords.reduce((sum: number, tech: any) => sum + parseFloat(tech.latitude!), 0) / techsWithCoords.length,
+            techsWithCoords.reduce((sum: number, tech: any) => sum + parseFloat(tech.longitude!), 0) / techsWithCoords.length
           ] as [number, number]
         : [40.7128, -74.0060] as [number, number]; // Default to NYC
 
@@ -71,7 +71,7 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
     markersRef.current = [];
 
     // Add markers for technicians
-    techsWithCoords.forEach(tech => {
+    techsWithCoords.forEach((tech: any) => {
       if (!mapInstanceRef.current) return;
 
       const lat = parseFloat(tech.latitude!);
@@ -115,7 +115,7 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
 
     // Global function for popup buttons
     (window as any).selectTechnician = (id: number) => {
-      const tech = techsWithCoords.find(t => t.id === id);
+      const tech = techsWithCoords.find((t: any) => t.id === id);
       if (tech) onMarkerClick(tech);
     };
 
@@ -142,7 +142,7 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
 
   return (
     <div className="h-full relative rounded-lg overflow-hidden border">
-      <div ref={mapRef} className="h-full w-full" />
+      <div ref={mapRef} className="h-full w-full min-h-[600px]" style={{ height: '100%' }} />
       
       {/* Legend */}
       <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 pointer-events-auto z-[1000]">
@@ -289,10 +289,13 @@ export default function TechnicianMapPage() {
 
       {/* Technician Details Modal */}
       <Dialog open={!!selectedTechnician} onOpenChange={() => setSelectedTechnician(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md z-[9999]" aria-describedby="technician-details-description">
           <DialogHeader>
             <DialogTitle>Technician Details</DialogTitle>
           </DialogHeader>
+          <p id="technician-details-description" className="sr-only">
+            View detailed information about the selected technician including contact details, specialization, and payment methods.
+          </p>
           {selectedTechnician && (
             <div className="space-y-4">
               <div className="text-center">
