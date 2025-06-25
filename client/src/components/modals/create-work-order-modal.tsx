@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -22,55 +25,35 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Form state
+  // Form state - keeping all original fields
   const [formData, setFormData] = useState({
-    title: "",
+    clientName: "",
+    clientPhone: "",
+    clientEmail: "",
+    country: "",
+    city: "",
+    street: "",
+    zipCode: "",
     description: "",
-    priority: "medium",
-    category: "",
-    location: "",
+    urgency: "medium",
+    equipmentType: "",
+    problemDescription: "",
+    nte: "",
+    tnte: "",
+    startDate: "",
+    endDate: "",
     estimatedHours: "",
-    scheduledDate: "",
-    assignedTo: null as number | null,
-    technicianId: null as number | null,
-    status: "pending",
+    specialInstructions: "",
+    accessInstructions: "",
+    safetyRequirements: "",
+    assignedUserIds: [] as number[],
+    status: "active",
   });
 
   // Fetch users for assignment dropdown
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
-
-  // Reset form when modal opens/closes
-  useEffect(() => {
-    if (workOrder) {
-      setFormData({
-        title: workOrder.title || "",
-        description: workOrder.description || "",
-        priority: workOrder.priority || "medium",
-        category: workOrder.category || "",
-        location: workOrder.location || "",
-        estimatedHours: workOrder.estimatedHours ? workOrder.estimatedHours.toString() : "",
-        scheduledDate: workOrder.scheduledDate ? new Date(workOrder.scheduledDate).toISOString().split('T')[0] : "",
-        assignedTo: workOrder.assignedTo || null,
-        technicianId: workOrder.technicianId || null,
-        status: workOrder.status || "pending",
-      });
-    } else {
-      setFormData({
-        title: "",
-        description: "",
-        priority: "medium",
-        category: "",
-        location: "",
-        estimatedHours: "",
-        scheduledDate: "",
-        assignedTo: null,
-        technicianId: null,
-        status: "pending",
-      });
-    }
-  }, [workOrder, isOpen]);
 
   const createWorkOrderMutation = useMutation({
     mutationFn: (data: any) => 
@@ -94,31 +77,116 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     },
   });
 
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (workOrder) {
+      setFormData({
+        clientName: workOrder.title || "", // Map to available fields
+        clientPhone: "",
+        clientEmail: "",
+        country: "",
+        city: "",
+        street: "",
+        zipCode: "",
+        description: workOrder.description || "",
+        urgency: workOrder.priority || "medium",
+        equipmentType: workOrder.category || "",
+        problemDescription: "",
+        nte: "",
+        tnte: "",
+        startDate: workOrder.scheduledDate ? new Date(workOrder.scheduledDate).toISOString().split('T')[0] : "",
+        endDate: "",
+        estimatedHours: workOrder.estimatedHours ? workOrder.estimatedHours.toString() : "",
+        specialInstructions: "",
+        accessInstructions: "",
+        safetyRequirements: "",
+        assignedUserIds: workOrder.assignedTo ? [workOrder.assignedTo] : [],
+        status: workOrder.status || "active",
+      });
+    } else {
+      setFormData({
+        clientName: "",
+        clientPhone: "",
+        clientEmail: "",
+        country: "",
+        city: "",
+        street: "",
+        zipCode: "",
+        description: "",
+        urgency: "medium",
+        equipmentType: "",
+        problemDescription: "",
+        nte: "",
+        tnte: "",
+        startDate: "",
+        endDate: "",
+        estimatedHours: "",
+        specialInstructions: "",
+        accessInstructions: "",
+        safetyRequirements: "",
+        assignedUserIds: [],
+        status: "active",
+      });
+    }
+  }, [workOrder, isOpen]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     // Basic validation
-    if (!formData.title.trim() || !formData.description.trim() || !formData.category.trim() || !formData.location.trim()) {
+    if (!formData.clientName.trim() || !formData.country.trim() || !formData.city.trim() || 
+        !formData.street.trim() || !formData.description.trim() || !formData.nte.trim() || !formData.tnte.trim() ||
+        !formData.startDate || !formData.endDate || formData.assignedUserIds.length === 0) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields and assign at least one user",
         variant: "destructive",
       });
       return;
     }
 
+    // Validate dates
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
+    if (endDate <= startDate) {
+      toast({
+        title: "Error",
+        description: "End date must be after start date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Map form data to API format
     const submitData = {
-      title: formData.title,
+      title: formData.clientName, // Use client name as title for now
       description: formData.description,
-      priority: formData.priority,
-      category: formData.category,
-      location: formData.location,
+      priority: formData.urgency,
+      category: formData.equipmentType,
+      location: `${formData.street}, ${formData.city}, ${formData.country}`,
       estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : null,
-      scheduledDate: formData.scheduledDate || null,
-      assignedTo: formData.assignedTo,
-      technicianId: formData.technicianId,
+      scheduledDate: formData.startDate,
+      assignedTo: formData.assignedUserIds[0] || null, // Assign first user
       status: formData.status,
-      requestedBy: user?.id, // Add the required requestedBy field
+      requestedBy: user?.id,
+      // Store additional data in description for now
+      extendedData: {
+        clientName: formData.clientName,
+        clientPhone: formData.clientPhone,
+        clientEmail: formData.clientEmail,
+        country: formData.country,
+        city: formData.city,
+        street: formData.street,
+        zipCode: formData.zipCode,
+        nte: formData.nte,
+        tnte: formData.tnte,
+        endDate: formData.endDate,
+        problemDescription: formData.problemDescription,
+        specialInstructions: formData.specialInstructions,
+        accessInstructions: formData.accessInstructions,
+        safetyRequirements: formData.safetyRequirements,
+        assignedUserIds: formData.assignedUserIds
+      }
     };
 
     createWorkOrderMutation.mutate(submitData);
@@ -126,32 +194,100 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{workOrder ? "Edit Work Order" : "Create New Work Order"}</DialogTitle>
           <DialogDescription>
-            {workOrder ? "Update work order information and details." : "Enter work order details and assign to a user."}
+            {workOrder ? "Update work order information and details." : "Enter complete work order details including client information, timeline, and assignments."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
+          {/* Client Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium">Work Order Details</h3>
+            <h3 className="text-lg font-medium">Client Information</h3>
             
-            <div>
-              <Label htmlFor="title">Title *</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Enter work order title"
-                required
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="clientName">Client Name *</Label>
+                <Input
+                  id="clientName"
+                  value={formData.clientName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, clientName: e.target.value }))}
+                  placeholder="Enter client name"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="clientPhone">Client Phone</Label>
+                <Input
+                  id="clientPhone"
+                  value={formData.clientPhone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, clientPhone: e.target.value }))}
+                  placeholder="+1-555-0123"
+                />
+              </div>
+              <div>
+                <Label htmlFor="clientEmail">Client Email</Label>
+                <Input
+                  id="clientEmail"
+                  type="email"
+                  value={formData.clientEmail}
+                  onChange={(e) => setFormData(prev => ({ ...prev, clientEmail: e.target.value }))}
+                  placeholder="client@example.com"
+                />
+              </div>
             </div>
 
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="country">Country *</Label>
+                <Input
+                  id="country"
+                  value={formData.country}
+                  onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                  placeholder="Country"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="city">City *</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  placeholder="City"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="street">Street *</Label>
+                <Input
+                  id="street"
+                  value={formData.street}
+                  onChange={(e) => setFormData(prev => ({ ...prev, street: e.target.value }))}
+                  placeholder="Street address"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="zipCode">ZIP Code</Label>
+                <Input
+                  id="zipCode"
+                  value={formData.zipCode}
+                  onChange={(e) => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
+                  placeholder="12345"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Work Details */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Work Details</h3>
+            
             <div>
-              <Label htmlFor="description">Description *</Label>
+              <Label htmlFor="description">Work Description *</Label>
               <Textarea
                 id="description"
                 value={formData.description}
@@ -162,22 +298,12 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="category">Category *</Label>
-                <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                  placeholder="IT Support, Maintenance, Repair..."
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="priority">Priority</Label>
+                <Label htmlFor="urgency">Urgency Level</Label>
                 <Select
-                  value={formData.priority}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}
+                  value={formData.urgency}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, urgency: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -186,66 +312,19 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
                     <SelectItem value="low">Low</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
                     <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="location">Location *</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                placeholder="Building A - 123 Main St, City, State"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Assignment & Timeline */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Assignment & Timeline</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="assignedTo">Assigned User</Label>
-                <Select
-                  value={formData.assignedTo?.toString() || ""}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, assignedTo: value ? parseInt(value) : null }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.firstName} {user.lastName} ({user.username})
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="urgent">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="equipmentType">Equipment Type</Label>
+                <Input
+                  id="equipmentType"
+                  value={formData.equipmentType}
+                  onChange={(e) => setFormData(prev => ({ ...prev, equipmentType: e.target.value }))}
+                  placeholder="HVAC, Electrical, Plumbing..."
+                />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="estimatedHours">Estimated Hours</Label>
                 <Input
@@ -257,14 +336,202 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
                   placeholder="8.0"
                 />
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="problemDescription">Problem Description</Label>
+              <Textarea
+                id="problemDescription"
+                value={formData.problemDescription}
+                onChange={(e) => setFormData(prev => ({ ...prev, problemDescription: e.target.value }))}
+                placeholder="Detailed description of the problem or issue..."
+                rows={2}
+              />
+            </div>
+          </div>
+
+          {/* Additional Instructions */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Instructions & Requirements</h3>
+            
+            <div>
+              <Label htmlFor="specialInstructions">Special Instructions</Label>
+              <Textarea
+                id="specialInstructions"
+                value={formData.specialInstructions}
+                onChange={(e) => setFormData(prev => ({ ...prev, specialInstructions: e.target.value }))}
+                placeholder="Any special instructions for the technician..."
+                rows={2}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="accessInstructions">Access Instructions</Label>
+              <Textarea
+                id="accessInstructions"
+                value={formData.accessInstructions}
+                onChange={(e) => setFormData(prev => ({ ...prev, accessInstructions: e.target.value }))}
+                placeholder="How to access the site, key codes, contact person..."
+                rows={2}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="safetyRequirements">Safety Requirements</Label>
+              <Textarea
+                id="safetyRequirements"
+                value={formData.safetyRequirements}
+                onChange={(e) => setFormData(prev => ({ ...prev, safetyRequirements: e.target.value }))}
+                placeholder="PPE requirements, safety protocols, hazards to be aware of..."
+                rows={2}
+              />
+            </div>
+          </div>
+
+          {/* Financial Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Financial Details</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="scheduledDate">Scheduled Date</Label>
+                <Label htmlFor="nte">NTE (without tax) *</Label>
                 <Input
-                  id="scheduledDate"
-                  type="date"
-                  value={formData.scheduledDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
+                  id="nte"
+                  type="number"
+                  step="0.01"
+                  value={formData.nte}
+                  onChange={(e) => setFormData(prev => ({ ...prev, nte: e.target.value }))}
+                  placeholder="0.00"
+                  required
                 />
+              </div>
+              <div>
+                <Label htmlFor="tnte">TNTE (including tax) *</Label>
+                <Input
+                  id="tnte"
+                  type="number"
+                  step="0.01"
+                  value={formData.tnte}
+                  onChange={(e) => setFormData(prev => ({ ...prev, tnte: e.target.value }))}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Project Timeline */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Project Timeline</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startDate">Start Date *</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="endDate">End Date *</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Assignment */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Assignment</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <Label>Assigned Users * (Select multiple users)</Label>
+                <Card className="mt-2">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">
+                      Selected Users ({formData.assignedUserIds.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {formData.assignedUserIds.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {formData.assignedUserIds.map((userId) => {
+                          const user = users.find(u => u.id === userId);
+                          return user ? (
+                            <div key={userId} className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm">
+                              <span>{user.firstName} {user.lastName}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    assignedUserIds: prev.assignedUserIds.filter(id => id !== userId)
+                                  }));
+                                }}
+                                className="ml-2 text-blue-600 hover:text-blue-800"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm">No users selected</p>
+                    )}
+                    
+                    <div className="border-t pt-3 space-y-2">
+                      <h4 className="text-sm font-medium">Available Users:</h4>
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {users.filter(user => !formData.assignedUserIds.includes(user.id)).map((user) => (
+                          <div key={user.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`user-${user.id}`}
+                              checked={false}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    assignedUserIds: [...prev.assignedUserIds, user.id]
+                                  }));
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`user-${user.id}`} className="text-sm cursor-pointer">
+                              {user.firstName} {user.lastName} ({user.username})
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
