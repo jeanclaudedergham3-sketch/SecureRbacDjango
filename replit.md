@@ -162,6 +162,10 @@ Changelog:
 - June 25, 2025. Resolved login issues and properly seeded database with admin users (admin/admin123, manager/manager123, viewer/viewer123)
 - June 25, 2025. Fixed empty sidebar navigation by updating permission names to match database permissions (users.view, workorders.view, etc.)
 - June 25, 2025. Resolved database schema column naming mismatches between PostgreSQL snake_case and application camelCase expectations
+- June 25, 2025. Successfully restored complete work order creation form with all original client, financial, timeline, and instruction fields
+- June 25, 2025. Updated database schema to support comprehensive work order data including client details, NTE/TNTE, project timeline, and instruction types
+- June 25, 2025. Fixed permission guards throughout application to use correct database permissions (workorders.create, workorders.edit, etc.)
+- June 25, 2025. Resolved proposal creation 400 errors by including all required database fields in form submission
 ```
 
 ## User Preferences

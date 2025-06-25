@@ -164,8 +164,19 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
   });
 
   const handleSave = () => {
+    const laborTotal = calculateLaborTotal();
+    const partsTotal = calculatePartsTotal();
+    const servicesTotal = calculateServicesTotal();
+    const totalCost = laborTotal + partsTotal + servicesTotal;
+    
     const proposalData = {
       workOrderId: workOrder.id,
+      laborCost: laborTotal.toFixed(2),
+      materialCost: partsTotal.toFixed(2),
+      additionalCosts: servicesTotal.toFixed(2),
+      totalCost: totalCost.toFixed(2),
+      estimatedDuration: "TBD", // Default value
+      description: message || "",
       laborData: JSON.stringify(laborEntries),
       partsData: JSON.stringify(partsEntries),
       servicesData: JSON.stringify(servicesEntries),
