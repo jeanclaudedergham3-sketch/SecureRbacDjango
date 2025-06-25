@@ -132,7 +132,7 @@ export default function Proposals() {
             <Button variant="outline" onClick={() => window.location.href = '/work-orders'}>
               View Work Orders
             </Button>
-            <PermissionGuard permission="manage_work_orders">
+            <PermissionGuard permission="workorders.create">
               <Button onClick={() => window.location.href = '/work-orders'}>
                 Create New Work Order
               </Button>
@@ -291,7 +291,7 @@ export default function Proposals() {
                         onClick={() => setSelectedWorkOrder(item.workOrder)}
                       >
                         <Eye className="h-4 w-4 mr-2" />
-                        {user?.permissions?.includes("manage_work_orders") ? "Manage" : "View"} Details
+                        {user?.permissions?.includes("workorders.create") ? "Manage" : "View"} Details
                       </Button>
                     </div>
                   </div>
