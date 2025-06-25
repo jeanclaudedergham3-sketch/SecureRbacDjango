@@ -967,16 +967,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Dashboard stats requested by user:", req.user.id);
       
-      const users = await storage.getAllUsers();
-      const roles = await storage.getAllRoles();
-      const technicians = await storage.getAllTechnicians();
-      const workOrders = await storage.getAllWorkOrders();
+      // Get counts safely with fallbacks
+      let totalUsers = 0;
+      let activeRoles = 0;
+      let technicians = 0;
+      let workOrders = 0;
+      
+      try {
+        const users = await storage.getAllUsers();
+        totalUsers = users.length;
+      } catch (err) {
+        console.error("Error fetching users:", err);
+      }
+      
+      try {
+        const roles = await storage.getAllRoles();
+        activeRoles = roles.length;
+      } catch (err) {
+        console.error("Error fetching roles:", err);
+      }
+      
+      try {
+        const techList = await storage.getAllTechnicians();
+        technicians = techList.length;
+      } catch (err) {
+        console.error("Error fetching technicians:", err);
+      }
+      
+      try {
+        const orders = await storage.getAllWorkOrders();
+        workOrders = orders.length;
+      } catch (err) {
+        console.error("Error fetching work orders:", err);
+      }
       
       const stats = {
-        totalUsers: users.length,
-        activeRoles: roles.length,
-        technicians: technicians.length,
-        workOrders: workOrders.length,
+        totalUsers,
+        activeRoles,
+        technicians,
+        workOrders,
         securityEvents: 0,
       };
       

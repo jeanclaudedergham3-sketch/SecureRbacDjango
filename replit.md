@@ -160,6 +160,8 @@ Changelog:
 - June 25, 2025. Built advanced Analytics page with comprehensive graphs, charts, and executive reports covering all system data
 - June 25, 2025. Fixed database schema creation and authentication system for PostgreSQL
 - June 25, 2025. Resolved login issues and properly seeded database with admin users (admin/admin123, manager/manager123, viewer/viewer123)
+- June 25, 2025. Fixed empty sidebar navigation by updating permission names to match database permissions (users.view, workorders.view, etc.)
+- June 25, 2025. Resolved database schema column naming mismatches between PostgreSQL snake_case and application camelCase expectations
 ```
 
 ## User Preferences
