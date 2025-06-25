@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Edit, Phone, Star, CreditCard, Award, Mail, MapPin, Wrench, DollarSign, FileText, Trash2 } from "lucide-react";
+import { Plus, Edit, Phone, Star, CreditCard, Award, Mail, MapPin, Wrench, DollarSign, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -104,17 +104,6 @@ export default function Technicians() {
     );
   };
 
-  const getAvailablePaymentMethods = (technician: any): string[] => {
-    const methods = [];
-    if (technician.bankAccount && technician.routingNumber) methods.push("Bank Transfer");
-    if (technician.paypalEmail || technician.paypalLink) methods.push("PayPal");
-    if (technician.venmoHandle) methods.push("Venmo");
-    if (technician.cashappHandle) methods.push("CashApp");
-    if (technician.zelleInfo) methods.push("Zelle");
-    if (technician.mailingAddress) methods.push("Check");
-    return methods;
-  };
-
   const parsePaymentMethods = (methodsStr: string | null) => {
     if (!methodsStr) return [];
     try {
@@ -123,8 +112,6 @@ export default function Technicians() {
       return [];
     }
   };
-
-
 
   return (
     <div className="py-6">
@@ -136,7 +123,7 @@ export default function Technicians() {
               Manage technicians, their contact information, and payment methods.
             </p>
           </div>
-          <PermissionGuard permission="manage_technicians">
+          <PermissionGuard permission="system.admin">
             <Button onClick={() => setIsCreating(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Technician
@@ -152,13 +139,13 @@ export default function Technicians() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-lg">{technician.name}</CardTitle>
+                      <CardTitle className="text-lg">{technician.firstName} {technician.lastName}</CardTitle>
                       <div className="mt-2">
-                        {renderStars(technician.averageRating || 0)}
+                        {renderStars(Number(technician.averageRating) || 0)}
                       </div>
                     </div>
-                    <Badge className={getStatusColor(technician.averageRating || 0)}>
-                      {technician.totalRatings} reviews
+                    <Badge className={getStatusColor(Number(technician.averageRating) || 0)}>
+                      {technician.totalRatings || 0} reviews
                     </Badge>
                   </div>
                 </CardHeader>
@@ -168,7 +155,7 @@ export default function Technicians() {
                   <div className="space-y-2">
                     <div className="flex items-center text-sm text-gray-600">
                       <Phone className="h-4 w-4 mr-2" />
-                      {technician.phoneNumber}
+                      {technician.phone}
                     </div>
                     
                     {technician.email && (
@@ -178,29 +165,27 @@ export default function Technicians() {
                       </div>
                     )}
 
-                    {technician.address && (
+                    {technician.location && (
                       <div className="flex items-start text-sm text-gray-600">
                         <MapPin className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                        <span className="line-clamp-2">{technician.address}</span>
+                        <span className="line-clamp-2">{technician.location}</span>
                       </div>
                     )}
                   </div>
 
                   {/* Professional Information */}
-                  <div className="space-y-2 pt-2 border-t">
-                    {technician.specialties && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Wrench className="h-4 w-4 mr-2" />
-                        <Badge variant="outline" className="text-xs">
-                          {technician.specialties}
-                        </Badge>
+                  <div className="space-y-2">
+                    {technician.specialization && (
+                      <div className="flex items-start text-sm text-gray-600">
+                        <Wrench className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                        <span className="line-clamp-2">{technician.specialization}</span>
                       </div>
                     )}
-                    
-                    {technician.certifications && (
+
+                    {technician.experience && (
                       <div className="flex items-start text-sm text-gray-600">
                         <Award className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                        <span className="line-clamp-2">{technician.certifications}</span>
+                        <span className="line-clamp-2">{technician.experience} years experience</span>
                       </div>
                     )}
 
@@ -210,22 +195,15 @@ export default function Technicians() {
                         <span><strong>${technician.hourlyRate}/hour</strong></span>
                       </div>
                     )}
-
-                    {technician.taxNumber && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <FileText className="h-4 w-4 mr-2" />
-                        <span>Tax #: {technician.taxNumber}</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Status */}
                   <div className="flex items-center text-sm text-gray-600 pt-2 border-t">
                     <div className={`h-2 w-2 rounded-full mr-2 ${
-                      technician.status === 'available' ? 'bg-green-500' : 
-                      technician.status === 'busy' ? 'bg-yellow-500' : 'bg-red-500'
+                      technician.availability === 'available' ? 'bg-green-500' : 
+                      technician.availability === 'busy' ? 'bg-yellow-500' : 'bg-red-500'
                     }`} />
-                    <span className="capitalize">{technician.status}</span>
+                    <span className="capitalize">{technician.availability}</span>
                   </div>
 
                   {/* Payment Methods */}
@@ -236,7 +214,7 @@ export default function Technicians() {
                     </div>
                     {(() => {
                       try {
-                        const methods = JSON.parse(technician.paymentMethods || "[]");
+                        const methods = parsePaymentMethods(technician.paymentMethods);
                         if (methods.length === 0) {
                           return <span className="text-gray-500 text-xs">No payment methods configured</span>;
                         }
@@ -251,50 +229,7 @@ export default function Technicians() {
                         );
                       } catch (error) {
                         console.error('Error parsing payment methods:', error);
-                        // Fallback for old format
-                        const methods = getAvailablePaymentMethods(technician);
-                        if (methods.length === 0) {
-                          return <span className="text-gray-500 text-xs">No payment methods configured</span>;
-                        }
-                        return (
-                          <div className="flex flex-wrap gap-1 mb-2">
-                            {methods.map((method, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {method}
-                              </Badge>
-                            ))}
-                          </div>
-                        );
-                      }
-                    })()}
-                    
-                    {/* Payment Details Preview */}
-                    {(() => {
-                      try {
-                        const details = JSON.parse(technician.paymentDetails || "{}");
-                        if (Object.keys(details).length === 0) return null;
-                        
-                        return (
-                          <div className="text-xs text-gray-500 space-y-1 mt-1">
-                            {details.credit_card && (
-                              <div>💳 Card: ****{details.credit_card.cardNumber?.slice(-4)}</div>
-                            )}
-                            {details.bank_transfer && (
-                              <div>🏦 Bank: {details.bank_transfer.bankName}</div>
-                            )}
-                            {details.paypal && (
-                              <div>💳 PayPal: {details.paypal.paypalEmail}</div>
-                            )}
-                            {details.venmo && (
-                              <div>📱 Venmo: @{details.venmo.venmoHandle}</div>
-                            )}
-                            {details.cashapp && (
-                              <div>💰 CashApp: ${details.cashapp.cashappHandle}</div>
-                            )}
-                          </div>
-                        );
-                      } catch {
-                        return null;
+                        return <span className="text-gray-500 text-xs">No payment methods configured</span>;
                       }
                     })()}
                   </div>
@@ -312,7 +247,7 @@ export default function Technicians() {
 
                 <div className="px-6 py-3 bg-gray-50 border-t">
                   <div className="flex space-x-2">
-                    <PermissionGuard permission="manage_technicians">
+                    <PermissionGuard permission="system.admin">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -324,7 +259,7 @@ export default function Technicians() {
                       </Button>
                     </PermissionGuard>
                     
-                    <PermissionGuard permission="manage_technicians">
+                    <PermissionGuard permission="system.admin">
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -340,7 +275,7 @@ export default function Technicians() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Technician</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete {technician.name}? This action cannot be undone and will remove all associated data including ratings and work assignments.
+                              Are you sure you want to delete {technician.firstName} {technician.lastName}? This action cannot be undone and will remove all associated data including ratings and work assignments.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -349,7 +284,7 @@ export default function Technicians() {
                               onClick={() => deleteTechnicianMutation.mutate(technician.id)}
                               className="bg-red-600 hover:bg-red-700"
                             >
-                              {deleteTechnicianMutation.isPending ? "Deleting..." : "Delete"}
+                              Delete
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -364,28 +299,30 @@ export default function Technicians() {
 
         {technicians.length === 0 && (
           <div className="text-center py-12">
-            <div className="text-gray-500">
-              <Phone className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">No technicians found</h3>
-              <p className="text-sm">Get started by adding your first technician.</p>
-            </div>
+            <Wrench className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No technicians</h3>
+            <p className="mt-1 text-sm text-gray-500">Get started by adding a new technician.</p>
+            <PermissionGuard permission="system.admin">
+              <div className="mt-6">
+                <Button onClick={() => setIsCreating(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Technician
+                </Button>
+              </div>
+            </PermissionGuard>
           </div>
         )}
-      </div>
 
-      <CreateTechnicianModal
-        isOpen={isCreating}
-        onClose={() => setIsCreating(false)}
-        technician={null}
-      />
-
-      {editingTechnician && (
+        {/* Create/Edit Technician Modal */}
         <CreateTechnicianModal
-          isOpen={!!editingTechnician}
-          onClose={() => setEditingTechnician(null)}
+          isOpen={isCreating || !!editingTechnician}
+          onClose={() => {
+            setIsCreating(false);
+            setEditingTechnician(null);
+          }}
           technician={editingTechnician}
         />
-      )}
+      </div>
     </div>
   );
 }
