@@ -107,7 +107,7 @@ export function PartsRequestModal({ isOpen, onClose, workOrder }: PartsRequestMo
             partName: entry.partName.trim(),
             partNumber: entry.partNumber.trim() || null,
             quantity: parseInt(entry.quantity) || 1,
-            estimatedCost: entry.estimatedCost ? parseFloat(entry.estimatedCost) : null,
+            estimatedCost: entry.estimatedCost ? entry.estimatedCost.toString() : null,
             supplier: entry.supplier.trim() || null,
             urgency: entry.urgency || "normal",
             notes: `${requestReason ? requestReason + ". " : ""}${entry.description ? entry.description : ""}`.trim() || null,
