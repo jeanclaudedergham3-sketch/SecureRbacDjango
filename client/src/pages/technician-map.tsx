@@ -16,10 +16,11 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
   onMarkerClick: (technician: Technician) => void;
   searchTerm: string;
 }) => {
-  const filteredTechnicians = technicians.filter(tech => 
-    tech.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (tech.address && tech.address.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredTechnicians = technicians.filter(tech => {
+    const fullName = `${tech.firstName} ${tech.lastName}`.toLowerCase();
+    return fullName.includes(searchTerm.toLowerCase()) ||
+           (tech.location && tech.location.toLowerCase().includes(searchTerm.toLowerCase()));
+  });
 
   // Filter technicians with valid coordinates
   const techsWithCoords = filteredTechnicians.filter(tech => 
@@ -97,17 +98,17 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
                   className="bg-red-500 hover:bg-red-600 text-white shadow-lg text-xs px-2 py-1 rounded-full"
                 >
                   <MapPin className="h-3 w-3 mr-1" />
-                  {tech.name}
+                  {tech.firstName}
                 </Button>
                 
                 {/* Tooltip on hover */}
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap z-50">
-                  <div className="font-semibold">{tech.name}</div>
-                  <div>📞 {tech.phoneNumber}</div>
+                  <div className="font-semibold">{tech.firstName} {tech.lastName}</div>
+                  <div>📞 {tech.phone}</div>
                   {tech.email && <div>📧 {tech.email}</div>}
-                  {tech.address && <div>📍 {tech.address}</div>}
+                  {tech.location && <div>📍 {tech.location}</div>}
                   {tech.averageRating && (
-                    <div>⭐ {parseFloat(tech.averageRating).toFixed(1)} ({tech.totalRatings} reviews)</div>
+                    <div>⭐ {parseFloat(tech.averageRating.toString()).toFixed(1)} ({tech.totalRatings} reviews)</div>
                   )}
                   <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-black"></div>
                 </div>
@@ -143,9 +144,9 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
                   >
                     <MapPin className="h-3 w-3 mr-2" />
                     <div className="text-left">
-                      <div className="font-medium">{tech.name}</div>
-                      {tech.address && (
-                        <div className="text-gray-500 text-xs truncate">{tech.address}</div>
+                      <div className="font-medium">{tech.firstName} {tech.lastName}</div>
+                      {tech.location && (
+                        <div className="text-gray-500 text-xs truncate">{tech.location}</div>
                       )}
                     </div>
                   </Button>
@@ -207,11 +208,15 @@ export default function TechnicianMap() {
   };
 
   const formatPaymentMethod = (method: string) => {
-    const methodNames = {
+    const methodNames: { [key: string]: string } = {
       paypal: "PayPal",
       credit_card: "Credit Card", 
       cash: "Cash",
-      bank_transfer: "Bank Transfer"
+      bank_transfer: "Bank Transfer",
+      venmo: "Venmo",
+      cashapp: "Cash App",
+      zelle: "Zelle",
+      check: "Check"
     };
     return methodNames[method] || method;
   };
@@ -261,7 +266,7 @@ export default function TechnicianMap() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center justify-between">
-                  {selectedTechnician.name}
+                  {selectedTechnician.firstName} {selectedTechnician.lastName}
                   <Badge className="ml-2">
                     {selectedTechnician.totalRatings} reviews
                   </Badge>
@@ -289,8 +294,8 @@ export default function TechnicianMap() {
                   <div className="flex items-center text-sm">
                     <Phone className="h-4 w-4 mr-3 text-gray-400" />
                     <span className="font-medium mr-2">Phone:</span>
-                    <a href={`tel:${selectedTechnician.phoneNumber}`} className="text-blue-600 hover:underline">
-                      {selectedTechnician.phoneNumber}
+                    <a href={`tel:${selectedTechnician.phone}`} className="text-blue-600 hover:underline">
+                      {selectedTechnician.phone}
                     </a>
                   </div>
 
@@ -304,22 +309,22 @@ export default function TechnicianMap() {
                     </div>
                   )}
 
-                  {selectedTechnician.address && (
+                  {selectedTechnician.location && (
                     <div className="flex items-start text-sm">
                       <MapPin className="h-4 w-4 mr-3 text-gray-400 mt-0.5" />
                       <div>
-                        <span className="font-medium">Address:</span>
-                        <p className="text-gray-700 mt-1">{selectedTechnician.address}</p>
+                        <span className="font-medium">Location:</span>
+                        <p className="text-gray-700 mt-1">{selectedTechnician.location}</p>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Tax Number */}
-                {selectedTechnician.taxNumber && (
+                {/* Specialization */}
+                {selectedTechnician.specialization && (
                   <div className="text-sm">
-                    <span className="font-medium">Tax Number:</span>
-                    <span className="ml-2 text-gray-700">{selectedTechnician.taxNumber}</span>
+                    <span className="font-medium">Specialization:</span>
+                    <span className="ml-2 text-gray-700">{selectedTechnician.specialization}</span>
                   </div>
                 )}
 
@@ -331,7 +336,7 @@ export default function TechnicianMap() {
                       Payment Methods
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {parsePaymentMethods(selectedTechnician.paymentMethods).map((method, index) => (
+                      {parsePaymentMethods(selectedTechnician.paymentMethods).map((method: string, index: number) => (
                         <Badge key={index} variant="outline">
                           {formatPaymentMethod(method)}
                         </Badge>
