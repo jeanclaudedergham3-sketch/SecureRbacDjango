@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, CreditCard, Building, Smartphone, QrCode, ArrowLeftRight } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { DollarSign, CreditCard, Building, Smartphone, QrCode, ArrowLeftRight, User, Mail, Phone, MapPin, Star, Clock, Briefcase, Award } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
@@ -19,9 +22,14 @@ import type { WorkOrder } from "@shared/schema";
 
 const paymentRequestSchema = z.object({
   technicianId: z.string().min(1, "Please select a technician"),
-  amountRequested: z.string().min(1, "Amount is required"),
+  amountRequested: z.string().min(1, "Amount is required").refine(
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+    "Amount must be a positive number"
+  ),
   description: z.string().optional(),
   paymentMethods: z.array(z.string()).min(1, "Please select at least one payment method"),
+  priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+  dueDate: z.string().optional(),
 });
 
 type PaymentRequestForm = z.infer<typeof paymentRequestSchema>;
@@ -33,71 +41,69 @@ interface PaymentRequestModalProps {
 }
 
 const paymentMethodsInfo = {
+  paypal: {
+    name: "PayPal",
+    icon: <CreditCard className="h-4 w-4" />,
+    color: "bg-blue-50 border-blue-200 text-blue-700",
+    description: "Secure online payments via PayPal",
+    features: ["Instant transfers", "Buyer protection", "Mobile payments"],
+    details: ["PayPal Link", "Email Address"]
+  },
   credit_card: {
     name: "Credit/Debit Cards",
-    icon: "💎",
-    description: "Visa, MasterCard, American Express",
+    icon: <CreditCard className="h-4 w-4" />,
+    color: "bg-purple-50 border-purple-200 text-purple-700",
+    description: "Accept all major credit and debit cards",
+    features: ["Visa, MasterCard, Amex", "Secure processing", "Real-time approval"],
     details: ["Cardholder Name", "Card Number", "Expiry Date"]
   },
   bank_transfer: {
     name: "Bank Transfer",
-    icon: "🏦",
-    description: "Direct bank transfer",
-    details: ["IBAN", "Bank Name", "Account Name"]
-  },
-  paypal: {
-    name: "PayPal",
-    icon: "💳",
-    description: "PayPal payment",
-    details: ["PayPal Link", "Email Address"]
-  },
-  venmo: {
-    name: "Venmo",
-    icon: "📱",
-    description: "Venmo transfer",
-    details: ["Venmo", "QR Code"]
-  },
-  cashapp: {
-    name: "Cash App",
-    icon: "💰",
-    description: "Cash App payment",
-    details: ["CashApp", "QR Code"]
-  },
-  zelle: {
-    name: "Zelle",
-    icon: "⚡",
-    description: "Zelle quick pay",
-    details: ["Phone Number", "Email Address"]
-  },
-  check: {
-    name: "Check",
-    icon: "📝",
-    description: "Paper check",
-    details: ["Mailing Address"]
+    icon: <Building className="h-4 w-4" />,
+    color: "bg-green-50 border-green-200 text-green-700",
+    description: "Direct bank-to-bank transfers",
+    features: ["ACH transfers", "Wire transfers", "Lower fees"],
+    details: ["Account Number", "Routing Number", "Bank Name"]
   },
   cash: {
     name: "Cash Payment",
-    icon: "💵",
-    description: "Physical cash payment",
-    details: []
+    icon: <DollarSign className="h-4 w-4" />,
+    color: "bg-yellow-50 border-yellow-200 text-yellow-700",
+    description: "Cash payments accepted on-site",
+    features: ["No processing fees", "Immediate payment", "Receipt provided"],
+    details: ["Cash Amount", "Receipt Number"]
   },
-  digital_wallet: {
-    name: "Digital Wallets",
-    icon: "📱",
-    description: "Apple Pay, Google Pay, Samsung Pay",
-    details: []
+  venmo: {
+    name: "Venmo",
+    icon: <Smartphone className="h-4 w-4" />,
+    color: "bg-indigo-50 border-indigo-200 text-indigo-700",
+    description: "Popular peer-to-peer payment app",
+    features: ["Social payments", "Instant transfers", "Mobile-first"],
+    details: ["Venmo Handle", "QR Code"]
   },
-  cryptocurrency: {
-    name: "Cryptocurrency",
-    icon: "₿",
-    description: "Bitcoin, Ethereum, and other digital currencies",
-    details: []
+  cashapp: {
+    name: "Cash App",
+    icon: <Smartphone className="h-4 w-4" />,
+    color: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    description: "Square's mobile payment service",
+    features: ["Bitcoin support", "Stock investing", "Direct deposit"],
+    details: ["CashApp Handle", "QR Code"]
   },
-  financing: {
-    name: "Financing Options",
-    icon: "📊",
-    description: "Payment plans and financing",
-    details: []
+  zelle: {
+    name: "Zelle",
+    icon: <ArrowLeftRight className="h-4 w-4" />,
+    color: "bg-orange-50 border-orange-200 text-orange-700",
+    description: "Bank-to-bank transfers in minutes",
+    features: ["Direct bank integration", "Fast transfers", "No fees"],
+    details: ["Phone Number", "Email Address"]
+  },
+  check: {
+    name: "Check Payment",
+    icon: <Mail className="h-4 w-4" />,
+    color: "bg-gray-50 border-gray-200 text-gray-700",
+    description: "Traditional check payments by mail",
+    features: ["Mailed checks", "Paper trail", "Bank clearing"],
+    details: ["Mailing Address", "Check Amount"]
   }
 };
 
@@ -114,6 +120,8 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
       amountRequested: "",
       description: "",
       paymentMethods: [],
+      priority: "normal",
+      dueDate: "",
     },
   });
 
@@ -147,9 +155,12 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
   });
 
   const handleTechnicianChange = (value: string) => {
-    const technician = technicians.find((t: any) => t.id.toString() === value);
+    const technician = (technicians as any[]).find((t: any) => t.id.toString() === value);
     setSelectedTechnician(technician);
     form.setValue("technicianId", value);
+    // Reset payment methods when technician changes
+    setSelectedPaymentMethods([]);
+    form.setValue("paymentMethods", []);
   };
 
   const handlePaymentMethodToggle = (method: string, checked: boolean) => {
@@ -167,317 +178,310 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
     if (!technician) return [];
     
     try {
-      // Try to parse new payment methods format
       const methods = JSON.parse(technician.paymentMethods || "[]");
-      if (methods.length > 0) return methods;
+      return Array.isArray(methods) ? methods : [];
     } catch {
-      // Fallback to old format
+      return [];
     }
-    
-    // Fallback for backwards compatibility
-    const methods = [];
-    if (technician.bankAccount) methods.push("bank_transfer");
-    if (technician.paypalLink || technician.paypalEmail) methods.push("paypal");
-    if (technician.venmoHandle) methods.push("venmo");
-    if (technician.cashappHandle) methods.push("cashapp");
-    if (technician.zelleInfo) methods.push("zelle");
-    if (technician.mailingAddress) methods.push("check");
-    
-    return methods;
   };
 
   const getPaymentDetails = (technician: any) => {
     if (!technician) return {};
     
     try {
-      // Try to parse new payment details format
-      const paymentDetails = JSON.parse(technician.paymentDetails || "{}");
-      if (Object.keys(paymentDetails).length > 0) {
-        return {
-          bank_transfer: {
-            "Account Number": paymentDetails.bankAccount,
-            "Routing Number": paymentDetails.routingNumber,
-            "Bank Name": paymentDetails.bankName
-          },
-          paypal: {
-            "PayPal Link": paymentDetails.paypalLink,
-            "Email Address": paymentDetails.paypalEmail
-          },
-          venmo: {
-            "Venmo": paymentDetails.venmoHandle,
-            "QR Code": paymentDetails.venmoQR
-          },
-          cashapp: {
-            "CashApp": paymentDetails.cashappHandle,
-            "QR Code": paymentDetails.cashappQR
-          },
-          zelle: {
-            "Phone Number": technician.phoneNumber,
-            "Email Address": paymentDetails.zelleInfo
-          },
-          check: {
-            "Mailing Address": paymentDetails.mailingAddress
-          }
-        };
-      }
+      const details = JSON.parse(technician.paymentDetails || "{}");
+      return details;
     } catch {
-      // Fallback to old format
+      return {};
     }
-    
-    // Fallback for backwards compatibility
-    return {
-      bank_transfer: {
-        "Account Number": technician.bankAccount,
-        "Routing Number": technician.routingNumber,
-        "Bank Name": technician.bankName
-      },
-      paypal: {
-        "PayPal Link": technician.paypalLink,
-        "Email Address": technician.paypalEmail
-      },
-      venmo: {
-        "Venmo": technician.venmoHandle,
-        "QR Code": technician.venmoQR
-      },
-      cashapp: {
-        "CashApp": technician.cashappHandle,
-        "QR Code": technician.cashappQR
-      },
-      zelle: {
-        "Phone Number": technician.phoneNumber,
-        "Email Address": technician.zelleInfo
-      },
-      check: {
-        "Mailing Address": technician.mailingAddress
-      }
-    };
   };
 
   const onSubmit = (data: PaymentRequestForm) => {
-    createPaymentMutation.mutate({
-      ...data,
+    const payload = {
       technicianId: parseInt(data.technicianId),
+      amountRequested: data.amountRequested,
+      description: data.description || "",
       paymentMethod: JSON.stringify(data.paymentMethods),
-    });
+      priority: data.priority,
+      dueDate: data.dueDate || null,
+    };
+
+    createPaymentMutation.mutate(payload);
   };
+
+  const availablePaymentMethods = getAvailablePaymentMethods(selectedTechnician);
+  const paymentDetails = getPaymentDetails(selectedTechnician);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <CreditCard className="h-5 w-5" />
-            <span>Create Payment Request - Work Order #{workOrder.workOrderNumber}</span>
+          <DialogTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Create Payment Request - {workOrder.workOrderNumber}
           </DialogTitle>
+          <DialogDescription>
+            Request payment from a technician for work completed on this work order.
+          </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Technician Selection */}
-            <FormField
-              control={form.control}
-              name="technicianId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Select Technician</FormLabel>
-                  <Select onValueChange={handleTechnicianChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a technician" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {technicians.map((technician: any) => (
-                        <SelectItem key={technician.id} value={technician.id.toString()}>
-                          <div className="flex items-center space-x-2">
-                            <span>
-                              {technician.firstName && technician.lastName 
-                                ? `${technician.firstName} ${technician.lastName}`
-                                : technician.name || `Technician #${technician.id}`
-                              }
-                            </span>
-                            {technician.averageRating && (
-                              <span className="text-sm text-gray-500">⭐ {technician.averageRating}</span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <ScrollArea className="max-h-[calc(90vh-120px)]">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Technician Selection */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  <h3 className="text-lg font-semibold">Select Technician</h3>
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="technicianId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Technician</FormLabel>
+                      <Select onValueChange={handleTechnicianChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose a technician" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {(technicians as any[]).map((technician) => (
+                            <SelectItem key={technician.id} value={technician.id.toString()}>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarFallback>
+                                    {technician.firstName?.[0]}{technician.lastName?.[0]}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{technician.firstName} {technician.lastName}</span>
+                                <Badge variant="outline" className="ml-2">
+                                  ${technician.hourlyRate}/hr
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {/* Payment Methods - Only show when technician is selected */}
-            {selectedTechnician && (
+                {/* Technician Details */}
+                {selectedTechnician && (
+                  <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarFallback className="bg-blue-100 text-blue-700">
+                            {selectedTechnician.firstName?.[0]}{selectedTechnician.lastName?.[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="text-lg">{selectedTechnician.firstName} {selectedTechnician.lastName}</div>
+                          <div className="text-sm text-gray-600 font-normal">{selectedTechnician.specialization}</div>
+                        </div>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-gray-500" />
+                          <span>{selectedTechnician.email}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-gray-500" />
+                          <span>{selectedTechnician.phone}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-gray-500" />
+                          <span>{selectedTechnician.location || "Not specified"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Star className="h-4 w-4 text-yellow-500" />
+                          <span>{selectedTechnician.averageRating || "0"}/5 ({selectedTechnician.totalRatings || 0} reviews)</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Payment Methods */}
+              {selectedTechnician && availablePaymentMethods.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    <h3 className="text-lg font-semibold">Available Payment Methods</h3>
+                  </div>
+                  
+                  <FormField
+                    control={form.control}
+                    name="paymentMethods"
+                    render={() => (
+                      <FormItem>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {availablePaymentMethods.map((method: string) => {
+                            const methodInfo = paymentMethodsInfo[method as keyof typeof paymentMethodsInfo];
+                            if (!methodInfo) return null;
+
+                            return (
+                              <Card 
+                                key={method} 
+                                className={`cursor-pointer transition-all hover:shadow-md ${
+                                  selectedPaymentMethods.includes(method) 
+                                    ? methodInfo.color + " border-2" 
+                                    : "border hover:border-gray-300"
+                                }`}
+                                onClick={() => handlePaymentMethodToggle(method, !selectedPaymentMethods.includes(method))}
+                              >
+                                <CardContent className="p-4">
+                                  <div className="flex items-start gap-3">
+                                    <Checkbox
+                                      checked={selectedPaymentMethods.includes(method)}
+                                      onChange={() => {}}
+                                      className="mt-1"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        {methodInfo.icon}
+                                        <h4 className="font-semibold">{methodInfo.name}</h4>
+                                      </div>
+                                      <p className="text-sm text-gray-600 mb-3">{methodInfo.description}</p>
+                                      
+                                      {/* Payment Details */}
+                                      {selectedPaymentMethods.includes(method) && paymentDetails[method] && (
+                                        <div className="bg-white rounded-lg p-3 border mt-3">
+                                          <h5 className="font-medium text-sm mb-2">Payment Details:</h5>
+                                          <div className="space-y-1 text-xs">
+                                            {Object.entries(paymentDetails[method] as Record<string, any>).map(([key, value]) => (
+                                              <div key={key} className="flex justify-between">
+                                                <span className="text-gray-600">{key}:</span>
+                                                <span className="font-mono">{value}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Features */}
+                                      <div className="flex flex-wrap gap-1 mt-2">
+                                        {methodInfo.features.map((feature, idx) => (
+                                          <Badge key={idx} variant="secondary" className="text-xs">
+                                            {feature}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+
+              {/* Payment Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="amountRequested"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Amount Requested</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                          <Input {...field} placeholder="0.00" className="pl-10" type="number" step="0.01" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="normal">Normal</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
-                name="paymentMethods"
-                render={() => (
+                name="dueDate"
+                render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Available Payment Methods</FormLabel>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {getAvailablePaymentMethods(selectedTechnician).map((method: string) => {
-                        const methodInfo = paymentMethodsInfo[method as keyof typeof paymentMethodsInfo];
-                        const technicianDetails = getPaymentDetails(selectedTechnician);
-                        const isSelected = selectedPaymentMethods.includes(method);
-                        
-                        return (
-                          <Card key={method} className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'}`}>
-                            <CardHeader className="pb-3">
-                              <div className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={method}
-                                  checked={isSelected}
-                                  onCheckedChange={(checked) => handlePaymentMethodToggle(method, checked as boolean)}
-                                />
-                                <label htmlFor={method} className="flex items-center space-x-2 cursor-pointer">
-                                  <span className="text-lg">{methodInfo?.icon}</span>
-                                  <div>
-                                    <div className="font-medium">{methodInfo?.name}</div>
-                                    <div className="text-sm text-gray-500">{methodInfo?.description}</div>
-                                  </div>
-                                </label>
-                              </div>
-                            </CardHeader>
-                            
-                            {isSelected && methodInfo && (
-                              <CardContent className="pt-0">
-                                <div className="space-y-2">
-                                  <div className="font-medium text-sm text-blue-800">Payment Details:</div>
-                                  {methodInfo.details.map((detail, idx) => {
-                                    let value = technicianDetails[method]?.[detail];
-                                    
-                                    // Handle new payment details format
-                                    if (!value && selectedTechnician.paymentDetails) {
-                                      try {
-                                        const paymentDetails = JSON.parse(selectedTechnician.paymentDetails);
-                                        const methodDetails = paymentDetails[method];
-                                        
-                                        if (methodDetails) {
-                                          // Map detail names to actual field names
-                                          if (detail === "Account Number") value = methodDetails.bankAccount || methodDetails.iban;
-                                          else if (detail === "Routing Number") value = methodDetails.routingNumber;
-                                          else if (detail === "Bank Name") value = methodDetails.bankName;
-                                          else if (detail === "PayPal Link") value = methodDetails.paypalLink;
-                                          else if (detail === "Email Address") value = methodDetails.paypalEmail || methodDetails.zelleInfo;
-                                          else if (detail === "Venmo") value = methodDetails.venmoHandle;
-                                          else if (detail === "CashApp") value = methodDetails.cashappHandle;
-                                          else if (detail === "QR Code") value = methodDetails.venmoQR || methodDetails.cashappQR;
-                                          else if (detail === "Mailing Address") value = methodDetails.mailingAddress;
-                                          else if (detail === "Phone Number") value = selectedTechnician.phoneNumber;
-                                          
-                                          // For credit card
-                                          else if (detail === "Cardholder Name") value = methodDetails.cardholderName;
-                                          else if (detail === "Card Number") value = methodDetails.cardNumber;
-                                          else if (detail === "Expiry Date") value = methodDetails.expiryDate;
-                                          else if (detail === "IBAN") value = methodDetails.iban;
-                                          else if (detail === "Account Name") value = methodDetails.accountName;
-                                        }
-                                      } catch (error) {
-                                        console.error('Error parsing payment details:', error);
-                                      }
-                                    }
-                                    
-                                    if (!value) return null;
-                                    
-                                    return (
-                                      <div key={idx} className="flex flex-col space-y-1">
-                                        <div className="text-xs font-medium text-gray-700">{detail}:</div>
-                                        <div className="text-sm text-gray-900 bg-white p-2 rounded border font-mono">
-                                          {detail === "PayPal Link" || detail === "Venmo" || detail === "CashApp" ? (
-                                            <span className="text-blue-600">{value}</span>
-                                          ) : detail === "QR Code" ? (
-                                            <div className="flex items-center space-x-2">
-                                              <span className="text-sm">QR Code Available</span>
-                                              <div className="w-6 h-6 bg-gray-200 border border-gray-300 rounded flex items-center justify-center text-xs">QR</div>
-                                            </div>
-                                          ) : detail === "Card Number" ? (
-                                            <span>****-****-****-{value.slice(-4)}</span>
-                                          ) : (
-                                            <span>{value}</span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </CardContent>
-                            )}
-                          </Card>
-                        );
-                      })}
-                    </div>
+                    <FormLabel>Due Date (Optional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
 
-            {/* Amount */}
-            <FormField
-              control={form.control}
-              name="amountRequested"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Amount Requested</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        className="pl-10"
-                        {...field}
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field} 
+                        placeholder="Additional details about the payment request..."
+                        rows={3}
                       />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Description */}
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Additional notes about this payment request..."
-                      className="resize-none"
-                      rows={3}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex justify-end space-x-2 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={createPaymentMutation.isPending}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {createPaymentMutation.isPending ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                ) : (
-                  <CreditCard className="h-4 w-4 mr-2" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
-                Create Payment Request
-              </Button>
-            </div>
-          </form>
-        </Form>
+              />
+
+              <Separator />
+
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createPaymentMutation.isPending}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {createPaymentMutation.isPending ? "Creating..." : "Create Payment Request"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
