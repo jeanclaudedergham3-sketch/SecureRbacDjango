@@ -179,6 +179,8 @@ Changelog:
 - June 25, 2025. Updated parts request display logic to show correct values using new schema structure with individual fields (partName, quantity, estimatedCost)
 - June 25, 2025. Fixed parts request approval functionality by updating permission check from manage_work_orders to system.admin for admin users
 - June 25, 2025. Completely updated parts request page to use new individual field structure instead of legacy JSON parsing for parts data
+- June 25, 2025. Fixed file upload system by resolving database column mismatches and adding null checks in JavaScript code
+- June 25, 2025. File uploads now work correctly with proper database schema alignment and error handling
 ```
 
 ## User Preferences

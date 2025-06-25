@@ -138,7 +138,7 @@ export function FileUploadModal({ isOpen, onClose, workOrder }: FileUploadModalP
   };
 
   const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith('image/')) return FileImage;
+    if (fileType && fileType.startsWith('image/')) return FileImage;
     return FileText;
   };
 
@@ -334,7 +334,7 @@ export function FileUploadModal({ isOpen, onClose, workOrder }: FileUploadModalP
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {files.map((file) => {
-                            const Icon = getFileIcon(file.fileType);
+                            const Icon = getFileIcon(file.mimeType);
                             return (
                               <div key={file.id} className="border rounded-lg p-4">
                                 <div className="flex items-start justify-between mb-2">
@@ -358,18 +358,12 @@ export function FileUploadModal({ isOpen, onClose, workOrder }: FileUploadModalP
                                   {file.fileName}
                                 </h5>
                                 
-                                {file.description && (
-                                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                                    {file.description}
-                                  </p>
-                                )}
-                                
                                 <p className="text-xs text-gray-500 mt-2">
-                                  Uploaded {formatDate(file.uploadedAt)}
+                                  Uploaded {formatDate(file.createdAt)}
                                 </p>
                                 
                                 <div className="flex space-x-2 mt-3">
-                                  {file.fileType.startsWith('image/') && (
+                                  {file.mimeType && file.mimeType.startsWith('image/') && (
                                     <Button
                                       size="sm"
                                       variant="outline"
