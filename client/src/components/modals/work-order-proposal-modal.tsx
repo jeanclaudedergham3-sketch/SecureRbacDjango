@@ -580,7 +580,7 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
               <Button variant="outline" onClick={onClose}>
                 Close
               </Button>
-              <PermissionGuard permission="manage_work_orders">
+              <PermissionGuard permission="workorders.create">
                 <Button 
                   onClick={handleSave}
                   disabled={saveProposalMutation.isPending}
@@ -593,9 +593,9 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
                   Print
                 </Button>
               )}
-              {!user?.permissions?.includes("manage_work_orders") && (
+              {!user?.permissions?.includes("workorders.create") && (
                 <div className="text-sm text-gray-500 italic">
-                  View-only mode - Only managers can edit proposals
+                  View-only mode - Only authorized users can edit proposals
                 </div>
               )}
             </div>
