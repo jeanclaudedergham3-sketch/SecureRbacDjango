@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Search, Eye, CheckCircle, XCircle, Clock, Filter, FileText, Plus, User, MapPin, Calendar, DollarSign } from "lucide-react";
+import { Search, Eye, CheckCircle, XCircle, Clock, Filter, FileText, Plus, User, MapPin, Calendar, DollarSign, AlertCircle, Info, Users, Building, Wrench } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
-import { PermissionGuard } from "@/components/rbac/permission-guard";
+import { AdvancedPermissionGuard } from "@/components/rbac/advanced-permission-guard";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -19,6 +21,7 @@ export default function Proposals() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUsers | null>(null);
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"requests" | "existing">("requests");
@@ -73,19 +76,29 @@ export default function Proposals() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "approved": return "bg-green-100 text-green-800";
-      case "pending": return "bg-yellow-100 text-yellow-800";
-      case "cancelled": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "approved": return "bg-green-100 text-green-800 border-green-200";
+      case "pending": return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "rejected": return "bg-red-100 text-red-800 border-red-200";
+      default: return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "approved": return <CheckCircle className="h-3 w-3" />;
-      case "pending": return <Clock className="h-3 w-3" />;
-      case "cancelled": return <XCircle className="h-3 w-3" />;
-      default: return <Clock className="h-3 w-3" />;
+      case "approved": return <CheckCircle className="h-4 w-4" />;
+      case "pending": return <Clock className="h-4 w-4" />;
+      case "rejected": return <XCircle className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category.toLowerCase()) {
+      case "electrical": return <Wrench className="h-4 w-4 text-yellow-600" />;
+      case "plumbing": return <Wrench className="h-4 w-4 text-blue-600" />;
+      case "hvac": return <Wrench className="h-4 w-4 text-green-600" />;
+      case "maintenance": return <Wrench className="h-4 w-4 text-purple-600" />;
+      default: return <Building className="h-4 w-4 text-gray-600" />;
     }
   };
 
@@ -98,421 +111,474 @@ export default function Proposals() {
         total += labor.reduce((sum: number, entry: any) => {
           const payRate = parseFloat(entry.payRate) || 0;
           const regularHours = parseFloat(entry.regularHours) || 0;
-          const otHours = parseFloat(entry.otHours) || 0;
-          const otScale = parseFloat(entry.otScale) || 1.5;
-          return sum + (payRate * regularHours) + (payRate * otHours * otScale);
+          const overtimeHours = parseFloat(entry.overtimeHours) || 0;
+          return sum + (payRate * regularHours) + (payRate * 1.5 * overtimeHours);
         }, 0);
       }
 
-      // Parts total
-      if (proposal.partsData) {
-        const parts = JSON.parse(proposal.partsData);
-        total += parts.reduce((sum: number, entry: any) => {
-          const unitCost = parseFloat(entry.unitCost) || 0;
-          const quantity = parseFloat(entry.quantity) || 0;
-          return sum + (unitCost * quantity);
+      // Material total
+      if (proposal.materialData) {
+        const materials = JSON.parse(proposal.materialData);
+        total += materials.reduce((sum: number, material: any) => {
+          const cost = parseFloat(material.cost) || 0;
+          const quantity = parseFloat(material.quantity) || 0;
+          return sum + (cost * quantity);
         }, 0);
       }
 
-      // Services total
-      if (proposal.servicesData) {
-        const services = JSON.parse(proposal.servicesData);
-        total += services.reduce((sum: number, entry: any) => {
-          const unitCost = parseFloat(entry.unitCost) || 0;
-          const quantity = parseFloat(entry.quantity) || 0;
-          return sum + (unitCost * quantity);
+      // Equipment total
+      if (proposal.equipmentData) {
+        const equipment = JSON.parse(proposal.equipmentData);
+        total += equipment.reduce((sum: number, item: any) => {
+          return sum + (parseFloat(item.cost) || 0);
         }, 0);
       }
+
+      // Travel expenses
+      total += parseFloat(proposal.travelExpenses || '0');
+
+      // Apply markup
+      const markup = parseFloat(proposal.markup || '0') / 100;
+      total = total * (1 + markup);
+
+      return total;
     } catch (error) {
-      console.error("Error calculating proposal total:", error);
+      console.error('Error calculating proposal total:', error);
+      return 0;
     }
-
-    return total;
   };
 
-  // Filter proposals based on search and status
-  const filteredProposals = allProposals.filter(item => {
-    const matchesSearch = 
-      item.workOrder.workOrderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.workOrder.clientName || "").toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredWorkOrders = workOrdersWithoutProposals.filter(workOrder => {
+    const matchesSearch = !searchTerm || 
+      workOrder.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      workOrder.workOrderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      workOrder.category.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+    const matchesCategory = categoryFilter === "all" || workOrder.category === categoryFilter;
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesCategory;
   });
 
-  // Filter work orders without proposals
-  const filteredWorkOrders = workOrdersWithoutProposals.filter(workOrder => 
-    workOrder.workOrderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (workOrder.clientName || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProposals = allProposals.filter(proposal => {
+    const matchesSearch = !searchTerm || 
+      proposal.workOrder.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      proposal.workOrder.workOrderNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || proposal.status === statusFilter;
+    const matchesCategory = categoryFilter === "all" || proposal.workOrder.category === categoryFilter;
+    
+    return matchesSearch && matchesStatus && matchesCategory;
+  });
 
-  const handleCreateProposal = (workOrder: WorkOrderWithUsers) => {
-    setSelectedWorkOrder(workOrder);
-    setIsProposalModalOpen(true);
-  };
+  const categories = Array.from(new Set([
+    ...workOrdersWithoutProposals.map(wo => wo.category),
+    ...allProposals.map(p => p.workOrder.category)
+  ]));
 
-  // Get statistics
-  const stats = {
-    total: allProposals.length,
+  const proposalStats = {
     pending: allProposals.filter(p => p.status === "pending").length,
     approved: allProposals.filter(p => p.status === "approved").length,
-    cancelled: allProposals.filter(p => p.status === "cancelled").length,
+    rejected: allProposals.filter(p => p.status === "rejected").length,
+    totalValue: allProposals
+      .filter(p => p.status === "approved")
+      .reduce((sum, p) => sum + calculateProposalTotal(p), 0)
   };
 
   return (
-    <div className="py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-        <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Proposal Management</h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Create proposals for work orders and manage existing proposals with approval workflow.
+            <h1 className="text-3xl font-bold text-gray-900">Proposal Management</h1>
+            <p className="text-gray-600 mt-1">
+              Create, review, and manage project proposals with detailed cost breakdowns
             </p>
           </div>
-          <div className="space-x-2">
-            <Button variant="outline" onClick={() => window.location.href = '/work-orders'}>
-              View Work Orders
-            </Button>
-          </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="mt-6 border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab("requests")}
-              className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "requests"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Request Proposals ({workOrdersWithoutProposals.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("existing")}
-              className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "existing"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Existing Proposals ({allProposals.length})
-            </button>
-          </nav>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === "requests" && (
-          <>
-            {/* Work Orders Needing Proposals */}
-            <div className="mt-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-medium text-gray-900">Work Orders Requiring Proposals</h2>
-                <div className="flex items-center space-x-4">
-                  <div className="relative">
-                    <Search className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
-                    <Input
-                      placeholder="Search work orders..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 w-64"
-                    />
-                  </div>
-                </div>
+        {/* Permission Information Alert */}
+        <Alert className="border-blue-200 bg-blue-50">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            <div className="space-y-2">
+              <div className="font-medium">Proposal Management Permissions:</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                <div><strong>proposals.view:</strong> View all proposals and work order requests</div>
+                <div><strong>proposals.create:</strong> Create new proposals for work orders</div>
+                <div><strong>proposals.edit:</strong> Modify existing proposal details and costs</div>
+                <div><strong>proposals.approve:</strong> Approve proposals for client presentation</div>
+                <div><strong>proposals.reject:</strong> Reject proposals that need revision</div>
+                <div><strong>proposals.delete:</strong> Remove proposals from the system</div>
               </div>
+            </div>
+          </AlertDescription>
+        </Alert>
 
-              {isLoadingWorkOrders ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-2 text-gray-500">Loading work orders...</p>
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center">
+                <Clock className="h-4 w-4 mr-2 text-yellow-600" />
+                Pending Proposals
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">{proposalStats.pending}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center">
+                <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                Approved Proposals
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{proposalStats.approved}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center">
+                <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                Rejected Proposals
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{proposalStats.rejected}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center">
+                <DollarSign className="h-4 w-4 mr-2 text-blue-600" />
+                Approved Value
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">
+                ${proposalStats.totalValue.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+          <Input
+            placeholder="Search by work order title, number, or category..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Filter by category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map(category => (
+              <SelectItem key={category} value={category}>
+                <div className="flex items-center">
+                  {getCategoryIcon(category)}
+                  <span className="ml-2">{category}</span>
                 </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Main Content */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "requests" | "existing")}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="requests" className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            Request Proposals ({filteredWorkOrders.length})
+          </TabsTrigger>
+          <TabsTrigger value="existing" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Existing Proposals ({filteredProposals.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="requests" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-orange-600" />
+                Work Orders Requiring Proposals
+              </CardTitle>
+              <CardDescription>
+                These work orders need detailed proposals with cost breakdowns, labor estimates, and material requirements.
+                Creating a proposal helps provide accurate quotes to clients and ensures proper project planning.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingWorkOrders ? (
+                <div className="text-center py-8">Loading work orders...</div>
               ) : filteredWorkOrders.length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-lg font-medium mb-2">No Work Orders Need Proposals</h3>
-                    <p className="text-gray-600">All work orders already have proposals created.</p>
-                  </CardContent>
-                </Card>
+                <div className="text-center py-12">
+                  <FileText className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No work orders need proposals</h3>
+                  <p className="text-gray-600">
+                    {searchTerm || categoryFilter !== "all" 
+                      ? "Try adjusting your search or category filter"
+                      : "All work orders have proposals or are not ready for proposals yet"
+                    }
+                  </p>
+                </div>
               ) : (
-                <div className="grid gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {filteredWorkOrders.map((workOrder) => (
-                    <Card key={workOrder.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
+                    <Card key={workOrder.id} className="hover:shadow-md transition-shadow border-l-4 border-l-orange-500">
+                      <CardHeader className="pb-3">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <div className="flex items-center space-x-4 mb-4">
-                              <h3 className="text-lg font-semibold text-gray-900">
-                                {workOrder.workOrderNumber}
-                              </h3>
-                              <Badge variant={workOrder.status === "active" ? "default" : "secondary"}>
-                                {workOrder.status}
+                            <CardTitle className="text-lg flex items-center gap-2">
+                              {getCategoryIcon(workOrder.category)}
+                              <span className="truncate">{workOrder.title}</span>
+                            </CardTitle>
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                              <span className="font-mono">{workOrder.workOrderNumber}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {workOrder.category}
                               </Badge>
                             </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                              <div className="flex items-center text-sm text-gray-600">
-                                <User className="h-4 w-4 mr-2" />
-                                <span>{workOrder.clientName || "No client specified"}</span>
-                              </div>
-                              <div className="flex items-center text-sm text-gray-600">
-                                <MapPin className="h-4 w-4 mr-2" />
-                                <span>{workOrder.location || "No location specified"}</span>
-                              </div>
-                              <div className="flex items-center text-sm text-gray-600">
-                                <Calendar className="h-4 w-4 mr-2" />
-                                <span>Created {new Date(workOrder.createdAt).toLocaleDateString()}</span>
-                              </div>
-                            </div>
-
-                            {workOrder.description && (
-                              <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                                {workOrder.description}
-                              </p>
-                            )}
-
-                            {workOrder.nte && (
-                              <div className="flex items-center text-sm text-gray-600 mb-4">
-                                <DollarSign className="h-4 w-4 mr-2" />
-                                <span>NTE: ${parseFloat(workOrder.nte || "0").toLocaleString()}</span>
-                              </div>
-                            )}
                           </div>
-                          
-                          <div className="ml-6">
-                            <PermissionGuard permission="workorders.create">
-                              <Button 
-                                onClick={() => handleCreateProposal(workOrder)}
-                                className="bg-blue-600 hover:bg-blue-700"
-                              >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Create Proposal
-                              </Button>
-                            </PermissionGuard>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <p className="text-sm text-gray-700 line-clamp-2">
+                          {workOrder.description}
+                        </p>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-gray-400" />
+                            <span className="truncate">{workOrder.location}</span>
                           </div>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-gray-400" />
+                            <span className="truncate">
+                              {workOrder.requestedByUser?.firstName} {workOrder.requestedByUser?.lastName}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <span>{new Date(workOrder.createdAt).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-gray-400" />
+                            <span>NTE: ${workOrder.nte?.toLocaleString() || 'Not specified'}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                          <AdvancedPermissionGuard permission="proposals.create">
+                            <Button
+                              onClick={() => {
+                                setSelectedWorkOrder(workOrder);
+                                setIsProposalModalOpen(true);
+                              }}
+                              className="flex-1"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Create Proposal
+                            </Button>
+                          </AdvancedPermissionGuard>
+                          <Button
+                            variant="outline"
+                            onClick={() => window.open(`/work-orders/${workOrder.id}`, '_blank')}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
               )}
-            </div>
-          </>
-        )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {activeTab === "existing" && (
-          <>
-            {/* Statistics Cards */}
-            <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardContent className="p-6">
+        <TabsContent value="existing" className="space-y-4">
+          {/* Status Filter for existing proposals */}
+          <div className="flex gap-4">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">
                   <div className="flex items-center">
-                    <div className="flex items-center">
-                      <Clock className="h-8 w-8 text-blue-600" />
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Total Proposals</p>
-                        <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                      </div>
-                    </div>
+                    <Clock className="h-4 w-4 mr-2 text-yellow-600" />
+                    Pending
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
+                </SelectItem>
+                <SelectItem value="approved">
                   <div className="flex items-center">
-                    <div className="flex items-center">
-                      <Clock className="h-8 w-8 text-yellow-600" />
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Pending</p>
-                        <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
-                      </div>
-                    </div>
+                    <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                    Approved
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
+                </SelectItem>
+                <SelectItem value="rejected">
                   <div className="flex items-center">
-                    <div className="flex items-center">
-                      <CheckCircle className="h-8 w-8 text-green-600" />
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Approved</p>
-                        <p className="text-2xl font-bold text-gray-900">{stats.approved}</p>
-                      </div>
-                    </div>
+                    <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                    Rejected
                   </div>
-                </CardContent>
-              </Card>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="flex items-center">
-                      <XCircle className="h-8 w-8 text-red-600" />
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Cancelled</p>
-                        <p className="text-2xl font-bold text-gray-900">{stats.cancelled}</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Filters */}
-            <div className="mt-6 flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                <Input
-                  placeholder="Search by work order number or client name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Proposals List */}
-            <div className="mt-6 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-600" />
+                All Proposals
+              </CardTitle>
+              <CardDescription>
+                Manage existing proposals, review their status, and take actions like approval or rejection.
+                Approved proposals can be sent to clients for project authorization.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               {isLoadingProposals ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-2 text-gray-500">Loading proposals...</p>
+                <div className="text-center py-8">Loading proposals...</div>
+              ) : filteredProposals.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No proposals found</h3>
+                  <p className="text-gray-600">
+                    {searchTerm || statusFilter !== "all" || categoryFilter !== "all"
+                      ? "Try adjusting your filters"
+                      : "No proposals have been created yet"
+                    }
+                  </p>
                 </div>
-              ) : filteredProposals.length > 0 ? (
-                filteredProposals.map((item) => {
-                  const proposalTotal = calculateProposalTotal(item);
-                  
-                  return (
-                    <Card key={item.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center space-x-4">
-                            <div>
-                              <h3 className="text-lg font-semibold text-blue-600">
-                                {item.workOrder.workOrderNumber}
-                              </h3>
-                              <p className="text-gray-900 font-medium">
-                                {item.workOrder.clientName || "No client specified"}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {item.workOrder.location || "No location specified"}
-                              </p>
-                            </div>
-                          
-                            <div className="text-center">
-                              <p className="text-sm text-gray-500">Proposal Total</p>
-                              <p className="text-lg font-semibold text-blue-600">
-                                ${proposalTotal.toFixed(2)}
-                              </p>
-                            </div>
-
-                            <div className="text-center">
-                              <p className="text-sm text-gray-500">Created</p>
-                              <p className="text-sm text-gray-900">
-                                {new Date(item.createdAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <Badge className={getStatusColor(item.status)}>
-                            <div className="flex items-center space-x-1">
-                              {getStatusIcon(item.status)}
-                              <span>{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
-                            </div>
-                          </Badge>
-                        </div>
-
-                        {item.message && (
-                          <div className="mb-4 p-3 bg-gray-50 rounded-md">
-                            <p className="text-sm text-gray-700">{item.message}</p>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-end space-x-2">
-                          {item.status === "pending" && (
-                            <PermissionGuard permission="proposals.approve">
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => approveProposalMutation.mutate(item.id)}
-                                disabled={approveProposalMutation.isPending}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Approve
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => rejectProposalMutation.mutate(item.id)}
-                                disabled={rejectProposalMutation.isPending}
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Reject
-                              </Button>
-                            </PermissionGuard>
-                          )}
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedWorkOrder(item.workOrder)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
               ) : (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-lg font-medium mb-2">No proposals found</h3>
-                    <p className="text-gray-600">
-                      {searchTerm || statusFilter !== "all" 
-                        ? "Try adjusting your search criteria or filters."
-                        : "Proposals will appear here when work orders have proposal data."
-                      }
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {filteredProposals.map((proposal) => {
+                    const total = calculateProposalTotal(proposal);
+                    return (
+                      <Card key={proposal.id} className="hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                {getCategoryIcon(proposal.workOrder.category)}
+                                <span className="truncate">{proposal.workOrder.title}</span>
+                              </CardTitle>
+                              <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                                <span className="font-mono">{proposal.workOrder.workOrderNumber}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {proposal.workOrder.category}
+                                </Badge>
+                              </div>
+                            </div>
+                            <Badge className={`${getStatusColor(proposal.status)} border`}>
+                              <div className="flex items-center gap-1">
+                                {getStatusIcon(proposal.status)}
+                                <span className="capitalize">{proposal.status}</span>
+                              </div>
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="h-4 w-4 text-gray-400" />
+                              <span className="font-semibold">${total.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-gray-400" />
+                              <span>{new Date(proposal.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-gray-400" />
+                              <span className="truncate">
+                                {proposal.workOrder.requestedByUser?.firstName} {proposal.workOrder.requestedByUser?.lastName}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4 text-gray-400" />
+                              <span className="truncate">{proposal.workOrder.location}</span>
+                            </div>
+                          </div>
 
-      {selectedWorkOrder && isProposalModalOpen && (
-        <WorkOrderProposalModal
-          isOpen={isProposalModalOpen}
-          onClose={() => {
-            setIsProposalModalOpen(false);
-            setSelectedWorkOrder(null);
-            queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/work-orders-without-proposals"] });
-          }}
-          workOrder={selectedWorkOrder}
-        />
-      )}
+                          {proposal.status === "pending" && (
+                            <div className="flex gap-2 pt-2">
+                              <AdvancedPermissionGuard permission="proposals.approve">
+                                <Button
+                                  size="sm"
+                                  onClick={() => approveProposalMutation.mutate(proposal.id)}
+                                  disabled={approveProposalMutation.isPending}
+                                  className="flex-1"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Approve
+                                </Button>
+                              </AdvancedPermissionGuard>
+                              <AdvancedPermissionGuard permission="proposals.reject">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => rejectProposalMutation.mutate(proposal.id)}
+                                  disabled={rejectProposalMutation.isPending}
+                                  className="flex-1"
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Reject
+                                </Button>
+                              </AdvancedPermissionGuard>
+                            </div>
+                          )}
+
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(`/proposals/${proposal.id}`, '_blank')}
+                              className="flex-1"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Details
+                            </Button>
+                            <AdvancedPermissionGuard permission="proposals.edit">
+                              <Button variant="outline" size="sm">
+                                <FileText className="h-4 w-4" />
+                              </Button>
+                            </AdvancedPermissionGuard>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Proposal Modal */}
+      <WorkOrderProposalModal
+        isOpen={isProposalModalOpen}
+        onClose={() => {
+          setIsProposalModalOpen(false);
+          setSelectedWorkOrder(null);
+        }}
+        workOrder={selectedWorkOrder}
+      />
     </div>
   );
 }
