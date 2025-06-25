@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import type { WorkOrderWithUsers } from "@shared/schema";
 
 export default function WorkOrders() {
-  const { user } = useAuth();
+  const { user, permissions } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUsers | null>(null);
   const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrderWithUsers | null>(null);
@@ -49,13 +49,13 @@ export default function WorkOrders() {
   // Filter work orders based on user permissions
   const filteredWorkOrders = workOrders.filter(workOrder => {
     // Admins and managers can see all work orders
-    if (user?.permissions?.includes("manage_work_orders")) {
+    if (permissions?.includes("workorders.view")) {
       return true;
     }
     // Regular users can only see work orders assigned to them
     try {
-      const assignedUserIds = workOrder.assignedUserIds ? JSON.parse(workOrder.assignedUserIds) : [];
-      return assignedUserIds.includes(user?.id);
+      const assignedUserIds = workOrder.assignedUsers ? workOrder.assignedUsers.map(u => u.id) : [];
+      return assignedUserIds.includes(user?.id || 0);
     } catch {
       return false;
     }
@@ -71,7 +71,7 @@ export default function WorkOrders() {
               Manage work orders, proposals, and project tracking.
             </p>
           </div>
-          <PermissionGuard permission="manage_work_orders">
+          <PermissionGuard permission="workorders.create">
             <div className="space-x-2">
               <Button onClick={() => setIsCreating(true)}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -95,7 +95,7 @@ export default function WorkOrders() {
                       {workOrder.workOrderNumber}
                     </CardTitle>
                     <CardDescription className="font-medium text-gray-900 mt-1">
-                      {workOrder.clientName}
+                      {workOrder.title}
                     </CardDescription>
                   </div>
                   <Badge className={getStatusColor(workOrder.status)}>
@@ -108,7 +108,7 @@ export default function WorkOrders() {
                 <div className="flex items-center text-sm text-gray-600">
                   <MapPin className="h-4 w-4 mr-2" />
                   <span className="truncate">
-                    {workOrder.street}, {workOrder.city}, {workOrder.country}
+                    {workOrder.location}
                   </span>
                 </div>
                 
@@ -132,7 +132,8 @@ export default function WorkOrders() {
                 <div className="flex items-center text-sm text-gray-600">
                   <Calendar className="h-4 w-4 mr-2" />
                   <span>
-                    {formatDate(workOrder.startDate)} - {formatDate(workOrder.endDate)}
+                    {workOrder.scheduledDate ? formatDate(workOrder.scheduledDate) : 'Not scheduled'}
+                    {workOrder.completedDate && ` - Completed: ${formatDate(workOrder.completedDate)}`}
                   </span>
                 </div>
 
@@ -140,11 +141,11 @@ export default function WorkOrders() {
                   <div className="flex items-center text-sm">
                     <DollarSign className="h-4 w-4 mr-1 text-green-600" />
                     <span className="font-medium">
-                      NTE: {formatCurrency(workOrder.nte)}
+                      Est. Hours: {workOrder.estimatedHours || 'TBD'}
                     </span>
                   </div>
                   <div className="text-sm font-medium text-gray-900">
-                    Total: {formatCurrency(workOrder.tnte)}
+                    Priority: {workOrder.priority}
                   </div>
                 </div>
               </CardContent>
@@ -160,7 +161,7 @@ export default function WorkOrders() {
                   View Details
                 </Button>
                 
-                <PermissionGuard permission="manage_work_orders">
+                <PermissionGuard permission="workorders.view">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -182,7 +183,7 @@ export default function WorkOrders() {
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">No work orders found</h3>
               <p className="text-sm">
-                {user?.permissions?.includes("manage_work_orders") 
+                {permissions?.includes("workorders.create") 
                   ? "Get started by creating your first work order."
                   : "You don't have any assigned work orders yet."
                 }
