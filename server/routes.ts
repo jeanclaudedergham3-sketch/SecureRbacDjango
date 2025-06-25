@@ -66,9 +66,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/login", async (req, res) => {
     try {
-      console.log("Login request body:", req.body);
-      
-      // Simple validation instead of Zod schema
       const { username, password } = req.body;
       if (!username || !password) {
         return res.status(400).json({ message: "Username and password are required" });
