@@ -170,10 +170,12 @@ export const workOrderFiles = pgTable("work_order_files", {
 export const workOrderChats = pgTable("work_order_chats", {
   id: serial("id").primaryKey(),
   workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
-  senderId: integer("sender_id").notNull().references(() => users.id),
-  message: text("message").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  message: text("message"),
+  fileUrl: text("file_url"),
   messageType: varchar("message_type", { length: 50 }).notNull().default("text"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  senderId: integer("sender_id").references(() => users.id),
 });
 
 export const workOrderTechnicianPayments = pgTable("work_order_technician_payments", {

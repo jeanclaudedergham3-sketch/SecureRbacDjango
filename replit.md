@@ -181,6 +181,8 @@ Changelog:
 - June 25, 2025. Completely updated parts request page to use new individual field structure instead of legacy JSON parsing for parts data
 - June 25, 2025. Fixed file upload system by resolving database column mismatches and adding null checks in JavaScript code
 - June 25, 2025. File uploads now work correctly with proper database schema alignment and error handling
+- June 25, 2025. Completely repaired chat system by fixing database schema mismatches between userId/senderId fields and updating API routes
+- June 25, 2025. Chat functionality now works perfectly with proper message creation, retrieval, and user mapping for work order communication
 ```
 
 ## User Preferences

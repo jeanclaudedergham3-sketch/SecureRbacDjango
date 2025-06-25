@@ -799,13 +799,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/work-orders/:id/chats", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
+      
       const chatData = insertWorkOrderChatSchema.parse({
         ...req.body,
-        workOrderId
+        workOrderId,
+        userId: req.user!.id,
+        senderId: req.user!.id
       });
       
       const chat = await storage.createWorkOrderChat(chatData);
-      console.log(`Chat message created for work order ${workOrderId} by user ${req.session.userId}`);
+      console.log(`Chat message created for work order ${workOrderId} by user ${req.user!.id}`);
       res.status(201).json(chat);
     } catch (error) {
       console.error("Error creating chat message:", error);
@@ -826,13 +829,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { messageType, userId, message } = req.body;
       
-      const chatData = {
+      const chatData = insertWorkOrderChatSchema.parse({
         workOrderId,
-        userId: userId ? parseInt(userId) : req.session.userId || 1,
+        userId: userId ? parseInt(userId) : req.user!.id,
+        senderId: userId ? parseInt(userId) : req.user!.id,
         message: message || req.file.originalname,
         messageType: messageType || 'file',
-        fileUrl: `/uploads/${workOrderId}/${req.file.filename}`,
-      };
+        fileUrl: `/uploads/${workOrderId}/${req.file.filename}`
+      });
       
       const chat = await storage.createWorkOrderChat(chatData);
       console.log(`File message created for work order ${workOrderId} by user ${req.session.userId}`);
