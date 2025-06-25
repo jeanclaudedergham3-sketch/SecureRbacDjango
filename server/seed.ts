@@ -7,10 +7,14 @@ export async function seedDatabase() {
     console.log("Starting database seed...");
 
     // Check if already seeded
-    const existingUsers = await db.select().from(users).limit(1);
-    if (existingUsers.length > 0) {
-      console.log("Database already seeded");
-      return;
+    try {
+      const existingUsers = await db.select().from(users);
+      if (existingUsers.length > 0) {
+        console.log("Database already seeded");
+        return;
+      }
+    } catch (error) {
+      console.log("Users table doesn't exist yet, continuing with seed...");
     }
 
     // Create roles
