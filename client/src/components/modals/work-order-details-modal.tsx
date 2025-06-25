@@ -739,15 +739,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                           </div>
                           <div className="text-right">
                             <div className="text-lg font-medium">
-                              {(() => {
-                                try {
-                                  const parts = JSON.parse(request.parts || "[]");
-                                  const total = parts.reduce((sum: number, part: any) => sum + (parseFloat(part.estimatedCost || "0") * parseInt(part.quantity || "1")), 0);
-                                  return `$${total.toFixed(2)}`;
-                                } catch {
-                                  return "$0.00";
-                                }
-                              })()}
+                              ${((parseFloat(request.estimatedCost || "0") * (request.quantity || 1)).toFixed(2))}
                             </div>
                             <div className="text-sm text-gray-500">Total Cost</div>
                           </div>
@@ -1174,15 +1166,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                           </div>
                           <div className="text-right">
                             <div className="text-2xl font-bold text-green-600">
-                              {(() => {
-                                try {
-                                  const parts = JSON.parse(request.parts || "[]");
-                                  const total = parts.reduce((sum: number, part: any) => sum + (parseFloat(part.estimatedCost || "0") * parseInt(part.quantity || "1")), 0);
-                                  return `$${total.toFixed(2)}`;
-                                } catch {
-                                  return "$0.00";
-                                }
-                              })()}
+                              ${((parseFloat(request.estimatedCost || "0") * (request.quantity || 1)).toFixed(2))}
                             </div>
                             <div className="text-sm text-gray-500">Total Cost</div>
                           </div>
@@ -1199,45 +1183,33 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                           </div>
                         </div>
                         
-                        {request.reason && (
+                        {request.notes && (
                           <div className="mb-4">
-                            <h5 className="font-medium text-gray-700 mb-2">Reason</h5>
+                            <h5 className="font-medium text-gray-700 mb-2">Notes</h5>
                             <div className="p-3 bg-gray-50 rounded-lg border">
-                              <p className="text-gray-900">{request.reason}</p>
+                              <p className="text-gray-900">{request.notes}</p>
                             </div>
                           </div>
                         )}
                         
-                        {(() => {
-                          try {
-                            const parts = JSON.parse(request.parts || "[]");
-                            return parts.length > 0 ? (
-                              <div className="mb-4">
-                                <h5 className="font-medium text-gray-700 mb-2">Parts Details</h5>
-                                <div className="space-y-2">
-                                  {parts.map((part: any, idx: number) => (
-                                    <div key={idx} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                      <div className="flex justify-between items-start">
-                                        <div>
-                                          <div className="font-medium">{part.name}</div>
-                                          <div className="text-sm text-gray-600">Quantity: {part.quantity}</div>
-                                          {part.supplier && <div className="text-sm text-gray-600">Supplier: {part.supplier}</div>}
-                                          {part.description && <div className="text-sm text-gray-600">{part.description}</div>}
-                                        </div>
-                                        <div className="text-right">
-                                          <div className="font-bold">${parseFloat(part.estimatedCost || "0").toFixed(2)}</div>
-                                          <div className="text-sm text-gray-500">per unit</div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
+                        <div className="mb-4">
+                          <h5 className="font-medium text-gray-700 mb-2">Parts Details</h5>
+                          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-medium">{request.partName}</div>
+                                <div className="text-sm text-gray-600">Quantity: {request.quantity}</div>
+                                {request.partNumber && <div className="text-sm text-gray-600">Part Number: {request.partNumber}</div>}
+                                {request.supplier && <div className="text-sm text-gray-600">Supplier: {request.supplier}</div>}
+                                <div className="text-sm text-gray-600">Urgency: {request.urgency}</div>
                               </div>
-                            ) : null;
-                          } catch {
-                            return null;
-                          }
-                        })()}
+                              <div className="text-right">
+                                <div className="font-bold">${parseFloat(request.estimatedCost || "0").toFixed(2)}</div>
+                                <div className="text-sm text-gray-500">per unit</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                         
                         <div className="text-sm text-gray-500 pt-3 border-t">
                           Requested: {new Date(request.createdAt).toLocaleDateString()}
