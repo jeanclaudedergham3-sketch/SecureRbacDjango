@@ -1,10 +1,10 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { initializeDatabase } from "./database";
+import { seedDatabase } from "./seed";
 
-// Initialize database before anything else
-initializeDatabase();
+// Seed database on startup
+seedDatabase();
 
 const app = express();
 app.use(express.json());
