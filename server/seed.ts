@@ -38,25 +38,106 @@ export async function seedDatabase() {
       description: "Read-only access to view data"
     }).returning();
 
-    // Create permissions
+    // Create comprehensive permissions
     const permissionData = [
-      { name: "user:read", description: "View users", category: "User Management" },
-      { name: "user:write", description: "Create and edit users", category: "User Management" },
-      { name: "user:delete", description: "Delete users", category: "User Management" },
-      { name: "role:read", description: "View roles", category: "Role Management" },
-      { name: "role:write", description: "Create and edit roles", category: "Role Management" },
-      { name: "role:delete", description: "Delete roles", category: "Role Management" },
-      { name: "technician:read", description: "View technicians", category: "Technician Management" },
-      { name: "technician:write", description: "Create and edit technicians", category: "Technician Management" },
-      { name: "technician:delete", description: "Delete technicians", category: "Technician Management" },
-      { name: "workorder:read", description: "View work orders", category: "Work Order Management" },
-      { name: "workorder:write", description: "Create and edit work orders", category: "Work Order Management" },
-      { name: "workorder:delete", description: "Delete work orders", category: "Work Order Management" },
-      { name: "payment:read", description: "View payments", category: "Payment Management" },
-      { name: "payment:write", description: "Process payments", category: "Payment Management" },
-      { name: "analytics:read", description: "View analytics and reports", category: "Analytics" },
-      { name: "notification:read", description: "View notifications", category: "Notifications" },
-      { name: "notification:write", description: "Create notifications", category: "Notifications" }
+      // Dashboard & Overview
+      { name: "dashboard.view", description: "View dashboard and overview", category: "Dashboard" },
+      { name: "dashboard.stats", description: "View dashboard statistics", category: "Dashboard" },
+      { name: "analytics.view", description: "View analytics and reports", category: "Analytics" },
+      { name: "analytics.export", description: "Export analytics data", category: "Analytics" },
+      
+      // User Management
+      { name: "users.view", description: "View users list", category: "User Management" },
+      { name: "users.create", description: "Create new users", category: "User Management" },
+      { name: "users.edit", description: "Edit user information", category: "User Management" },
+      { name: "users.delete", description: "Delete users", category: "User Management" },
+      { name: "users.activate", description: "Activate/deactivate users", category: "User Management" },
+      { name: "users.reset_password", description: "Reset user passwords", category: "User Management" },
+      
+      // Role Management
+      { name: "roles.view", description: "View roles list", category: "Role Management" },
+      { name: "roles.create", description: "Create new roles", category: "Role Management" },
+      { name: "roles.edit", description: "Edit role information", category: "Role Management" },
+      { name: "roles.delete", description: "Delete roles", category: "Role Management" },
+      { name: "roles.assign", description: "Assign roles to users", category: "Role Management" },
+      { name: "permissions.view", description: "View permissions", category: "Role Management" },
+      { name: "permissions.assign", description: "Assign permissions to roles", category: "Role Management" },
+      
+      // Technician Management
+      { name: "technicians.view", description: "View technicians list", category: "Technician Management" },
+      { name: "technicians.create", description: "Create new technicians", category: "Technician Management" },
+      { name: "technicians.edit", description: "Edit technician information", category: "Technician Management" },
+      { name: "technicians.delete", description: "Delete technicians", category: "Technician Management" },
+      { name: "technicians.rate", description: "Rate technicians", category: "Technician Management" },
+      { name: "technicians.map", description: "View technician map", category: "Technician Management" },
+      { name: "technicians.location", description: "View technician locations", category: "Technician Management" },
+      
+      // Work Order Management
+      { name: "workorders.view", description: "View work orders list", category: "Work Order Management" },
+      { name: "workorders.create", description: "Create new work orders", category: "Work Order Management" },
+      { name: "workorders.edit", description: "Edit work order information", category: "Work Order Management" },
+      { name: "workorders.delete", description: "Delete work orders", category: "Work Order Management" },
+      { name: "workorders.assign", description: "Assign technicians to work orders", category: "Work Order Management" },
+      { name: "workorders.status", description: "Update work order status", category: "Work Order Management" },
+      { name: "workorders.priority", description: "Change work order priority", category: "Work Order Management" },
+      { name: "workorders.close", description: "Close completed work orders", category: "Work Order Management" },
+      
+      // Proposal Management
+      { name: "proposals.view", description: "View proposals", category: "Proposal Management" },
+      { name: "proposals.create", description: "Create new proposals", category: "Proposal Management" },
+      { name: "proposals.edit", description: "Edit proposals", category: "Proposal Management" },
+      { name: "proposals.delete", description: "Delete proposals", category: "Proposal Management" },
+      { name: "proposals.approve", description: "Approve proposals", category: "Proposal Management" },
+      { name: "proposals.reject", description: "Reject proposals", category: "Proposal Management" },
+      
+      // Parts & Inventory
+      { name: "parts.view", description: "View parts requests", category: "Parts Management" },
+      { name: "parts.create", description: "Create parts requests", category: "Parts Management" },
+      { name: "parts.edit", description: "Edit parts requests", category: "Parts Management" },
+      { name: "parts.approve", description: "Approve parts requests", category: "Parts Management" },
+      { name: "parts.reject", description: "Reject parts requests", category: "Parts Management" },
+      { name: "parts.order", description: "Order approved parts", category: "Parts Management" },
+      
+      // File Management
+      { name: "files.view", description: "View uploaded files", category: "File Management" },
+      { name: "files.upload", description: "Upload files", category: "File Management" },
+      { name: "files.download", description: "Download files", category: "File Management" },
+      { name: "files.delete", description: "Delete files", category: "File Management" },
+      
+      // Communication
+      { name: "chat.view", description: "View chat messages", category: "Communication" },
+      { name: "chat.send", description: "Send chat messages", category: "Communication" },
+      { name: "notifications.view", description: "View notifications", category: "Communication" },
+      { name: "notifications.create", description: "Create notifications", category: "Communication" },
+      { name: "notifications.delete", description: "Delete notifications", category: "Communication" },
+      
+      // Payment Management
+      { name: "payments.view", description: "View payment information", category: "Payment Management" },
+      { name: "payments.create", description: "Create payment requests", category: "Payment Management" },
+      { name: "payments.approve", description: "Approve payments", category: "Payment Management" },
+      { name: "payments.process", description: "Process payments", category: "Payment Management" },
+      { name: "payments.history", description: "View payment history", category: "Payment Management" },
+      { name: "payments.technician", description: "View technician payments", category: "Payment Management" },
+      
+      // Invoice Management
+      { name: "invoices.view", description: "View invoices", category: "Invoice Management" },
+      { name: "invoices.create", description: "Create invoices", category: "Invoice Management" },
+      { name: "invoices.edit", description: "Edit invoices", category: "Invoice Management" },
+      { name: "invoices.delete", description: "Delete invoices", category: "Invoice Management" },
+      { name: "invoices.send", description: "Send invoices to clients", category: "Invoice Management" },
+      { name: "invoices.export", description: "Export invoice data", category: "Invoice Management" },
+      
+      // Financial Analysis
+      { name: "financial.view", description: "View financial analysis", category: "Financial Analysis" },
+      { name: "financial.reports", description: "Generate financial reports", category: "Financial Analysis" },
+      { name: "financial.export", description: "Export financial data", category: "Financial Analysis" },
+      
+      // System Administration
+      { name: "system.admin", description: "Full system administration", category: "System Administration" },
+      { name: "system.settings", description: "Manage system settings", category: "System Administration" },
+      { name: "system.logs", description: "View system logs", category: "System Administration" },
+      { name: "system.backup", description: "Create system backups", category: "System Administration" },
+      { name: "system.maintenance", description: "Perform system maintenance", category: "System Administration" }
     ];
 
     const createdPermissions = await db.insert(permissions).values(permissionData).returning();
@@ -104,16 +185,73 @@ export async function seedDatabase() {
       allPermissionIds.map(permId => ({ roleId: adminRole.id, permissionId: permId }))
     );
 
-    // Manager gets most permissions except delete
-    const managerPermissions = createdPermissions.filter(p => !p.name.includes("delete"));
+    // Manager gets comprehensive management permissions (excluding system admin)
+    const managerPermissionNames = [
+      'dashboard.view', 'dashboard.stats', 'analytics.view', 'analytics.export',
+      'users.view', 'users.create', 'users.edit', 'users.activate', 'users.reset_password',
+      'roles.view', 'roles.assign', 'permissions.view',
+      'technicians.view', 'technicians.create', 'technicians.edit', 'technicians.rate', 'technicians.map', 'technicians.location',
+      'workorders.view', 'workorders.create', 'workorders.edit', 'workorders.assign', 'workorders.status', 'workorders.priority', 'workorders.close',
+      'proposals.view', 'proposals.create', 'proposals.edit', 'proposals.approve', 'proposals.reject',
+      'parts.view', 'parts.create', 'parts.edit', 'parts.approve', 'parts.reject', 'parts.order',
+      'files.view', 'files.upload', 'files.download', 'files.delete',
+      'chat.view', 'chat.send', 'notifications.view', 'notifications.create',
+      'payments.view', 'payments.create', 'payments.approve', 'payments.process', 'payments.history', 'payments.technician',
+      'invoices.view', 'invoices.create', 'invoices.edit', 'invoices.send', 'invoices.export',
+      'financial.view', 'financial.reports', 'financial.export'
+    ];
+
+    const managerPermissions = createdPermissions
+      .filter(p => managerPermissionNames.includes(p.name))
+      .map(p => p.id);
+
     await db.insert(rolePermissions).values(
-      managerPermissions.map(perm => ({ roleId: managerRole.id, permissionId: perm.id }))
+      managerPermissions.map(permissionId => ({
+        roleId: managerRole.id,
+        permissionId
+      }))
     );
 
-    // Viewer gets only read permissions
-    const viewerPermissions = createdPermissions.filter(p => p.name.includes("read"));
+    // Technician gets work-focused permissions
+    const technicianPermissionNames = [
+      'dashboard.view', 'dashboard.stats',
+      'workorders.view', 'workorders.edit', 'workorders.status',
+      'parts.view', 'parts.create',
+      'files.view', 'files.upload', 'files.download',
+      'chat.view', 'chat.send', 'notifications.view',
+      'payments.view', 'payments.create', 'payments.history'
+    ];
+
+    const technicianPermissions = createdPermissions
+      .filter(p => technicianPermissionNames.includes(p.name))
+      .map(p => p.id);
+
     await db.insert(rolePermissions).values(
-      viewerPermissions.map(perm => ({ roleId: viewerRole.id, permissionId: perm.id }))
+      technicianPermissions.map(permissionId => ({
+        roleId: technicianRole.id,
+        permissionId
+      }))
+    );
+
+    // Viewer gets only view permissions
+    const viewerPermissionNames = [
+      'dashboard.view', 'dashboard.stats', 'analytics.view',
+      'users.view', 'roles.view', 'permissions.view',
+      'technicians.view', 'technicians.map', 'technicians.location',
+      'workorders.view', 'proposals.view', 'parts.view',
+      'files.view', 'files.download', 'chat.view', 'notifications.view',
+      'payments.view', 'payments.history', 'invoices.view', 'financial.view'
+    ];
+
+    const viewerPermissions = createdPermissions
+      .filter(p => viewerPermissionNames.includes(p.name))
+      .map(p => p.id);
+
+    await db.insert(rolePermissions).values(
+      viewerPermissions.map(permissionId => ({
+        roleId: viewerRole.id,
+        permissionId
+      }))
     );
 
     // Create sample technicians

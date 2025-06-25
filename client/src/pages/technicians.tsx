@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { PermissionGuard } from "@/components/rbac/permission-guard";
+import { AdvancedPermissionGuard, useAdvancedPermissions } from "@/components/rbac/advanced-permission-guard";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Technician } from "@shared/schema";
@@ -120,12 +120,12 @@ export default function TechniciansPage() {
             Manage your technician team and their information
           </p>
         </div>
-        <PermissionGuard permission="technicians.create">
+        <AdvancedPermissionGuard permission="technicians.create">
           <Button onClick={() => toast({ title: "Info", description: "Add technician functionality coming soon" })} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Add Technician
           </Button>
-        </PermissionGuard>
+        </AdvancedPermissionGuard>
       </div>
 
       {/* Search and Filters */}
@@ -190,7 +190,7 @@ export default function TechniciansPage() {
                   <p className="text-sm text-gray-600 mt-1">{technician.specialization}</p>
                 </div>
                 <div className="flex space-x-1">
-                  <PermissionGuard permission="technicians.edit">
+                  <AdvancedPermissionGuard permission="technicians.edit">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -198,8 +198,8 @@ export default function TechniciansPage() {
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
-                  </PermissionGuard>
-                  <PermissionGuard permission="technicians.delete">
+                  </AdvancedPermissionGuard>
+                  <AdvancedPermissionGuard permission="technicians.delete">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -208,7 +208,7 @@ export default function TechniciansPage() {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                  </PermissionGuard>
+                  </AdvancedPermissionGuard>
                 </div>
               </div>
             </CardHeader>
@@ -295,7 +295,7 @@ export default function TechniciansPage() {
 
               {/* Action Buttons */}
               <div className="flex gap-2 pt-2">
-                <PermissionGuard permission="payments.create">
+                <AdvancedPermissionGuard permission="payments.create">
                   <Button
                     variant="outline"
                     size="sm"
@@ -305,8 +305,8 @@ export default function TechniciansPage() {
                     <CreditCard className="h-4 w-4 mr-1" />
                     Payment
                   </Button>
-                </PermissionGuard>
-                <PermissionGuard permission="technicians.view">
+                </AdvancedPermissionGuard>
+                <AdvancedPermissionGuard permission="technicians.rate">
                   <Button
                     variant="outline"
                     size="sm"
@@ -316,7 +316,7 @@ export default function TechniciansPage() {
                     <Star className="h-4 w-4 mr-1" />
                     Rate
                   </Button>
-                </PermissionGuard>
+                </AdvancedPermissionGuard>
               </div>
             </CardContent>
           </Card>
@@ -339,12 +339,12 @@ export default function TechniciansPage() {
             }
           </p>
           {!searchTerm && (
-            <PermissionGuard permission="technicians.create">
+            <AdvancedPermissionGuard permission="technicians.create">
               <Button onClick={() => toast({ title: "Info", description: "Add technician functionality coming soon" })}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Technician
               </Button>
-            </PermissionGuard>
+            </AdvancedPermissionGuard>
           )}
         </div>
       )}
