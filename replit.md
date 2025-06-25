@@ -175,6 +175,7 @@ Changelog:
 - June 25, 2025. Added new API endpoint for work orders without proposals to support the restructured workflow
 - June 25, 2025. Updated work order details modal to redirect users to proposals page instead of allowing direct proposal creation
 - June 25, 2025. Modified work order details proposal section to show "Request Proposal" action instead of direct navigation to proposals page
+- June 25, 2025. Fixed parts request 400 error by updating API data structure to match database schema - changed from nested JSON to individual part requests
 ```
 
 ## User Preferences

@@ -65,26 +65,7 @@ export function PartsRequestModal({ isOpen, onClose, workOrder }: PartsRequestMo
     };
   }
 
-  const createPartsRequestMutation = useMutation({
-    mutationFn: (data: any) => 
-      apiRequest("POST", `/api/work-orders/${workOrder.id}/parts-requests`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/parts-requests`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/parts-requests"] });
-      toast({
-        title: "Success",
-        description: "Parts request submitted successfully",
-      });
-      onClose();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to submit parts request",
-        variant: "destructive",
-      });
-    },
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => 
@@ -106,7 +87,7 @@ export function PartsRequestModal({ isOpen, onClose, workOrder }: PartsRequestMo
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (partsEntries.some(entry => !entry.partName.trim() || !entry.quantity.trim())) {
       toast({
         title: "Error",
@@ -116,15 +97,44 @@ export function PartsRequestModal({ isOpen, onClose, workOrder }: PartsRequestMo
       return;
     }
 
-    const requestData = {
-      workOrderId: workOrder.id,
-      requestedBy: user?.id,
-      parts: JSON.stringify(partsEntries),
-      reason: requestReason,
-      status: "pending"
-    };
+    setIsSubmitting(true);
+    try {
+      // Create individual parts requests for each entry
+      for (const entry of partsEntries) {
+        if (entry.partName.trim() && entry.quantity.trim()) {
+          const requestData = {
+            workOrderId: workOrder.id,
+            partName: entry.partName.trim(),
+            partNumber: entry.partNumber.trim() || null,
+            quantity: parseInt(entry.quantity) || 1,
+            estimatedCost: entry.estimatedCost ? parseFloat(entry.estimatedCost) : null,
+            supplier: entry.supplier.trim() || null,
+            urgency: entry.urgency || "normal",
+            notes: `${requestReason ? requestReason + ". " : ""}${entry.description ? entry.description : ""}`.trim() || null,
+            requestedBy: user?.id,
+            status: "pending"
+          };
 
-    createPartsRequestMutation.mutate(requestData);
+          await apiRequest("POST", `/api/work-orders/${workOrder.id}/parts-requests`, requestData);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/parts-requests`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/parts-requests"] });
+      toast({
+        title: "Success",
+        description: "Parts requests submitted successfully",
+      });
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit parts requests",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const addPartsEntry = () => {
@@ -193,13 +203,6 @@ export function PartsRequestModal({ isOpen, onClose, workOrder }: PartsRequestMo
               <CardContent>
                 <div className="space-y-4">
                   {partsRequests.map((request) => {
-                    let parts = [];
-                    try {
-                      parts = JSON.parse(request.parts || "[]");
-                    } catch (error) {
-                      console.error("Error parsing parts data:", error);
-                    }
-
                     return (
                       <div key={request.id} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-2">
@@ -215,19 +218,15 @@ export function PartsRequestModal({ isOpen, onClose, workOrder }: PartsRequestMo
                           </div>
                         </div>
                         
-                        {request.reason && (
-                          <p className="text-sm text-gray-600 mb-2">{request.reason}</p>
+                        {request.notes && (
+                          <p className="text-sm text-gray-600 mb-2">{request.notes}</p>
                         )}
                         
-                        <div className="space-y-2">
-                          {parts.map((part: any, index: number) => (
-                            <div key={index} className="text-sm grid grid-cols-4 gap-2 bg-gray-50 p-2 rounded">
-                              <span><strong>{part.partName}</strong></span>
-                              <span>Qty: {part.quantity}</span>
-                              <span>Cost: ${part.estimatedCost}</span>
-                              <span className="text-gray-500">{part.urgency}</span>
-                            </div>
-                          ))}
+                        <div className="text-sm grid grid-cols-4 gap-2 bg-gray-50 p-2 rounded">
+                          <span><strong>{request.partName}</strong></span>
+                          <span>Qty: {request.quantity}</span>
+                          <span>Cost: ${request.estimatedCost || "0.00"}</span>
+                          <span className="text-gray-500">{request.urgency}</span>
                         </div>
 
                         {request.status === "pending" && (
@@ -379,9 +378,9 @@ export function PartsRequestModal({ isOpen, onClose, workOrder }: PartsRequestMo
             </Button>
             <Button 
               onClick={handleSubmit}
-              disabled={createPartsRequestMutation.isPending}
+              disabled={isSubmitting}
             >
-              {createPartsRequestMutation.isPending ? "Submitting..." : "Submit Parts Request"}
+              {isSubmitting ? "Submitting..." : "Submit Parts Request"}
             </Button>
           </div>
         </div>
