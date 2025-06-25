@@ -502,7 +502,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Work Order Proposal</h3>
-                  <PermissionGuard permission="manage_work_orders">
+                  <PermissionGuard permission="workorders.edit">
                     <Button 
                       onClick={() => workOrder.isLocked ? toast({
                         title: "Action Blocked",
@@ -652,7 +652,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 <p className="text-gray-600 mb-4">
                   Create a proposal with labor, parts, and services for this work order.
                 </p>
-                <PermissionGuard permission="manage_work_orders">
+                <PermissionGuard permission="workorders.create">
                   <div className="space-x-2">
                     <Button 
                       onClick={() => workOrder.isLocked ? toast({
