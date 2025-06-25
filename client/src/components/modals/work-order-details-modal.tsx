@@ -648,27 +648,21 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
             ) : (
               <div className="text-center py-8">
                 <Hammer className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">No Proposal Created</h3>
+                <h3 className="text-lg font-medium mb-2">No Proposal Available</h3>
                 <p className="text-gray-600 mb-4">
-                  Create a proposal with labor, parts, and services for this work order.
+                  Proposals are now created through the Proposals page. Visit the Proposals section to request a proposal for this work order.
                 </p>
-                <PermissionGuard permission="workorders.create">
-                  <div className="space-x-2">
-                    <Button 
-                      onClick={() => workOrder.isLocked ? toast({
-                        title: "Action Blocked",
-                        description: "Cannot create proposals - work order is locked due to paid invoice.",
-                        variant: "destructive"
-                      }) : setIsProposalModalOpen(true)}
-                      disabled={workOrder.isLocked}
-                    >
-                      {workOrder.isLocked ? "Locked" : "Create Proposal"}
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsViewProposalModalOpen(true)}>
-                      View Proposal Details
-                    </Button>
-                  </div>
-                </PermissionGuard>
+                <div className="space-x-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => window.location.href = '/proposals'}
+                  >
+                    Go to Proposals Page
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsViewProposalModalOpen(true)}>
+                    View Proposal Details
+                  </Button>
+                </div>
               </div>
             )}
           </TabsContent>

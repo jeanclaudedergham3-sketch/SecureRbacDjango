@@ -170,6 +170,10 @@ Changelog:
 - June 25, 2025. Implemented comprehensive proposal approval system with admin permissions and workflow management
 - June 25, 2025. Created proposal approval/rejection functionality with proper permission controls (proposals.approve permission)
 - June 25, 2025. Enhanced proposals page with approve/reject buttons for pending proposals, removing rate functionality as requested
+- June 25, 2025. Restructured proposal workflow: removed "Create Proposal" functionality from work order details modal as requested
+- June 25, 2025. Implemented request-based proposal system with two-tab interface: "Request Proposals" shows work orders needing proposals, "Existing Proposals" manages created proposals
+- June 25, 2025. Added new API endpoint for work orders without proposals to support the restructured workflow
+- June 25, 2025. Updated work order details modal to redirect users to proposals page instead of allowing direct proposal creation
 ```
 
 ## User Preferences

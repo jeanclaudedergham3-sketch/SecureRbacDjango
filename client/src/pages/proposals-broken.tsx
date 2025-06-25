@@ -34,14 +34,15 @@ export default function Proposals() {
   });
 
   const approveProposalMutation = useMutation({
-    mutationFn: (proposalId: number) => apiRequest("PUT", `/api/proposals/${proposalId}/approve`),
+    mutationFn: (proposalId: number) => 
+      apiRequest("PUT", `/api/proposals/${proposalId}/approve`, {}),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
       toast({
         title: "Success",
         description: "Proposal approved successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/work-orders-without-proposals"] });
     },
     onError: (error: any) => {
       toast({
@@ -53,14 +54,15 @@ export default function Proposals() {
   });
 
   const rejectProposalMutation = useMutation({
-    mutationFn: (proposalId: number) => apiRequest("PUT", `/api/proposals/${proposalId}/reject`),
+    mutationFn: (proposalId: number) => 
+      apiRequest("PUT", `/api/proposals/${proposalId}/reject`, {}),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
       toast({
         title: "Success",
         description: "Proposal rejected successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/work-orders-without-proposals"] });
     },
     onError: (error: any) => {
       toast({
@@ -74,23 +76,38 @@ export default function Proposals() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved": return "bg-green-100 text-green-800";
-      case "pending": return "bg-yellow-100 text-yellow-800";
       case "cancelled": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+      default: return "bg-yellow-100 text-yellow-800";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "approved": return <CheckCircle className="h-3 w-3" />;
-      case "pending": return <Clock className="h-3 w-3" />;
-      case "cancelled": return <XCircle className="h-3 w-3" />;
-      default: return <Clock className="h-3 w-3" />;
+      case "approved": return <CheckCircle className="h-4 w-4" />;
+      case "cancelled": return <XCircle className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
     }
   };
 
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatCurrency = (amount: string) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(parseFloat(amount));
+  };
+
+  // Calculate proposal total from JSON data
   const calculateProposalTotal = (proposal: WorkOrderProposal) => {
     let total = 0;
+    
     try {
       // Labor total
       if (proposal.laborData) {
@@ -363,153 +380,152 @@ export default function Proposals() {
               </Card>
             </div>
 
-            {/* Filters */}
-            <div className="mt-6 flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                <Input
-                  placeholder="Search by work order number or client name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Filters */}
+        <div className="mt-6 flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+            <Input
+              placeholder="Search by work order number or client name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-48">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-            {/* Proposals List */}
-            <div className="mt-6 space-y-4">
-              {isLoadingProposals ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-2 text-gray-500">Loading proposals...</p>
-                </div>
-              ) : filteredProposals.length > 0 ? (
-                filteredProposals.map((item) => {
-                  const proposalTotal = calculateProposalTotal(item);
-                  
-                  return (
-                    <Card key={item.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center space-x-4">
-                            <div>
-                              <h3 className="text-lg font-semibold text-blue-600">
-                                {item.workOrder.workOrderNumber}
-                              </h3>
-                              <p className="text-gray-900 font-medium">
-                                {item.workOrder.clientName || "No client specified"}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {item.workOrder.location || "No location specified"}
-                              </p>
-                            </div>
-                          
-                            <div className="text-center">
-                              <p className="text-sm text-gray-500">Proposal Total</p>
-                              <p className="text-lg font-semibold text-blue-600">
-                                ${proposalTotal.toFixed(2)}
-                              </p>
-                            </div>
-
-                            <div className="text-center">
-                              <p className="text-sm text-gray-500">Created</p>
-                              <p className="text-sm text-gray-900">
-                                {new Date(item.createdAt).toLocaleDateString()}
-                              </p>
-                            </div>
+        {/* Proposals List */}
+        <div className="mt-6 space-y-4">
+          {filteredProposals.length > 0 ? (
+            filteredProposals.map((item) => {
+              const proposalTotal = calculateProposalTotal(item);
+              
+              return (
+                <Card key={item.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4">
+                          <div>
+                            <h3 className="text-lg font-semibold text-blue-600">
+                              {item.workOrder.workOrderNumber}
+                            </h3>
+                            <p className="text-gray-900 font-medium">
+                              {item.workOrder.clientName}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {item.workOrder.street}, {item.workOrder.city}
+                            </p>
                           </div>
-                          
-                          <Badge className={getStatusColor(item.status)}>
-                            <div className="flex items-center space-x-1">
-                              {getStatusIcon(item.status)}
-                              <span>{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
-                            </div>
-                          </Badge>
+                        
+                        <div className="text-center">
+                          <p className="text-sm text-gray-500">Work Order Value</p>
+                          <p className="text-lg font-semibold text-green-600">
+                            {formatCurrency(item.workOrder.tnte)}
+                          </p>
+                        </div>
+                        
+                        <div className="text-center">
+                          <p className="text-sm text-gray-500">Proposal Total</p>
+                          <p className="text-lg font-semibold text-blue-600">
+                            {formatCurrency(proposalTotal.toString())}
+                          </p>
                         </div>
 
-                        {item.message && (
-                          <div className="mb-4 p-3 bg-gray-50 rounded-md">
-                            <p className="text-sm text-gray-700">{item.message}</p>
-                          </div>
+                        <div className="text-center">
+                          <p className="text-sm text-gray-500">Created</p>
+                          <p className="text-sm text-gray-900">
+                            {formatDate(item.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {item.message && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                          <p className="text-sm text-gray-700">{item.message}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <Badge className={getStatusColor(item.status)}>
+                        <div className="flex items-center space-x-1">
+                          {getStatusIcon(item.status)}
+                          <span>{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
+                        </div>
+                      </Badge>
+                      
+                      <div className="flex items-center space-x-2">
+                        {item.status === "pending" && (
+                          <PermissionGuard permission="proposals.approve">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => approveProposalMutation.mutate(item.id)}
+                              disabled={approveProposalMutation.isPending}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Approve
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => rejectProposalMutation.mutate(item.id)}
+                              disabled={rejectProposalMutation.isPending}
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Reject
+                            </Button>
+                          </PermissionGuard>
                         )}
-
-                        <div className="flex items-center justify-end space-x-2">
-                          {item.status === "pending" && (
-                            <PermissionGuard permission="proposals.approve">
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => approveProposalMutation.mutate(item.id)}
-                                disabled={approveProposalMutation.isPending}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Approve
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => rejectProposalMutation.mutate(item.id)}
-                                disabled={rejectProposalMutation.isPending}
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Reject
-                              </Button>
-                            </PermissionGuard>
-                          )}
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedWorkOrder(item.workOrder)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              ) : (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-lg font-medium mb-2">No proposals found</h3>
-                    <p className="text-gray-600">
-                      {searchTerm || statusFilter !== "all" 
-                        ? "Try adjusting your search criteria or filters."
-                        : "Proposals will appear here when work orders have proposal data."
-                      }
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedWorkOrder(item.workOrder)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+          ) : (
+            <div className="text-center py-12">
+              <div className="text-gray-500">
+                <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-medium mb-2">No proposals found</h3>
+                <p className="text-sm">
+                  {searchTerm || statusFilter !== "all" 
+                    ? "Try adjusting your search criteria or filters."
+                    : "Proposals will appear here when work orders have proposal data."
+                  }
+                </p>
+              </div>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
-      {selectedWorkOrder && isProposalModalOpen && (
+      {selectedWorkOrder && (
         <WorkOrderProposalModal
-          isOpen={isProposalModalOpen}
-          onClose={() => {
-            setIsProposalModalOpen(false);
-            setSelectedWorkOrder(null);
-            queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/work-orders-without-proposals"] });
-          }}
+          isOpen={!!selectedWorkOrder}
+          onClose={() => setSelectedWorkOrder(null)}
           workOrder={selectedWorkOrder}
         />
       )}

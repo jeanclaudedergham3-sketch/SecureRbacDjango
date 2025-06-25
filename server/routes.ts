@@ -597,6 +597,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get work orders without proposals for proposal creation
+  app.get("/api/work-orders-without-proposals", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+    try {
+      const workOrders = await storage.getAllWorkOrders();
+      const workOrdersWithoutProposals = [];
+      
+      for (const workOrder of workOrders) {
+        const proposal = await storage.getWorkOrderProposal(workOrder.id);
+        if (!proposal) {
+          workOrdersWithoutProposals.push(workOrder);
+        }
+      }
+      
+      res.json(workOrdersWithoutProposals);
+    } catch (error) {
+      console.error("Error fetching work orders without proposals:", error);
+      res.status(500).json({ message: "Failed to get work orders" });
+    }
+  });
+
   // Work Order Parts Request routes
   app.get("/api/work-orders/:id/parts-requests", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
