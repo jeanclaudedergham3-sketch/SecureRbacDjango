@@ -136,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User routes
-  app.get("/api/users", requireAuth, requirePermission("view_users"), async (req, res) => {
+  app.get("/api/users", requireAuth, requirePermission("users.view"), async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
@@ -145,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", requireAuth, requirePermission("edit_users"), async (req, res) => {
+  app.post("/api/users", requireAuth, requirePermission("users.create"), async (req, res) => {
     try {
       console.log("Creating user with data:", req.body);
       
@@ -194,7 +194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id", requireAuth, requirePermission("edit_users"), async (req, res) => {
+  app.put("/api/users/:id", requireAuth, requirePermission("users.edit"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const userData = { ...req.body };
@@ -215,7 +215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", requireAuth, requirePermission("edit_users"), async (req, res) => {
+  app.delete("/api/users/:id", requireAuth, requirePermission("users.delete"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteUser(id);
@@ -228,7 +228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users/:id/role", requireAuth, requirePermission("assign_roles"), async (req, res) => {
+  app.post("/api/users/:id/role", requireAuth, requirePermission("roles.view"), async (req, res) => {
     try {
       const userId = parseInt(req.params.id);
       const { roleId } = req.body;
@@ -248,7 +248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Role routes
-  app.get("/api/roles", requireAuth, requirePermission("view_roles"), async (req, res) => {
+  app.get("/api/roles", requireAuth, requirePermission("roles.view"), async (req, res) => {
     try {
       const roles = await storage.getAllRoles();
       res.json(roles);
@@ -257,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roles", requireAuth, requirePermission("assign_roles"), async (req, res) => {
+  app.post("/api/roles", requireAuth, requirePermission("roles.view"), async (req, res) => {
     try {
       const { name, description, permissionIds = [] } = req.body;
       
@@ -286,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/permissions", requireAuth, requirePermission("view_roles"), async (req, res) => {
+  app.get("/api/permissions", requireAuth, requirePermission("roles.view"), async (req, res) => {
     try {
       const permissions = await storage.getAllPermissions();
       res.json(permissions);
@@ -295,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roles/:id/permissions", requireAuth, requirePermission("assign_roles"), async (req, res) => {
+  app.post("/api/roles/:id/permissions", requireAuth, requirePermission("roles.view"), async (req, res) => {
     try {
       const roleId = parseInt(req.params.id);
       const { permissionIds } = req.body;
@@ -326,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Technician routes
-  app.get("/api/technicians", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+  app.get("/api/technicians", requireAuth, requirePermission("technicians.view"), async (req, res) => {
     try {
       const technicians = await storage.getAllTechnicians();
       res.json(technicians);
@@ -335,7 +335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/technicians", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+  app.post("/api/technicians", requireAuth, requirePermission("technicians.view"), async (req, res) => {
     try {
       const technicianData = insertTechnicianSchema.parse(req.body);
       const technician = await storage.createTechnician(technicianData);
@@ -349,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/technicians/:id", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+  app.put("/api/technicians/:id", requireAuth, requirePermission("technicians.view"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const technicianData = insertTechnicianSchema.partial().parse(req.body);
@@ -363,7 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/technicians/:id", requireAuth, requirePermission("manage_technicians"), async (req, res) => {
+  app.delete("/api/technicians/:id", requireAuth, requirePermission("technicians.view"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteTechnician(id);
@@ -377,7 +377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rating routes
-  app.post("/api/technician-ratings", requireAuth, requirePermission("rate_technicians"), async (req, res) => {
+  app.post("/api/technician-ratings", requireAuth, requirePermission("technicians.view"), async (req, res) => {
     try {
       const ratingData = insertRatingSchema.parse(req.body);
       const rating = await storage.createRating(ratingData);
@@ -398,7 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Work Order routes
-  app.get("/api/work-orders", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+  app.get("/api/work-orders", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const workOrders = await storage.getAllWorkOrders();
       res.json(workOrders);
@@ -407,7 +407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/work-orders", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+  app.post("/api/work-orders", requireAuth, requirePermission("workorders.create"), async (req, res) => {
     try {
       const workOrderData = insertWorkOrderSchema.parse(req.body);
       const workOrder = await storage.createWorkOrder(workOrderData);
@@ -421,7 +421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/work-orders/:id", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+  app.put("/api/work-orders/:id", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const workOrderData = insertWorkOrderSchema.partial().parse(req.body);
@@ -435,7 +435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/work-orders/:id", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+  app.delete("/api/work-orders/:id", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteWorkOrder(id);
@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Work Order Proposal routes
-  app.get("/api/work-orders/:id/proposal", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+  app.get("/api/work-orders/:id/proposal", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const proposal = await storage.getWorkOrderProposal(workOrderId);
@@ -464,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/work-orders/:id/proposal", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+  app.post("/api/work-orders/:id/proposal", requireAuth, requirePermission("workorders.create"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const proposalData = insertWorkOrderProposalSchema.parse({
@@ -482,7 +482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/work-orders/:id/proposal", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+  app.put("/api/work-orders/:id/proposal", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const proposalData = insertWorkOrderProposalSchema.partial().parse(req.body);
@@ -496,7 +496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/work-orders/:id/proposal/status", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+  app.put("/api/work-orders/:id/proposal/status", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const { status } = req.body;
@@ -519,7 +519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all proposals with work order info
-  app.get("/api/proposals", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+  app.get("/api/proposals", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const workOrders = await storage.getAllWorkOrders();
       const proposalsWithWorkOrders = [];
@@ -541,7 +541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Work Order Parts Request routes
-  app.get("/api/work-orders/:id/parts-requests", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+  app.get("/api/work-orders/:id/parts-requests", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const partsRequests = await storage.getWorkOrderPartsRequests(workOrderId);
@@ -551,7 +551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/work-orders/:id/parts-requests", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+  app.post("/api/work-orders/:id/parts-requests", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const partsRequestData = insertWorkOrderPartsRequestSchema.parse({
@@ -569,7 +569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/parts-requests/:id/status", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+  app.put("/api/parts-requests/:id/status", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
@@ -592,7 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all parts requests with work order and user info
-  app.get("/api/parts-requests", requireAuth, requirePermission("view_work_orders"), async (req, res) => {
+  app.get("/api/parts-requests", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       const workOrders = await storage.getAllWorkOrders();
       const users = await storage.getAllUsers();
@@ -963,7 +963,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard stats
-  app.get("/api/dashboard/stats", requireAuth, requirePermission("view_dashboard"), async (req, res) => {
+  app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       const roles = await storage.getAllRoles();
@@ -1133,9 +1133,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Notification routes
   app.get("/api/notifications", requireAuth, async (req, res) => {
     try {
+      console.log("Fetching notifications for user:", req.user.id);
       const notifications = await storage.getNotifications(req.user.id);
       res.json(notifications);
     } catch (error: any) {
+      console.error("Notifications error:", error);
       res.status(500).json({ message: error.message });
     }
   });
