@@ -512,10 +512,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getNotifications(userId?: number): Promise<Notification[]> {
-    if (userId) {
-      return await db.select().from(notifications).where(eq(notifications.userId, userId));
+    try {
+      if (userId) {
+        const result = await db.select().from(notifications)
+          .where(eq(notifications.userId, userId))
+          .orderBy(notifications.createdAt);
+        console.log(`Found ${result.length} notifications for user ${userId}`);
+        return result;
+      }
+      const result = await db.select().from(notifications).orderBy(notifications.createdAt);
+      console.log(`Found ${result.length} total notifications`);
+      return result;
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      return [];
     }
-    return await db.select().from(notifications);
   }
 
   async createNotification(insertNotification: InsertNotification): Promise<Notification> {
