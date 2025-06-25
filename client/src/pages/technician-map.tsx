@@ -8,14 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { RateTechnicianModal } from "@/components/modals/rate-technician-modal";
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type { Technician } from "@shared/schema";
 
-// Free OpenStreetMap component using iframe embed
+// Interactive Leaflet Map Component with accurate positioning
 const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
   technicians: Technician[];
   onMarkerClick: (technician: Technician) => void;
   searchTerm: string;
 }) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<L.Marker[]>([]);
+
   const filteredTechnicians = technicians.filter(tech => {
     const fullName = `${tech.firstName} ${tech.lastName}`.toLowerCase();
     return fullName.includes(searchTerm.toLowerCase()) ||
@@ -28,102 +34,131 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
     !isNaN(parseFloat(tech.latitude)) && !isNaN(parseFloat(tech.longitude))
   );
 
-  // Calculate center and bounds for technicians
-  const getMapCenter = () => {
-    if (techsWithCoords.length === 0) return { lat: 40.7128, lng: -74.0060 }; // Default to NYC
-    
-    const avgLat = techsWithCoords.reduce((sum, tech) => sum + parseFloat(tech.latitude!), 0) / techsWithCoords.length;
-    const avgLng = techsWithCoords.reduce((sum, tech) => sum + parseFloat(tech.longitude!), 0) / techsWithCoords.length;
-    
-    return { lat: avgLat, lng: avgLng };
-  };
+  useEffect(() => {
+    if (!mapRef.current) return;
 
-  const center = getMapCenter();
-  const zoom = techsWithCoords.length > 1 ? 10 : 13;
+    // Initialize map if not already created
+    if (!mapInstanceRef.current) {
+      // Fix default marker icons
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      });
 
-  // Generate OpenStreetMap embed URL
-  const generateMapUrl = () => {
-    const baseUrl = "https://www.openstreetmap.org/export/embed.html";
-    
-    if (techsWithCoords.length === 0) {
-      return `${baseUrl}?bbox=-74.2,40.5,-73.8,40.9&layer=mapnik`;
+      const center = techsWithCoords.length > 0 
+        ? [
+            techsWithCoords.reduce((sum, tech) => sum + parseFloat(tech.latitude!), 0) / techsWithCoords.length,
+            techsWithCoords.reduce((sum, tech) => sum + parseFloat(tech.longitude!), 0) / techsWithCoords.length
+          ] as [number, number]
+        : [40.7128, -74.0060] as [number, number]; // Default to NYC
+
+      mapInstanceRef.current = L.map(mapRef.current).setView(center, 10);
+
+      // Add OpenStreetMap tiles
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(mapInstanceRef.current);
     }
-    
-    // Calculate bounding box for all technicians
-    const lats = techsWithCoords.map(tech => parseFloat(tech.latitude!));
-    const lngs = techsWithCoords.map(tech => parseFloat(tech.longitude!));
-    
-    const minLat = Math.min(...lats) - 0.01;
-    const maxLat = Math.max(...lats) + 0.01;
-    const minLng = Math.min(...lngs) - 0.01;
-    const maxLng = Math.max(...lngs) + 0.01;
-    
-    return `${baseUrl}?bbox=${minLng},${minLat},${maxLng},${maxLat}&layer=mapnik&marker=${center.lat},${center.lng}`;
-  };
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(marker);
+      }
+    });
+    markersRef.current = [];
+
+    // Add markers for technicians
+    techsWithCoords.forEach(tech => {
+      if (!mapInstanceRef.current) return;
+
+      const lat = parseFloat(tech.latitude!);
+      const lng = parseFloat(tech.longitude!);
+
+      // Create custom marker icon
+      const customIcon = L.divIcon({
+        className: 'custom-technician-marker',
+        html: `
+          <div class="bg-red-500 text-white rounded-full shadow-lg border-2 border-white text-xs font-bold flex items-center justify-center" 
+               style="width: 32px; height: 32px;">
+            ${tech.firstName.charAt(0)}${tech.lastName.charAt(0)}
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+
+      const marker = L.marker([lat, lng], { icon: customIcon })
+        .addTo(mapInstanceRef.current)
+        .bindPopup(`
+          <div class="p-2">
+            <h3 class="font-semibold">${tech.firstName} ${tech.lastName}</h3>
+            <p class="text-sm text-gray-600">${tech.specialization}</p>
+            ${tech.location ? `<p class="text-xs text-gray-500">${tech.location}</p>` : ''}
+            <button onclick="window.selectTechnician(${tech.id})" 
+                    class="mt-2 bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600">
+              View Details
+            </button>
+          </div>
+        `);
+
+      markersRef.current.push(marker);
+    });
+
+    // Fit map to show all markers
+    if (techsWithCoords.length > 1 && mapInstanceRef.current) {
+      const group = new L.FeatureGroup(markersRef.current);
+      mapInstanceRef.current.fitBounds(group.getBounds().pad(0.1));
+    }
+
+    // Global function for popup buttons
+    (window as any).selectTechnician = (id: number) => {
+      const tech = techsWithCoords.find(t => t.id === id);
+      if (tech) onMarkerClick(tech);
+    };
+
+    return () => {
+      // Cleanup function
+      if (mapInstanceRef.current) {
+        markersRef.current.forEach(marker => {
+          mapInstanceRef.current!.removeLayer(marker);
+        });
+        markersRef.current = [];
+      }
+    };
+  }, [techsWithCoords, onMarkerClick]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className="h-full relative rounded-lg overflow-hidden border">
-      {/* OpenStreetMap Embed */}
-      <iframe
-        width="100%"
-        height="100%"
-        style={{ border: 0 }}
-        loading="lazy"
-        allowFullScreen
-        referrerPolicy="no-referrer-when-downgrade"
-        src={generateMapUrl()}
-        className="absolute inset-0"
-      />
+      <div ref={mapRef} className="h-full w-full" />
       
-      {/* Overlay with technician markers positioned over the map */}
-      <div className="absolute inset-0 pointer-events-none">
-        {techsWithCoords.map((tech, index) => {
-          // Calculate approximate position on the map based on coordinates
-          const offsetX = (index % 3 - 1) * 15; // Spread markers horizontally
-          const offsetY = Math.floor(index / 3) * 15; // Stack markers vertically
-          
-          return (
-            <div
-              key={tech.id}
-              className="absolute transform -translate-x-1/2 -translate-y-full pointer-events-auto"
-              style={{
-                left: `${50 + offsetX}%`,
-                top: `${50 + offsetY}%`,
-              }}
-            >
-              <div className="relative group">
-                <Button
-                  size="sm"
-                  onClick={() => onMarkerClick(tech)}
-                  className="bg-red-500 hover:bg-red-600 text-white shadow-lg text-xs px-2 py-1 rounded-full"
-                >
-                  <MapPin className="h-3 w-3 mr-1" />
-                  {tech.firstName}
-                </Button>
-                
-                {/* Tooltip on hover */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap z-50">
-                  <div className="font-semibold">{tech.firstName} {tech.lastName}</div>
-                  <div>📞 {tech.phone}</div>
-                  {tech.email && <div>📧 {tech.email}</div>}
-                  {tech.location && <div>📍 {tech.location}</div>}
-                  {tech.averageRating && (
-                    <div>⭐ {parseFloat(tech.averageRating.toString()).toFixed(1)} ({tech.totalRatings} reviews)</div>
-                  )}
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-black"></div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+      {/* Legend */}
+      <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 pointer-events-auto z-[1000]">
+        <div className="text-sm font-medium text-gray-900 mb-2">Technicians</div>
+        <div className="flex items-center text-xs text-gray-600">
+          <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+          Active Technicians ({techsWithCoords.length})
+        </div>
       </div>
       
       {/* Info overlay when no coordinates available */}
       {techsWithCoords.length === 0 && (
-        <div className="absolute inset-0 bg-white/95 flex items-center justify-center">
+        <div className="absolute inset-0 bg-white/95 flex items-center justify-center z-[1001]">
           <div className="text-center p-6">
             <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-700 mb-2">OpenStreetMap View</h3>
+            <h3 className="text-lg font-medium text-gray-700 mb-2">Interactive Map View</h3>
             <p className="text-sm text-gray-500 mb-4">
               {filteredTechnicians.length > 0 
                 ? `${filteredTechnicians.length} technician(s) found but no location coordinates available`
@@ -165,44 +200,28 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
   );
 };
 
-export default function TechnicianMap() {
+export default function TechnicianMapPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
-  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
-  const { data: technicians = [] } = useQuery<Technician[]>({
+  const { data: technicians, isLoading } = useQuery<Technician[]>({
     queryKey: ["/api/technicians"],
   });
 
-  const renderStars = (rating: string) => {
-    const num = parseFloat(rating);
-    const fullStars = Math.floor(num);
-    const hasHalfStar = num % 1 >= 0.5;
+  const parsePaymentMethods = (methods: string | null) => {
+    if (!methods) return [];
     
-    return (
-      <div className="flex items-center">
-        {[...Array(5)].map((_, i) => (
-          <Star
-            key={i}
-            className={`h-4 w-4 ${
-              i < fullStars 
-                ? "fill-yellow-400 text-yellow-400"
-                : i === fullStars && hasHalfStar
-                ? "fill-yellow-400/50 text-yellow-400"
-                : "text-gray-300"
-            }`}
-          />
-        ))}
-        <span className="ml-2 text-sm font-medium">{num}</span>
-      </div>
-    );
-  };
-
-  const parsePaymentMethods = (methodsStr: string | null) => {
-    if (!methodsStr) return [];
     try {
-      return JSON.parse(methodsStr);
-    } catch {
+      // Handle JSON string format
+      if (methods.startsWith('[') || methods.startsWith('{')) {
+        return JSON.parse(methods);
+      }
+      
+      // Handle comma-separated string format
+      return methods.split(',').map(m => m.trim()).filter(Boolean);
+    } catch (error) {
+      console.error('Error parsing payment methods:', error);
       return [];
     }
   };
@@ -248,111 +267,126 @@ export default function TechnicianMap() {
         </div>
       </div>
 
-      {/* Map Area */}
+      {/* Map Container */}
       <div className="flex-1 p-4">
-        <div className="max-w-7xl mx-auto h-full">
-          <MapComponent 
-            technicians={technicians}
-            onMarkerClick={setSelectedTechnician}
-            searchTerm={searchTerm}
-          />
+        <div className="h-full max-w-7xl mx-auto">
+          {isLoading ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading technicians...</p>
+              </div>
+            </div>
+          ) : (
+            <MapComponent
+              technicians={technicians || []}
+              onMarkerClick={setSelectedTechnician}
+              searchTerm={searchTerm}
+            />
+          )}
         </div>
       </div>
 
       {/* Technician Details Modal */}
       <Dialog open={!!selectedTechnician} onOpenChange={() => setSelectedTechnician(null)}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Technician Details</DialogTitle>
+          </DialogHeader>
           {selectedTechnician && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center justify-between">
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold">
                   {selectedTechnician.firstName} {selectedTechnician.lastName}
-                  <Badge className="ml-2">
-                    {selectedTechnician.totalRatings} reviews
-                  </Badge>
-                </DialogTitle>
-              </DialogHeader>
+                </h3>
+                <p className="text-gray-600">{selectedTechnician.specialization}</p>
+              </div>
 
-              <div className="space-y-4">
-                {/* Rating */}
-                <div className="flex items-center justify-between">
-                  {renderStars(selectedTechnician.averageRating || "0")}
-                  <PermissionGuard permission="rate_technicians">
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setIsRatingModalOpen(true);
-                      }}
-                    >
-                      Rate Technician
-                    </Button>
-                  </PermissionGuard>
+              <div className="space-y-3">
+                <div className="flex items-center text-sm">
+                  <Phone className="h-4 w-4 mr-3 text-gray-400" />
+                  <span className="font-medium">Phone:</span>
+                  <a href={`tel:${selectedTechnician.phone}`} className="ml-2 text-blue-600 hover:underline">
+                    {selectedTechnician.phone}
+                  </a>
                 </div>
 
-                {/* Contact Info */}
-                <div className="space-y-2">
+                {selectedTechnician.email && (
                   <div className="flex items-center text-sm">
-                    <Phone className="h-4 w-4 mr-3 text-gray-400" />
-                    <span className="font-medium mr-2">Phone:</span>
-                    <a href={`tel:${selectedTechnician.phone}`} className="text-blue-600 hover:underline">
-                      {selectedTechnician.phone}
+                    <Mail className="h-4 w-4 mr-3 text-gray-400" />
+                    <span className="font-medium">Email:</span>
+                    <a href={`mailto:${selectedTechnician.email}`} className="ml-2 text-blue-600 hover:underline">
+                      {selectedTechnician.email}
                     </a>
                   </div>
-
-                  {selectedTechnician.email && (
-                    <div className="flex items-center text-sm">
-                      <Mail className="h-4 w-4 mr-3 text-gray-400" />
-                      <span className="font-medium mr-2">Email:</span>
-                      <a href={`mailto:${selectedTechnician.email}`} className="text-blue-600 hover:underline">
-                        {selectedTechnician.email}
-                      </a>
-                    </div>
-                  )}
-
-                  {selectedTechnician.location && (
-                    <div className="flex items-start text-sm">
-                      <MapPin className="h-4 w-4 mr-3 text-gray-400 mt-0.5" />
-                      <div>
-                        <span className="font-medium">Location:</span>
-                        <p className="text-gray-700 mt-1">{selectedTechnician.location}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Specialization */}
-                {selectedTechnician.specialization && (
-                  <div className="text-sm">
-                    <span className="font-medium">Specialization:</span>
-                    <span className="ml-2 text-gray-700">{selectedTechnician.specialization}</span>
-                  </div>
                 )}
 
-                {/* Payment Methods */}
-                {selectedTechnician.paymentMethods && (
-                  <div>
-                    <div className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Payment Methods
+                {selectedTechnician.location && (
+                  <div className="flex items-start text-sm">
+                    <MapPin className="h-4 w-4 mr-3 text-gray-400 mt-0.5" />
+                    <div>
+                      <span className="font-medium">Location:</span>
+                      <p className="text-gray-700 mt-1">{selectedTechnician.location}</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {parsePaymentMethods(selectedTechnician.paymentMethods).map((method: string, index: number) => (
-                        <Badge key={index} variant="outline">
-                          {formatPaymentMethod(method)}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Location Coordinates */}
-                {selectedTechnician.latitude && selectedTechnician.longitude && (
-                  <div className="text-xs text-gray-500 pt-2 border-t">
-                    Coordinates: {selectedTechnician.latitude}, {selectedTechnician.longitude}
                   </div>
                 )}
               </div>
-            </>
+
+              {/* Specialization */}
+              {selectedTechnician.specialization && (
+                <div className="text-sm">
+                  <span className="font-medium">Specialization:</span>
+                  <span className="ml-2 text-gray-700">{selectedTechnician.specialization}</span>
+                </div>
+              )}
+
+              {/* Experience and Rating */}
+              <div className="flex items-center space-x-4 text-sm">
+                <div>
+                  <span className="font-medium">Experience:</span>
+                  <span className="ml-2 text-gray-700">{selectedTechnician.experience} years</span>
+                </div>
+                {selectedTechnician.averageRating && (
+                  <div className="flex items-center">
+                    <Star className="h-4 w-4 text-yellow-400 mr-1" />
+                    <span>{parseFloat(selectedTechnician.averageRating.toString()).toFixed(1)}</span>
+                    <span className="text-gray-500 ml-1">
+                      ({selectedTechnician.totalRatings} reviews)
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Methods */}
+              {selectedTechnician.paymentMethods && (
+                <div>
+                  <div className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Payment Methods
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {parsePaymentMethods(selectedTechnician.paymentMethods).map((method: string, index: number) => (
+                      <Badge key={index} variant="outline">
+                        {formatPaymentMethod(method)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4">
+                <PermissionGuard permission="technicians.view">
+                  <Button
+                    onClick={() => setShowRatingModal(true)}
+                    className="flex-1"
+                  >
+                    <Star className="h-4 w-4 mr-2" />
+                    Rate Technician
+                  </Button>
+                </PermissionGuard>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -360,8 +394,8 @@ export default function TechnicianMap() {
       {/* Rating Modal */}
       {selectedTechnician && (
         <RateTechnicianModal
-          isOpen={isRatingModalOpen}
-          onClose={() => setIsRatingModalOpen(false)}
+          isOpen={showRatingModal}
+          onClose={() => setShowRatingModal(false)}
           technician={selectedTechnician}
         />
       )}
