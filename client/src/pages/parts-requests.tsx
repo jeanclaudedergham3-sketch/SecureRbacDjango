@@ -94,17 +94,9 @@ export default function PartsRequests() {
   };
 
   const calculateRequestTotal = (partsRequest: PartsRequestWithWorkOrder) => {
-    try {
-      const parts = JSON.parse(partsRequest.parts || "[]");
-      return parts.reduce((total: number, part: any) => {
-        const cost = parseFloat(part.estimatedCost) || 0;
-        const quantity = parseFloat(part.quantity) || 0;
-        return total + (cost * quantity);
-      }, 0);
-    } catch (error) {
-      console.error("Error calculating request total:", error);
-      return 0;
-    }
+    const cost = parseFloat(partsRequest.estimatedCost || "0");
+    const quantity = partsRequest.quantity || 0;
+    return cost * quantity;
   };
 
   // Filter parts requests
@@ -117,16 +109,8 @@ export default function PartsRequests() {
     
     const matchesStatus = statusFilter === "all" || request.status === statusFilter;
     
-    // Extract urgency from parts data
-    let hasMatchingUrgency = urgencyFilter === "all";
-    if (!hasMatchingUrgency) {
-      try {
-        const parts = JSON.parse(request.parts || "[]");
-        hasMatchingUrgency = parts.some((part: any) => part.urgency === urgencyFilter);
-      } catch (error) {
-        hasMatchingUrgency = false;
-      }
-    }
+    // Check urgency from individual request
+    const hasMatchingUrgency = urgencyFilter === "all" || request.urgency === urgencyFilter;
     
     return matchesSearch && matchesStatus && hasMatchingUrgency;
   });
@@ -257,12 +241,6 @@ export default function PartsRequests() {
           {filteredRequests.length > 0 ? (
             filteredRequests.map((request) => {
               const requestTotal = calculateRequestTotal(request);
-              let parts = [];
-              try {
-                parts = JSON.parse(request.parts || "[]");
-              } catch (error) {
-                console.error("Error parsing parts:", error);
-              }
 
               return (
                 <Card key={request.id} className="hover:shadow-md transition-shadow">
@@ -315,49 +293,45 @@ export default function PartsRequests() {
                           </div>
                         </div>
 
-                        {/* Parts List */}
+                        {/* Parts Details */}
                         <div className="space-y-2">
-                          <h4 className="text-sm font-medium text-gray-700">Requested Parts:</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            {parts.map((part: any, index: number) => (
-                              <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2">
-                                    <span className="font-medium">{part.partName}</span>
-                                    {part.urgency && (
-                                      <Badge className={getUrgencyColor(part.urgency)} variant="outline">
-                                        {part.urgency}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {part.partNumber && (
-                                    <p className="text-sm text-gray-500">PN: {part.partNumber}</p>
-                                  )}
-                                  {part.description && (
-                                    <p className="text-sm text-gray-600">{part.description}</p>
+                          <h4 className="text-sm font-medium text-gray-700">Part Details:</h4>
+                          <div className="bg-gray-50 p-3 rounded-md">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2">
+                                  <span className="font-medium">{request.partName}</span>
+                                  {request.urgency && (
+                                    <Badge className={getUrgencyColor(request.urgency)} variant="outline">
+                                      {request.urgency}
+                                    </Badge>
                                   )}
                                 </div>
-                                <div className="text-right">
-                                  <p className="font-medium">Qty: {part.quantity}</p>
-                                  {part.estimatedCost && (
-                                    <p className="text-sm text-gray-500">${part.estimatedCost} each</p>
-                                  )}
-                                </div>
+                                {request.partNumber && (
+                                  <p className="text-sm text-gray-500">PN: {request.partNumber}</p>
+                                )}
+                                {request.supplier && (
+                                  <p className="text-sm text-gray-500">Supplier: {request.supplier}</p>
+                                )}
                               </div>
-                            ))}
+                              <div className="text-right">
+                                <p className="font-medium">Qty: {request.quantity}</p>
+                                <p className="text-sm text-gray-500">${request.estimatedCost} each</p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                         
-                        {request.reason && (
+                        {request.notes && (
                           <div className="mt-3 p-3 bg-blue-50 rounded-md">
-                            <p className="text-sm text-blue-800"><strong>Reason:</strong> {request.reason}</p>
+                            <p className="text-sm text-blue-800"><strong>Notes:</strong> {request.notes}</p>
                           </div>
                         )}
                       </div>
 
                       <div className="flex flex-col items-end space-y-2">
                         {request.status === "pending" && (
-                          <PermissionGuard permission="manage_work_orders">
+                          <PermissionGuard permission="system.admin">
                             <div className="flex space-x-2">
                               <Button
                                 size="sm"

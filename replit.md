@@ -177,6 +177,8 @@ Changelog:
 - June 25, 2025. Modified work order details proposal section to show "Request Proposal" action instead of direct navigation to proposals page
 - June 25, 2025. Fixed parts request 400 error by updating API data structure to match database schema - changed from nested JSON to individual part requests
 - June 25, 2025. Updated parts request display logic to show correct values using new schema structure with individual fields (partName, quantity, estimatedCost)
+- June 25, 2025. Fixed parts request approval functionality by updating permission check from manage_work_orders to system.admin for admin users
+- June 25, 2025. Completely updated parts request page to use new individual field structure instead of legacy JSON parsing for parts data
 ```
 
 ## User Preferences
