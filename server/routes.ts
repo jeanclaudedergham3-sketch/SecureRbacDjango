@@ -331,7 +331,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const technicians = await storage.getAllTechnicians();
       res.json(technicians);
     } catch (error) {
-      res.status(500).json({ message: "Failed to get technicians" });
+      console.error("Error fetching technicians:", error);
+      res.status(500).json({ message: "Failed to get technicians", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -882,7 +883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           ...payment,
           workOrderNumber: workOrder?.workOrderNumber || "Unknown",
-          technicianName: technician?.name || "Unknown"
+          technicianName: technician ? `${technician.firstName} ${technician.lastName}` : "Unknown"
         };
       });
       

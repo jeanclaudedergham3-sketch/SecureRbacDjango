@@ -833,7 +833,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 Create payment requests for technicians working on this order.
               </p>
               
-              <PermissionGuard permission="view_work_orders">
+              <PermissionGuard permission="workorders.view">
                 <div className="space-x-2 mb-4">
                   <Button 
                     onClick={() => workOrder.isLocked ? toast({
@@ -882,7 +882,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                             <div className="space-y-2">
                               <div className="flex items-center space-x-2">
                                 <span className="font-medium">
-                                  {technician?.name || `Technician #${payment.technicianId}`}
+                                  {technician ? `${technician.firstName} ${technician.lastName}` : `Technician #${payment.technicianId}`}
                                 </span>
                                 <Badge className={getStatusColor(payment.status)}>
                                   {payment.status.replace("_", " ")}
@@ -1398,7 +1398,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                             <div className="space-y-2">
                               <div className="flex items-center space-x-3">
                                 <h4 className="text-xl font-bold text-gray-900">
-                                  {technician?.name || `Technician #${payment.technicianId}`}
+                                  {technician ? `${technician.firstName} ${technician.lastName}` : `Technician #${payment.technicianId}`}
                                 </h4>
                                 <Badge className={getStatusColor(payment.status)}>
                                   {payment.status.replace("_", " ")}
