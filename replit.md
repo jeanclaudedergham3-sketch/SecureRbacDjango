@@ -174,6 +174,7 @@ Changelog:
 - June 25, 2025. Implemented request-based proposal system with two-tab interface: "Request Proposals" shows work orders needing proposals, "Existing Proposals" manages created proposals
 - June 25, 2025. Added new API endpoint for work orders without proposals to support the restructured workflow
 - June 25, 2025. Updated work order details modal to redirect users to proposals page instead of allowing direct proposal creation
+- June 25, 2025. Modified work order details proposal section to show "Request Proposal" action instead of direct navigation to proposals page
 ```
 
 ## User Preferences

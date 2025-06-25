@@ -650,14 +650,19 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 <Hammer className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                 <h3 className="text-lg font-medium mb-2">No Proposal Available</h3>
                 <p className="text-gray-600 mb-4">
-                  Proposals are now created through the Proposals page. Visit the Proposals section to request a proposal for this work order.
+                  Request a proposal to be created for this work order. The proposal will be available for creation on the Proposals page.
                 </p>
                 <div className="space-x-2">
                   <Button 
-                    variant="outline" 
-                    onClick={() => window.location.href = '/proposals'}
+                    onClick={() => {
+                      toast({
+                        title: "Proposal Request Sent",
+                        description: "This work order has been added to the proposal requests queue. Check the Proposals page to create the proposal.",
+                      });
+                    }}
+                    disabled={workOrder.isLocked}
                   >
-                    Go to Proposals Page
+                    {workOrder.isLocked ? "Locked" : "Request Proposal"}
                   </Button>
                   <Button variant="outline" onClick={() => setIsViewProposalModalOpen(true)}>
                     View Proposal Details
