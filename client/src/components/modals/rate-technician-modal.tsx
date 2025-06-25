@@ -112,10 +112,10 @@ export function RateTechnicianModal({ isOpen, onClose, technician }: RateTechnic
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px]" aria-describedby="rate-technician-description">
         <DialogHeader>
-          <DialogTitle>Rate {technician.name}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle>Rate {technician.firstName} {technician.lastName}</DialogTitle>
+          <DialogDescription id="rate-technician-description">
             Share your experience working with this technician
           </DialogDescription>
         </DialogHeader>
