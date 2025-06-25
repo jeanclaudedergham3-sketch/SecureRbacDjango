@@ -35,6 +35,15 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
     experience: 0,
     hourlyRate: "",
     availability: "available",
+    // Payment details
+    bankAccount: "",
+    routingNumber: "",
+    bankName: "",
+    paypalEmail: "",
+    venmoHandle: "",
+    cashappHandle: "",
+    zelleInfo: "",
+    mailingAddress: "",
   });
 
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
@@ -54,6 +63,15 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
         experience: technician.experience || 0,
         hourlyRate: technician.hourlyRate || "",
         availability: technician.availability || "available",
+        // Payment details
+        bankAccount: (technician as any).bankAccount || "",
+        routingNumber: (technician as any).routingNumber || "",
+        bankName: (technician as any).bankName || "",
+        paypalEmail: (technician as any).paypalEmail || "",
+        venmoHandle: (technician as any).venmoHandle || "",
+        cashappHandle: (technician as any).cashappHandle || "",
+        zelleInfo: (technician as any).zelleInfo || "",
+        mailingAddress: (technician as any).mailingAddress || "",
       });
       
       try {
@@ -75,6 +93,15 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
         experience: 0,
         hourlyRate: "",
         availability: "available",
+        // Payment details
+        bankAccount: "",
+        routingNumber: "",
+        bankName: "",
+        paypalEmail: "",
+        venmoHandle: "",
+        cashappHandle: "",
+        zelleInfo: "",
+        mailingAddress: "",
       });
       setSelectedPaymentMethods([]);
     }
@@ -144,6 +171,15 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
       experience: Number(formData.experience),
       hourlyRate: formData.hourlyRate,
       paymentMethods: JSON.stringify(selectedPaymentMethods),
+      // Include payment details
+      bankAccount: formData.bankAccount,
+      routingNumber: formData.routingNumber,
+      bankName: formData.bankName,
+      paypalEmail: formData.paypalEmail,
+      venmoHandle: formData.venmoHandle,
+      cashappHandle: formData.cashappHandle,
+      zelleInfo: formData.zelleInfo,
+      mailingAddress: formData.mailingAddress,
     };
 
     createTechnicianMutation.mutate(submitData);
@@ -313,10 +349,10 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
                 Payment Methods
               </CardTitle>
               <DialogDescription>
-                Select the payment methods this technician accepts
+                Select the payment methods this technician accepts and enter payment details
               </DialogDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 {paymentMethodOptions.map((method) => (
                   <div key={method.value} className="flex items-center space-x-2">
@@ -334,6 +370,123 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
                   </div>
                 ))}
               </div>
+
+              {/* Bank Transfer Details */}
+              {selectedPaymentMethods.includes("bank_transfer") && (
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-medium">Bank Transfer Details</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="bankAccount">Account Number</Label>
+                      <Input
+                        id="bankAccount"
+                        value={formData.bankAccount}
+                        onChange={(e) => handleInputChange("bankAccount", e.target.value)}
+                        placeholder="Enter account number"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="routingNumber">Routing Number</Label>
+                      <Input
+                        id="routingNumber"
+                        value={formData.routingNumber}
+                        onChange={(e) => handleInputChange("routingNumber", e.target.value)}
+                        placeholder="Enter routing number"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bankName">Bank Name</Label>
+                    <Input
+                      id="bankName"
+                      value={formData.bankName}
+                      onChange={(e) => handleInputChange("bankName", e.target.value)}
+                      placeholder="Enter bank name"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* PayPal Details */}
+              {selectedPaymentMethods.includes("paypal") && (
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-medium">PayPal Details</h4>
+                  <div className="space-y-2">
+                    <Label htmlFor="paypalEmail">PayPal Email</Label>
+                    <Input
+                      id="paypalEmail"
+                      type="email"
+                      value={formData.paypalEmail}
+                      onChange={(e) => handleInputChange("paypalEmail", e.target.value)}
+                      placeholder="Enter PayPal email"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Venmo Details */}
+              {selectedPaymentMethods.includes("venmo") && (
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-medium">Venmo Details</h4>
+                  <div className="space-y-2">
+                    <Label htmlFor="venmoHandle">Venmo Handle</Label>
+                    <Input
+                      id="venmoHandle"
+                      value={formData.venmoHandle}
+                      onChange={(e) => handleInputChange("venmoHandle", e.target.value)}
+                      placeholder="Enter Venmo handle (e.g., @username)"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Cash App Details */}
+              {selectedPaymentMethods.includes("cashapp") && (
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-medium">Cash App Details</h4>
+                  <div className="space-y-2">
+                    <Label htmlFor="cashappHandle">Cash App Handle</Label>
+                    <Input
+                      id="cashappHandle"
+                      value={formData.cashappHandle}
+                      onChange={(e) => handleInputChange("cashappHandle", e.target.value)}
+                      placeholder="Enter Cash App handle (e.g., $username)"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Zelle Details */}
+              {selectedPaymentMethods.includes("zelle") && (
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-medium">Zelle Details</h4>
+                  <div className="space-y-2">
+                    <Label htmlFor="zelleInfo">Zelle Email/Phone</Label>
+                    <Input
+                      id="zelleInfo"
+                      value={formData.zelleInfo}
+                      onChange={(e) => handleInputChange("zelleInfo", e.target.value)}
+                      placeholder="Enter Zelle email or phone number"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Mailing Address for Check Payments */}
+              {selectedPaymentMethods.includes("check") && (
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-medium">Mailing Address for Checks</h4>
+                  <div className="space-y-2">
+                    <Label htmlFor="mailingAddress">Mailing Address</Label>
+                    <Input
+                      id="mailingAddress"
+                      value={formData.mailingAddress}
+                      onChange={(e) => handleInputChange("mailingAddress", e.target.value)}
+                      placeholder="Enter complete mailing address"
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
