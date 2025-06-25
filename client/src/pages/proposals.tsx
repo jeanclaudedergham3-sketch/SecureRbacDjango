@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Search, Eye, CheckCircle, XCircle, Clock, Filter } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Search, Eye, CheckCircle, XCircle, Clock, Filter, FileText, Plus } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,10 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { WorkOrderWithUsers, WorkOrderProposal } from "@shared/schema";
 
 export default function Proposals() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUsers | null>(null);
@@ -23,6 +27,46 @@ export default function Proposals() {
 
   const { data: allProposals = [] } = useQuery<(WorkOrderProposal & { workOrder: WorkOrderWithUsers })[]>({
     queryKey: ["/api/proposals"],
+  });
+
+  const approveProposalMutation = useMutation({
+    mutationFn: (proposalId: number) => 
+      apiRequest("PUT", `/api/proposals/${proposalId}/approve`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+      toast({
+        title: "Success",
+        description: "Proposal approved successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve proposal",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectProposalMutation = useMutation({
+    mutationFn: (proposalId: number) => 
+      apiRequest("PUT", `/api/proposals/${proposalId}/reject`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+      toast({
+        title: "Success",
+        description: "Proposal rejected successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject proposal",
+        variant: "destructive",
+      });
+    },
   });
 
   const getStatusColor = (status: string) => {
@@ -277,7 +321,7 @@ export default function Proposals() {
                       )}
                     </div>
 
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center justify-between">
                       <Badge className={getStatusColor(item.status)}>
                         <div className="flex items-center space-x-1">
                           {getStatusIcon(item.status)}
@@ -285,14 +329,39 @@ export default function Proposals() {
                         </div>
                       </Badge>
                       
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedWorkOrder(item.workOrder)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        {user?.permissions?.includes("workorders.create") ? "Manage" : "View"} Details
-                      </Button>
+                      <div className="flex items-center space-x-2">
+                        {item.status === "pending" && (
+                          <PermissionGuard permission="proposals.approve">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => approveProposalMutation.mutate(item.id)}
+                              disabled={approveProposalMutation.isPending}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Approve
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => rejectProposalMutation.mutate(item.id)}
+                              disabled={rejectProposalMutation.isPending}
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Reject
+                            </Button>
+                          </PermissionGuard>
+                        )}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedWorkOrder(item.workOrder)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

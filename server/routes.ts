@@ -518,6 +518,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Approve proposal
+  app.put("/api/proposals/:id/approve", requireAuth, requirePermission("proposals.approve"), async (req, res) => {
+    try {
+      const proposalId = parseInt(req.params.id);
+      
+      // Get the proposal to find the work order ID
+      const proposals = await storage.getAllProposals();
+      const proposal = proposals.find(p => p.id === proposalId);
+      
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+      
+      const updatedProposal = await storage.updateWorkOrderProposal(proposal.workOrderId, { 
+        status: "approved",
+        approvedAt: new Date()
+      });
+      
+      if (!updatedProposal) {
+        return res.status(404).json({ message: "Failed to approve proposal" });
+      }
+      
+      res.json(updatedProposal);
+    } catch (error) {
+      console.error("Error approving proposal:", error);
+      res.status(500).json({ message: "Failed to approve proposal" });
+    }
+  });
+
+  // Reject proposal
+  app.put("/api/proposals/:id/reject", requireAuth, requirePermission("proposals.approve"), async (req, res) => {
+    try {
+      const proposalId = parseInt(req.params.id);
+      
+      // Get the proposal to find the work order ID
+      const proposals = await storage.getAllProposals();
+      const proposal = proposals.find(p => p.id === proposalId);
+      
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+      
+      const updatedProposal = await storage.updateWorkOrderProposal(proposal.workOrderId, { 
+        status: "cancelled"
+      });
+      
+      if (!updatedProposal) {
+        return res.status(404).json({ message: "Failed to reject proposal" });
+      }
+      
+      res.json(updatedProposal);
+    } catch (error) {
+      console.error("Error rejecting proposal:", error);
+      res.status(500).json({ message: "Failed to reject proposal" });
+    }
+  });
+
   // Get all proposals with work order info
   app.get("/api/proposals", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {

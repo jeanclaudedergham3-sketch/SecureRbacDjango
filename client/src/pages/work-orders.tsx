@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Plus, Calendar, DollarSign, User, MapPin, Eye, Edit, Trash2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Plus, Calendar, DollarSign, User, MapPin, Eye, Edit, Trash2, FileText } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,10 +8,14 @@ import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { CreateWorkOrderModal } from "@/components/modals/create-work-order-modal";
 import { WorkOrderDetailsModal } from "@/components/modals/work-order-details-modal";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { WorkOrderWithUsers } from "@shared/schema";
 
 export default function WorkOrders() {
   const { user, permissions } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUsers | null>(null);
   const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrderWithUsers | null>(null);

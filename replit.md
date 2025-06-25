@@ -166,6 +166,10 @@ Changelog:
 - June 25, 2025. Updated database schema to support comprehensive work order data including client details, NTE/TNTE, project timeline, and instruction types
 - June 25, 2025. Fixed permission guards throughout application to use correct database permissions (workorders.create, workorders.edit, etc.)
 - June 25, 2025. Resolved proposal creation 400 errors by including all required database fields in form submission
+- June 25, 2025. Added missing database columns (approved_at, paid_at, availability, location, invoice_number, file_size, mime_type, sender_id) to fix all API errors
+- June 25, 2025. Implemented comprehensive proposal approval system with admin permissions and workflow management
+- June 25, 2025. Created proposal approval/rejection functionality with proper permission controls (proposals.approve permission)
+- June 25, 2025. Enhanced proposals page with approve/reject buttons for pending proposals, removing rate functionality as requested
 ```
 
 ## User Preferences
