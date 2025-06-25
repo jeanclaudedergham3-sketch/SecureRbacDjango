@@ -157,36 +157,42 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
       return;
     }
 
-    // Map form data to API format
+    // Map all form data to API format with all fields
     const submitData = {
-      title: formData.clientName, // Use client name as title for now
+      title: formData.clientName,
       description: formData.description,
       priority: formData.urgency,
       category: formData.equipmentType,
       location: `${formData.street}, ${formData.city}, ${formData.country}`,
-      estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : null,
-      scheduledDate: formData.startDate,
-      assignedTo: formData.assignedUserIds[0] || null, // Assign first user
+      estimatedHours: formData.estimatedHours || null,
+      scheduledDate: formData.startDate || null,
+      assignedTo: formData.assignedUserIds[0] || null,
       status: formData.status,
       requestedBy: user?.id,
-      // Store additional data in description for now
-      extendedData: {
-        clientName: formData.clientName,
-        clientPhone: formData.clientPhone,
-        clientEmail: formData.clientEmail,
-        country: formData.country,
-        city: formData.city,
-        street: formData.street,
-        zipCode: formData.zipCode,
-        nte: formData.nte,
-        tnte: formData.tnte,
-        endDate: formData.endDate,
-        problemDescription: formData.problemDescription,
-        specialInstructions: formData.specialInstructions,
-        accessInstructions: formData.accessInstructions,
-        safetyRequirements: formData.safetyRequirements,
-        assignedUserIds: formData.assignedUserIds
-      }
+      // Client Information
+      clientName: formData.clientName,
+      clientPhone: formData.clientPhone,
+      clientEmail: formData.clientEmail,
+      country: formData.country,
+      city: formData.city,
+      street: formData.street,
+      zipCode: formData.zipCode,
+      // Financial Information
+      nte: formData.nte || null,
+      tnte: formData.tnte || null,
+      // Timeline
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      // Work Details
+      urgency: formData.urgency,
+      equipmentType: formData.equipmentType,
+      problemDescription: formData.problemDescription,
+      // Instructions
+      specialInstructions: formData.specialInstructions,
+      accessInstructions: formData.accessInstructions,
+      safetyRequirements: formData.safetyRequirements,
+      // Assignment
+      assignedUserIds: JSON.stringify(formData.assignedUserIds)
     };
 
     createWorkOrderMutation.mutate(submitData);

@@ -88,10 +88,33 @@ export const workOrders = pgTable("work_orders", {
   requestedBy: integer("requested_by").notNull().references(() => users.id),
   assignedTo: integer("assigned_to").references(() => users.id),
   technicianId: integer("technician_id").references(() => technicians.id),
-  estimatedHours: decimal("estimated_hours", { precision: 8, scale: 2 }),
+  // Client Information
+  clientName: varchar("client_name", { length: 255 }),
+  clientPhone: varchar("client_phone", { length: 50 }),
+  clientEmail: varchar("client_email", { length: 255 }),
+  country: varchar("country", { length: 100 }),
+  city: varchar("city", { length: 100 }),
+  street: text("street"),
+  zipCode: varchar("zip_code", { length: 20 }),
+  // Financial Information
+  nte: decimal("nte", { precision: 10, scale: 2 }),
+  tnte: decimal("tnte", { precision: 10, scale: 2 }),
+  // Timeline and Work Details
+  estimatedHours: varchar("estimated_hours", { length: 20 }),
   actualHours: decimal("actual_hours", { precision: 8, scale: 2 }),
-  scheduledDate: timestamp("scheduled_date"),
+  scheduledDate: varchar("scheduled_date", { length: 20 }),
+  startDate: varchar("start_date", { length: 20 }),
+  endDate: varchar("end_date", { length: 20 }),
   completedDate: timestamp("completed_date"),
+  urgency: varchar("urgency", { length: 20 }),
+  equipmentType: varchar("equipment_type", { length: 255 }),
+  problemDescription: text("problem_description"),
+  // Instructions
+  specialInstructions: text("special_instructions"),
+  accessInstructions: text("access_instructions"),
+  safetyRequirements: text("safety_requirements"),
+  // Assignment
+  assignedUserIds: text("assigned_user_ids"), // JSON array as text
   isLocked: boolean("is_locked").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
