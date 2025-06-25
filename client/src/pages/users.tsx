@@ -71,7 +71,7 @@ export default function Users() {
               Manage users and their access levels.
             </p>
           </div>
-          <PermissionGuard permission="edit_users">
+          <PermissionGuard permission="users.create">
             <Button onClick={() => setShowCreateModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add User
@@ -149,17 +149,17 @@ export default function Users() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex space-x-2">
-                              <PermissionGuard permission="edit_users">
+                              <PermissionGuard permission="users.edit">
                                 <Button variant="ghost" size="sm">
                                   <Edit className="h-4 w-4" />
                                 </Button>
                               </PermissionGuard>
-                              <PermissionGuard permission="assign_roles">
+                              <PermissionGuard permission="roles.assign">
                                 <Button variant="ghost" size="sm">
                                   <UserCheck className="h-4 w-4" />
                                 </Button>
                               </PermissionGuard>
-                              <PermissionGuard permission="edit_users">
+                              <PermissionGuard permission="users.delete">
                                 <Button
                                   variant="ghost"
                                   size="sm"

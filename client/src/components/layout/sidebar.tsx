@@ -38,9 +38,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Operations",
       items: [
         { name: "Work Orders", href: "/work-orders", icon: ClipboardList, permission: "workorders.view" },
-        { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "workorders.view" },
-        { name: "Proposals", href: "/proposals", icon: FileText, permission: "workorders.view" },
-        { name: "Invoices", href: "/invoices", icon: FileText, permission: "workorders.view" },
+        { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "parts.view" },
+        { name: "Proposals", href: "/proposals", icon: FileText, permission: "proposals.view" },
+        { name: "Invoices", href: "/invoices", icon: FileText, permission: "invoices.view" },
       ]
     },
     {

@@ -60,7 +60,7 @@ export default function Roles() {
               Configure roles and their associated permissions.
             </p>
           </div>
-          <PermissionGuard permission="assign_roles">
+          <PermissionGuard permission="roles.create">
             <Button onClick={() => setIsCreating(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Create Role
@@ -102,7 +102,7 @@ export default function Roles() {
                 </div>
               </CardContent>
               <div className="px-6 py-3 bg-gray-50 border-t">
-                <PermissionGuard permission="assign_roles">
+                <PermissionGuard permission="permissions.assign">
                   <Button 
                     variant="ghost" 
                     size="sm"
