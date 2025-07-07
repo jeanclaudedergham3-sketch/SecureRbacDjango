@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Star, Phone, Mail, MapPin, CreditCard } from "lucide-react";
+import { Search, Star, Phone, Mail, MapPin, CreditCard, Loader2, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,132 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Technician } from "@shared/schema";
 
+// Geographic search interface
+interface SearchResult {
+  display_name: string;
+  lat: string;
+  lon: string;
+  boundingbox: [string, string, string, string];
+}
+
+// Geographic search component
+const GeographicSearch = ({ onLocationSelect, mapInstance }: {
+  onLocationSelect: (lat: number, lon: number, name: string) => void;
+  mapInstance: L.Map | null;
+}) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const searchLocation = async (query: string) => {
+    if (!query.trim() || query.length < 3) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Use Nominatim (OpenStreetMap's free geocoding service)
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'TechnicianMapApp/1.0'
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const results = await response.json();
+        setSearchResults(results);
+        setShowResults(results.length > 0);
+      }
+    } catch (error) {
+      console.error('Geocoding search failed:', error);
+      setSearchResults([]);
+    }
+    setIsSearching(false);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    
+    // Debounce search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = setTimeout(() => {
+      searchLocation(value);
+    }, 500);
+  };
+
+  const handleResultSelect = (result: SearchResult) => {
+    const lat = parseFloat(result.lat);
+    const lon = parseFloat(result.lon);
+    onLocationSelect(lat, lon, result.display_name);
+    setShowResults(false);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setShowResults(false);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <MapPin className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+        <Input
+          placeholder="Search city, country, address..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+          className="pl-10 pr-8 w-80"
+        />
+        {(searchQuery || isSearching) && (
+          <button
+            onClick={clearSearch}
+            className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
+          >
+            {isSearching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <X className="h-4 w-4" />
+            )}
+          </button>
+        )}
+      </div>
+      
+      {/* Search Results Dropdown */}
+      {showResults && searchResults.length > 0 && (
+        <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-md shadow-lg z-50 mt-1 max-h-60 overflow-y-auto">
+          {searchResults.map((result, index) => (
+            <button
+              key={index}
+              onClick={() => handleResultSelect(result)}
+              className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 text-sm"
+            >
+              <div className="font-medium text-gray-900 truncate">
+                {result.display_name}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Interactive Leaflet Map Component with accurate positioning
 const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
   technicians: Technician[];
@@ -21,6 +147,7 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
+  const searchMarkerRef = useRef<L.Marker | null>(null);
 
   const filteredTechnicians = technicians.filter(tech => {
     const fullName = `${tech.firstName} ${tech.lastName}`.toLowerCase();
@@ -33,6 +160,51 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
     tech.latitude && tech.longitude && 
     !isNaN(parseFloat(tech.latitude)) && !isNaN(parseFloat(tech.longitude))
   );
+
+  // Handler for geographic search location selection
+  const handleLocationSelect = (lat: number, lon: number, name: string) => {
+    if (!mapInstanceRef.current) return;
+    
+    // Remove existing search marker
+    if (searchMarkerRef.current) {
+      mapInstanceRef.current.removeLayer(searchMarkerRef.current);
+    }
+    
+    // Create search location marker
+    const searchIcon = L.divIcon({
+      className: 'custom-search-marker',
+      html: `
+        <div class="bg-blue-500 text-white rounded-full shadow-lg border-2 border-white text-xs font-bold flex items-center justify-center" 
+             style="width: 36px; height: 36px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </div>
+      `,
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
+    });
+    
+    searchMarkerRef.current = L.marker([lat, lon], { icon: searchIcon })
+      .addTo(mapInstanceRef.current)
+      .bindPopup(`
+        <div class="p-2">
+          <h3 class="font-semibold text-blue-600">Search Location</h3>
+          <p class="text-sm text-gray-700">${name}</p>
+        </div>
+      `);
+    
+    // Pan to the searched location
+    mapInstanceRef.current.setView([lat, lon], 12);
+    
+    // Show popup briefly
+    searchMarkerRef.current.openPopup();
+    setTimeout(() => {
+      if (searchMarkerRef.current) {
+        searchMarkerRef.current.closePopup();
+      }
+    }, 3000);
+  };
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -54,7 +226,7 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
           ] as [number, number]
         : [40.7128, -74.0060] as [number, number]; // Default to NYC
 
-      mapInstanceRef.current = L.map(mapRef.current).setView(center, 10);
+      mapInstanceRef.current = L.map(mapRef.current).setView(center, 5);
 
       // Add OpenStreetMap tiles
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -144,12 +316,49 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
     <div className="h-full relative rounded-lg overflow-hidden border">
       <div ref={mapRef} className="h-full w-full min-h-[600px]" style={{ height: '100%' }} />
       
+      {/* Geographic Search Component */}
+      <div className="absolute top-4 left-4 z-[1000] pointer-events-auto">
+        <div className="flex gap-2">
+          <GeographicSearch 
+            onLocationSelect={handleLocationSelect}
+            mapInstance={mapInstanceRef.current}
+          />
+          <Button
+            onClick={() => {
+              if (mapInstanceRef.current && techsWithCoords.length > 0) {
+                // Remove search marker
+                if (searchMarkerRef.current) {
+                  mapInstanceRef.current.removeLayer(searchMarkerRef.current);
+                  searchMarkerRef.current = null;
+                }
+                // Fit map to show all technicians
+                const group = new L.FeatureGroup(markersRef.current);
+                mapInstanceRef.current.fitBounds(group.getBounds().pad(0.1));
+              }
+            }}
+            variant="outline"
+            size="sm"
+            className="h-10"
+            title="Show all technicians"
+          >
+            <MapPin className="h-4 w-4" />
+            Reset View
+          </Button>
+        </div>
+      </div>
+      
       {/* Legend */}
       <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 pointer-events-auto z-[1000]">
-        <div className="text-sm font-medium text-gray-900 mb-2">Technicians</div>
-        <div className="flex items-center text-xs text-gray-600">
-          <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-          Active Technicians ({techsWithCoords.length})
+        <div className="text-sm font-medium text-gray-900 mb-2">Map Legend</div>
+        <div className="space-y-1">
+          <div className="flex items-center text-xs text-gray-600">
+            <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+            Technicians ({techsWithCoords.length})
+          </div>
+          <div className="flex items-center text-xs text-gray-600">
+            <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+            Search Location
+          </div>
         </div>
       </div>
       
@@ -249,14 +458,14 @@ export default function TechnicianMapPage() {
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">Technician Map</h1>
               <p className="text-sm text-gray-600">
-                Find technicians by location and view their details
+                Search locations worldwide and find nearby technicians
               </p>
             </div>
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
                 <Input
-                  placeholder="Search by name or location..."
+                  placeholder="Filter technicians by name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-80"
