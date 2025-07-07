@@ -27,6 +27,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
 
   // Form state - keeping all original fields
   const [formData, setFormData] = useState({
+    workOrderNumber: "",
     clientName: "",
     clientPhone: "",
     clientEmail: "",
@@ -50,10 +51,39 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     status: "active",
   });
 
+  // Work order number generation state
+  const [autoGenerateNumber, setAutoGenerateNumber] = useState(true);
+  const [isGeneratingNumber, setIsGeneratingNumber] = useState(false);
+
   // Fetch users for assignment dropdown
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
+
+  // Function to generate work order number
+  const generateWorkOrderNumber = async () => {
+    if (!autoGenerateNumber) return;
+    
+    setIsGeneratingNumber(true);
+    try {
+      const response = await apiRequest("GET", "/api/work-orders/generate-number");
+      setFormData(prev => ({ ...prev, workOrderNumber: response.workOrderNumber }));
+    } catch (error) {
+      toast({
+        title: "Error", 
+        description: "Failed to generate work order number",
+        variant: "destructive",
+      });
+    }
+    setIsGeneratingNumber(false);
+  };
+
+  // Generate number when auto-generate is enabled
+  useEffect(() => {
+    if (autoGenerateNumber && !workOrder && isOpen) {
+      generateWorkOrderNumber();
+    }
+  }, [autoGenerateNumber, workOrder, isOpen]);
 
   const createWorkOrderMutation = useMutation({
     mutationFn: (data: any) => 
@@ -81,6 +111,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
   useEffect(() => {
     if (workOrder) {
       setFormData({
+        workOrderNumber: workOrder.workOrderNumber || "",
         clientName: workOrder.title || "", // Map to available fields
         clientPhone: "",
         clientEmail: "",
@@ -103,8 +134,10 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         assignedUserIds: workOrder.assignedTo ? [workOrder.assignedTo] : [],
         status: workOrder.status || "active",
       });
+      setAutoGenerateNumber(false); // Disable auto-generation for existing work orders
     } else {
       setFormData({
+        workOrderNumber: "",
         clientName: "",
         clientPhone: "",
         clientEmail: "",
@@ -127,6 +160,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         assignedUserIds: [],
         status: "active",
       });
+      setAutoGenerateNumber(true); // Enable auto-generation for new work orders
     }
   }, [workOrder, isOpen]);
 
@@ -134,12 +168,12 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     e.preventDefault();
     
     // Basic validation
-    if (!formData.clientName.trim() || !formData.country.trim() || !formData.city.trim() || 
+    if (!formData.workOrderNumber.trim() || !formData.clientName.trim() || !formData.country.trim() || !formData.city.trim() || 
         !formData.street.trim() || !formData.description.trim() || !formData.nte.trim() || !formData.tnte.trim() ||
         !formData.startDate || !formData.endDate || formData.assignedUserIds.length === 0) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields and assign at least one user",
+        description: "Please fill in all required fields including work order number and assign at least one user",
         variant: "destructive",
       });
       return;
@@ -159,6 +193,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
 
     // Map all form data to API format with all fields
     const submitData = {
+      workOrderNumber: formData.workOrderNumber,
       title: formData.clientName,
       description: formData.description,
       priority: formData.urgency,
@@ -209,6 +244,55 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Work Order Number */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Work Order Details</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="workOrderNumber">Work Order Number *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="workOrderNumber"
+                    value={formData.workOrderNumber}
+                    onChange={(e) => setFormData(prev => ({ ...prev, workOrderNumber: e.target.value }))}
+                    placeholder="Enter work order number"
+                    disabled={autoGenerateNumber || isGeneratingNumber}
+                    required
+                  />
+                  {!workOrder && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={generateWorkOrderNumber}
+                      disabled={isGeneratingNumber}
+                      className="whitespace-nowrap"
+                    >
+                      {isGeneratingNumber ? "Generating..." : "Generate"}
+                    </Button>
+                  )}
+                </div>
+                {!workOrder && (
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Checkbox 
+                      id="autoGenerate"
+                      checked={autoGenerateNumber}
+                      onCheckedChange={(checked) => {
+                        setAutoGenerateNumber(checked as boolean);
+                        if (checked) {
+                          generateWorkOrderNumber();
+                        }
+                      }}
+                    />
+                    <Label htmlFor="autoGenerate" className="text-sm text-gray-600">
+                      Auto-generate work order number
+                    </Label>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Client Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Client Information</h3>

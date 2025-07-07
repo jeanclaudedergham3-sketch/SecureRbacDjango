@@ -408,6 +408,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate work order number
+  app.get("/api/work-orders/generate-number", requireAuth, requirePermission("workorders.create"), async (req, res) => {
+    try {
+      const workOrderNumber = await storage.generateWorkOrderNumber();
+      res.json({ workOrderNumber });
+    } catch (error) {
+      console.error("Error generating work order number:", error);
+      res.status(500).json({ message: "Failed to generate work order number" });
+    }
+  });
+
   app.post("/api/work-orders", requireAuth, requirePermission("workorders.create"), async (req, res) => {
     try {
       const workOrderData = insertWorkOrderSchema.parse(req.body);
