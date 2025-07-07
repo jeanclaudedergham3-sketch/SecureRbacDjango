@@ -124,6 +124,7 @@ export const workOrders = pgTable("work_orders", {
   safetyRequirements: text("safety_requirements"),
   // Assignment
   assignedUserIds: text("assigned_user_ids"), // JSON array as text
+  clientWorkOrderNumber: varchar("client_work_order_number", { length: 255 }),
   isLocked: boolean("is_locked").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
