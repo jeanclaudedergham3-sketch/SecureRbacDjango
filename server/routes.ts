@@ -136,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User routes
-  app.get("/api/users", requireAuth, requirePermission("users.view"), async (req, res) => {
+  app.get("/api/users", requireAuth, requirePermission("users.list.view"), async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
@@ -326,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Technician routes
-  app.get("/api/technicians", requireAuth, requirePermission("technicians.view"), async (req, res) => {
+  app.get("/api/technicians", requireAuth, requirePermission("technicians.list.view"), async (req, res) => {
     try {
       const technicians = await storage.getAllTechnicians();
       res.json(technicians);
@@ -336,7 +336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/technicians", requireAuth, requirePermission("technicians.view"), async (req, res) => {
+  app.post("/api/technicians", requireAuth, requirePermission("technicians.create"), async (req, res) => {
     try {
       const technicianData = insertTechnicianSchema.parse(req.body);
       const technician = await storage.createTechnician(technicianData);
@@ -350,7 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/technicians/:id", requireAuth, requirePermission("technicians.view"), async (req, res) => {
+  app.put("/api/technicians/:id", requireAuth, requirePermission("technicians.edit"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const technicianData = insertTechnicianSchema.partial().parse(req.body);
@@ -364,7 +364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/technicians/:id", requireAuth, requirePermission("technicians.view"), async (req, res) => {
+  app.delete("/api/technicians/:id", requireAuth, requirePermission("technicians.delete"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteTechnician(id);
@@ -378,7 +378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rating routes
-  app.post("/api/technician-ratings", requireAuth, requirePermission("technicians.view"), async (req, res) => {
+  app.post("/api/technician-ratings", requireAuth, requirePermission("technicians.rate"), async (req, res) => {
     try {
       const ratingData = insertRatingSchema.parse(req.body);
       const rating = await storage.createRating(ratingData);
