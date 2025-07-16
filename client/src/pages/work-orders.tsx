@@ -168,7 +168,7 @@ export default function WorkOrders() {
                   View Details
                 </Button>
                 
-                <PermissionGuard permission="workorders.view">
+                <ButtonGuard buttonType="edit">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -178,7 +178,7 @@ export default function WorkOrders() {
                     <Edit className="h-3 w-3 mr-1" />
                     Edit
                   </Button>
-                </PermissionGuard>
+                </ButtonGuard>
               </div>
             </Card>
           ))}

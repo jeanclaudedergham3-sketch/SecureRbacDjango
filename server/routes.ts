@@ -450,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Work Order Proposal routes
-  app.get("/api/work-orders/:id/proposal", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.get("/api/work-orders/:id/proposal", requireAuth, requirePermission("workorders.tab.proposal"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const proposal = await storage.getWorkOrderProposal(workOrderId);
@@ -619,7 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Work Order Parts Request routes
-  app.get("/api/work-orders/:id/parts-requests", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.get("/api/work-orders/:id/parts-requests", requireAuth, requirePermission("workorders.tab.parts"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const partsRequests = await storage.getWorkOrderPartsRequests(workOrderId);
@@ -708,7 +708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Work Order File Management routes
-  app.get("/api/work-orders/:id/files", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.get("/api/work-orders/:id/files", requireAuth, requirePermission("workorders.tab.files"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const category = req.query.category as string;
@@ -769,7 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Work Order Chat routes
-  app.get("/api/work-orders/:id/chats", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.get("/api/work-orders/:id/chats", requireAuth, requirePermission("workorders.tab.chat"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const chats = await storage.getWorkOrderChats(workOrderId);
@@ -852,7 +852,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Work Order Technician Payment routes
-  app.get("/api/work-orders/:id/payments", requireAuth, requirePermission("payments.view"), async (req, res) => {
+  app.get("/api/work-orders/:id/payments", requireAuth, requirePermission("workorders.tab.payments"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       console.log(`Fetching payments for work order ${workOrderId}`);
@@ -1100,7 +1100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Invoice routes
-  app.get("/api/work-orders/:id/invoice", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.get("/api/work-orders/:id/invoice", requireAuth, requirePermission("workorders.tab.invoice"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       console.log(`API: Fetching invoice for work order ${workOrderId}`);
@@ -1113,7 +1113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/work-orders/:id/invoice", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.post("/api/work-orders/:id/invoice", requireAuth, requirePermission("workorders.tab.invoice"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       console.log(`API: Creating/updating invoice for work order ${workOrderId} with data:`, req.body);
