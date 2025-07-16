@@ -228,7 +228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users/:id/role", requireAuth, requirePermission("roles.view"), async (req, res) => {
+  app.post("/api/users/:id/role", requireAuth, requirePermission("roles.assign"), async (req, res) => {
     try {
       const userId = parseInt(req.params.id);
       const { roleId } = req.body;
@@ -248,7 +248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Role routes
-  app.get("/api/roles", requireAuth, requirePermission("roles.view"), async (req, res) => {
+  app.get("/api/roles", requireAuth, requirePermission("roles.list.view"), async (req, res) => {
     try {
       const roles = await storage.getAllRoles();
       res.json(roles);
@@ -257,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roles", requireAuth, requirePermission("roles.view"), async (req, res) => {
+  app.post("/api/roles", requireAuth, requirePermission("roles.create"), async (req, res) => {
     try {
       const { name, description, permissionIds = [] } = req.body;
       
@@ -286,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/permissions", requireAuth, requirePermission("roles.view"), async (req, res) => {
+  app.get("/api/permissions", requireAuth, requirePermission("permissions.view"), async (req, res) => {
     try {
       const permissions = await storage.getAllPermissions();
       res.json(permissions);
@@ -295,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roles/:id/permissions", requireAuth, requirePermission("roles.view"), async (req, res) => {
+  app.post("/api/roles/:id/permissions", requireAuth, requirePermission("permissions.assign"), async (req, res) => {
     try {
       const roleId = parseInt(req.params.id);
       const { permissionIds } = req.body;
