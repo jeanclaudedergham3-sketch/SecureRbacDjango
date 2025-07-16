@@ -12,7 +12,7 @@ import { Plus, Trash2, Package } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { PermissionGuard } from "@/components/rbac/permission-guard";
+import { AdvancedPermissionGuard } from "@/components/rbac/advanced-permission-guard";
 import type { WorkOrderWithUsers, WorkOrderPartsRequest } from "@shared/schema";
 
 interface PartsRequestModalProps {
@@ -230,7 +230,7 @@ export function PartsRequestModal({ isOpen, onClose, workOrder }: PartsRequestMo
                         </div>
 
                         {request.status === "pending" && (
-                          <PermissionGuard permission="manage_work_orders">
+                          <AdvancedPermissionGuard permission="parts.approve">
                             <div className="flex space-x-2 mt-3">
                               <Button
                                 size="sm"
@@ -249,7 +249,7 @@ export function PartsRequestModal({ isOpen, onClose, workOrder }: PartsRequestMo
                                 Cancel
                               </Button>
                             </div>
-                          </PermissionGuard>
+                          </AdvancedPermissionGuard>
                         )}
                       </div>
                     );
