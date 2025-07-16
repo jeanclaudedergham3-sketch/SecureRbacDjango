@@ -399,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Work Order routes
-  app.get("/api/work-orders", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.get("/api/work-orders", requireAuth, requirePermission("workorders.list.view"), async (req, res) => {
     try {
       const workOrders = await storage.getAllWorkOrders();
       res.json(workOrders);
@@ -422,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/work-orders/:id", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.put("/api/work-orders/:id", requireAuth, requirePermission("workorders.edit"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const workOrderData = insertWorkOrderSchema.partial().parse(req.body);
@@ -436,7 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/work-orders/:id", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.delete("/api/work-orders/:id", requireAuth, requirePermission("workorders.delete"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteWorkOrder(id);
