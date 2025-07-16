@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PermissionGuard } from "@/components/rbac/permission-guard";
+import { AdvancedPermissionGuard, PageGuard, ModalGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
 import { CreateWorkOrderModal } from "@/components/modals/create-work-order-modal";
 import { WorkOrderDetailsModal } from "@/components/modals/work-order-details-modal";
 import { useAuth } from "@/hooks/use-auth";
@@ -66,26 +66,29 @@ export default function WorkOrders() {
   });
 
   return (
-    <div className="py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Work Orders</h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Manage work orders, proposals, and project tracking.
+    <PageGuard pageName="workorders">
+      <div className="py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Work Orders</h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Manage work orders, proposals, and project tracking.
             </p>
           </div>
-          <PermissionGuard permission="workorders.create">
+          <ModalGuard modalName="workorders" operation="create">
             <div className="space-x-2">
-              <Button onClick={() => setIsCreating(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Work Order
-              </Button>
+              <ButtonGuard buttonType="create">
+                <Button onClick={() => setIsCreating(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Work Order
+                </Button>
+              </ButtonGuard>
               <Button variant="outline" onClick={() => refetch()}>
                 Refresh
               </Button>
             </div>
-          </PermissionGuard>
+          </ModalGuard>
         </div>
 
         {/* Work Order Cards */}
@@ -165,7 +168,7 @@ export default function WorkOrders() {
                   View Details
                 </Button>
                 
-                <PermissionGuard permission="workorders.view">
+                <ButtonGuard buttonType="edit">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -175,7 +178,7 @@ export default function WorkOrders() {
                     <Edit className="h-3 w-3 mr-1" />
                     Edit
                   </Button>
-                </PermissionGuard>
+                </ButtonGuard>
               </div>
             </Card>
           ))}
@@ -218,6 +221,7 @@ export default function WorkOrders() {
           workOrder={selectedWorkOrder}
         />
       )}
-    </div>
+      </div>
+    </PageGuard>
   );
 }
