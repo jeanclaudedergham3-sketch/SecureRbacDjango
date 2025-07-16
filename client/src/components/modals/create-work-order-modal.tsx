@@ -30,7 +30,6 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     clientName: "",
     clientPhone: "",
     clientEmail: "",
-    clientWorkOrderNumber: "",
     country: "",
     city: "",
     street: "",
@@ -85,7 +84,6 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         clientName: workOrder.title || "", // Map to available fields
         clientPhone: "",
         clientEmail: "",
-        clientWorkOrderNumber: workOrder.clientWorkOrderNumber || "",
         country: "",
         city: "",
         street: "",
@@ -110,7 +108,6 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         clientName: "",
         clientPhone: "",
         clientEmail: "",
-        clientWorkOrderNumber: "",
         country: "",
         city: "",
         street: "",
@@ -216,7 +213,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Client Information</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="clientName">Client Name *</Label>
                 <Input
@@ -227,18 +224,6 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
                   required
                 />
               </div>
-              <div>
-                <Label htmlFor="clientWorkOrderNumber">Client Work Order Number</Label>
-                <Input
-                  id="clientWorkOrderNumber"
-                  value={formData.clientWorkOrderNumber}
-                  onChange={(e) => setFormData(prev => ({ ...prev, clientWorkOrderNumber: e.target.value }))}
-                  placeholder="Enter client's work order number"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="clientPhone">Client Phone</Label>
                 <Input

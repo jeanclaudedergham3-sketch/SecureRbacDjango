@@ -3,7 +3,7 @@ import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, Cli
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
-import { SidebarGuard } from "@/components/rbac/advanced-permission-guard";
+import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useState } from "react";
@@ -23,38 +23,38 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     {
       title: "Overview",
       items: [
-        { name: "Dashboard", href: "/", icon: BarChart3, permission: "sidebar.overview" },
-        { name: "Analytics", href: "/analytics", icon: TrendingUp, permission: "sidebar.overview" },
+        { name: "Dashboard", href: "/", icon: BarChart3, permission: "dashboard.view" },
+        { name: "Analytics", href: "/analytics", icon: TrendingUp, permission: "analytics.view" },
       ]
     },
     {
       title: "User Management", 
       items: [
-        { name: "Users", href: "/users", icon: Users, permission: "sidebar.user_management" },
-        { name: "Roles & Permissions", href: "/roles", icon: UserCheck, permission: "sidebar.user_management" },
+        { name: "Users", href: "/users", icon: Users, permission: "users.view" },
+        { name: "Roles & Permissions", href: "/roles", icon: UserCheck, permission: "roles.view" },
       ]
     },
     {
       title: "Operations",
       items: [
-        { name: "Work Orders", href: "/work-orders", icon: ClipboardList, permission: "sidebar.operations" },
-        { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "sidebar.operations" },
-        { name: "Proposals", href: "/proposals", icon: FileText, permission: "sidebar.operations" },
-        { name: "Invoices", href: "/invoices", icon: FileText, permission: "sidebar.operations" },
+        { name: "Work Orders", href: "/work-orders", icon: ClipboardList, permission: "workorders.view" },
+        { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "parts.view" },
+        { name: "Proposals", href: "/proposals", icon: FileText, permission: "proposals.view" },
+        { name: "Invoices", href: "/invoices", icon: FileText, permission: "invoices.view" },
       ]
     },
     {
       title: "Technicians",
       items: [
-        { name: "Technician List", href: "/technicians", icon: Settings, permission: "sidebar.technicians" },
-        { name: "Technician Map", href: "/technician-map", icon: Map, permission: "sidebar.technicians" },
+        { name: "Technician List", href: "/technicians", icon: Settings, permission: "technicians.view" },
+        { name: "Technician Map", href: "/technician-map", icon: Map, permission: "technicians.view" },
       ]
     },
     {
       title: "Payments",
       items: [
-        { name: "Payment Manager", href: "/payment-manager", icon: DollarSign, permission: "sidebar.payments" },
-        { name: "Technician Payments", href: "/technician-payments", icon: DollarSign, permission: "sidebar.payments" },
+        { name: "Payment Manager", href: "/payment-manager", icon: DollarSign, permission: "payments.view" },
+        { name: "Technician Payments", href: "/technician-payments", icon: DollarSign, permission: "payments.view" },
       ]
     }
   ];
@@ -206,7 +206,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       
                       if (item.permission) {
                         return (
-                          <SidebarGuard key={item.name} section={item.permission}>
+                          <PermissionGuard key={item.name} permission={item.permission}>
                             <Link href={item.href}>
                               <button
                                 className={cn(
@@ -232,7 +232,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                                 )}
                               </button>
                             </Link>
-                          </SidebarGuard>
+                          </PermissionGuard>
                         );
                       }
 
