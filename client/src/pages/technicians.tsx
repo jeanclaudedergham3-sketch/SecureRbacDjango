@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AdvancedPermissionGuard, useAdvancedPermissions } from "@/components/rbac/advanced-permission-guard";
+import { AdvancedPermissionGuard, useAdvancedPermissions, PageGuard } from "@/components/rbac/advanced-permission-guard";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Technician } from "@shared/schema";
@@ -111,7 +111,8 @@ export default function TechniciansPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageGuard pageName="technicians">
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -376,6 +377,7 @@ export default function TechniciansPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageGuard>
   );
 }

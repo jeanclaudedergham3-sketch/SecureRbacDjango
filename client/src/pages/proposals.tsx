@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
-import { AdvancedPermissionGuard } from "@/components/rbac/advanced-permission-guard";
+import { AdvancedPermissionGuard, PageGuard } from "@/components/rbac/advanced-permission-guard";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -185,7 +185,8 @@ export default function Proposals() {
   };
 
   return (
-    <div className="space-y-6">
+    <PageGuard pageName="proposals">
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -579,6 +580,7 @@ export default function Proposals() {
         }}
         workOrder={selectedWorkOrder}
       />
-    </div>
+      </div>
+    </PageGuard>
   );
 }

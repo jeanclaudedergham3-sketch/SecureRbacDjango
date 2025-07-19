@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DollarSign, Eye, Calculator, TrendingUp } from "lucide-react";
+import { PageGuard } from "@/components/rbac/advanced-permission-guard";
 
 interface Technician {
   id: number;
@@ -104,7 +105,8 @@ export default function TechnicianPayments() {
   };
 
   return (
-    <div className="space-y-6">
+    <PageGuard pageName="payments">
+      <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Technician Payments Overview</h1>
       </div>
@@ -312,6 +314,7 @@ export default function TechnicianPayments() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageGuard>
   );
 }

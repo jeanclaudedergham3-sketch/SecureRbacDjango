@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Edit, Trash2, Receipt, Search, Filter, Lock } from "lucide-react";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
+import { PageGuard } from "@/components/rbac/advanced-permission-guard";
 import type { WorkOrderInvoice, WorkOrder } from "@shared/schema";
 
 interface InvoiceWithWorkOrder extends WorkOrderInvoice {
@@ -232,7 +233,8 @@ export default function Invoices() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageGuard pageName="invoices">
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -392,6 +394,7 @@ export default function Invoices() {
         mode={editingInvoice ? "edit" : "create"}
         workOrderId={editingInvoice?.workOrderId}
       />
-    </div>
+      </div>
+    </PageGuard>
   );
 }

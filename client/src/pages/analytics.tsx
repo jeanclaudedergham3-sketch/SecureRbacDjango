@@ -16,6 +16,7 @@ import {
   PieChart as PieChartIcon, LineChart as LineChartIcon,
   Download, Filter, RefreshCw
 } from "lucide-react";
+import { PageGuard } from "@/components/rbac/advanced-permission-guard";
 
 interface AnalyticsData {
   workOrderStats: {
@@ -211,7 +212,8 @@ export default function Analytics() {
   ];
 
   return (
-    <div className="space-y-6">
+    <PageGuard pageName="analytics">
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Analytics & Reports</h1>
         <div className="flex items-center space-x-4">
@@ -894,6 +896,7 @@ export default function Analytics() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </PageGuard>
   );
 }
