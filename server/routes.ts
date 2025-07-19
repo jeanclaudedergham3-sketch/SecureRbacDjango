@@ -1127,10 +1127,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         savedInvoice = await storage.updateWorkOrderInvoice(workOrderId, req.body);
         console.log(`API: Updated invoice:`, savedInvoice);
       } else {
-        // Create new invoice
+        // Create new invoice with generated invoice number and calculated subtotal
+        const workOrder = await storage.getWorkOrderById(workOrderId);
+        const invoiceNumber = `INV-${workOrder?.workOrderNumber || workOrderId}-${Date.now()}`;
+        
+        // Calculate subtotal if not provided
+        const laborCost = parseFloat(req.body.laborCost || '0');
+        const materialCost = parseFloat(req.body.materialCost || '0');
+        const additionalCosts = parseFloat(req.body.additionalCosts || '0');
+        const subtotal = laborCost + materialCost + additionalCosts;
+        
         savedInvoice = await storage.createWorkOrderInvoice({
           ...req.body,
-          workOrderId
+          workOrderId,
+          invoiceNumber,
+          subtotal: subtotal.toString()
         });
         console.log(`API: Created invoice:`, savedInvoice);
       }
@@ -1172,6 +1183,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/invoices", requireAuth, requirePermission("workorders.view"), async (req, res) => {
     try {
       console.log("Creating new invoice:", req.body);
+      
+      // Generate invoice number if not provided
+      if (!req.body.invoiceNumber) {
+        const workOrder = await storage.getWorkOrderById(req.body.workOrderId);
+        req.body.invoiceNumber = `INV-${workOrder?.workOrderNumber || req.body.workOrderId}-${Date.now()}`;
+      }
+      
+      // Calculate subtotal if not provided
+      if (!req.body.subtotal) {
+        const laborCost = parseFloat(req.body.laborCost || '0');
+        const materialCost = parseFloat(req.body.materialCost || '0');
+        const additionalCosts = parseFloat(req.body.additionalCosts || '0');
+        req.body.subtotal = (laborCost + materialCost + additionalCosts).toString();
+      }
+      
       const invoice = await storage.createWorkOrderInvoice(req.body);
       res.status(201).json(invoice);
     } catch (error) {
