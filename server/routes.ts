@@ -1128,7 +1128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`API: Updated invoice:`, savedInvoice);
       } else {
         // Create new invoice with generated invoice number and calculated subtotal
-        const workOrder = await storage.getWorkOrderById(workOrderId);
+        const workOrder = await storage.getWorkOrder(workOrderId);
         const invoiceNumber = `INV-${workOrder?.workOrderNumber || workOrderId}-${Date.now()}`;
         
         // Calculate subtotal if not provided

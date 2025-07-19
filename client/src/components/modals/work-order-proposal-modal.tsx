@@ -580,7 +580,7 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
                   </Button>
                 </AdvancedPermissionGuard>
               )}
-              {proposal && proposal.status === "pending" && !user?.permissions?.includes("manage_work_orders") && (
+              {proposal && proposal.status === "pending" && !user?.permissions?.includes("system.admin") && !user?.permissions?.includes("proposals.approve") && (
                 <div className="text-sm text-gray-500 italic">
                   Only managers can approve or cancel proposals
                 </div>

@@ -249,8 +249,14 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
 
   // Check if user can access this work order (assigned user or has manage permission)
   const canAccess = (() => {
-    if (user?.permissions?.includes("manage_work_orders")) return true;
+    // System admin can always access
+    if (user?.permissions?.includes("system.admin")) return true;
     
+    // Check for work order management permissions
+    if (user?.permissions?.includes("workorders.details.view")) return true;
+    if (user?.permissions?.includes("workorders.view")) return true;
+    
+    // Check if user is assigned to this work order
     try {
       const assignedUserIds = workOrder.assignedUserIds ? JSON.parse(workOrder.assignedUserIds) : [];
       return assignedUserIds.includes(user?.id);
@@ -497,7 +503,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
             </div>
           </TabsContent>
 
-          <TabsContent value="proposal" className="space-y-4">
+          <TabGuard tabName="proposal">
+            <TabsContent value="proposal" className="space-y-4">
             {proposalData ? (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
@@ -671,15 +678,19 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               </div>
             )}
           </TabsContent>
+          </TabGuard>
 
-          <TabsContent value="invoice" className="space-y-4">
+          <TabGuard tabName="invoice">
+            <TabsContent value="invoice" className="space-y-4">
             <InvoiceManagement 
               workOrder={workOrder}
               onOpenInvoiceModal={() => setIsInvoiceModalOpen(true)}
             />
           </TabsContent>
+          </TabGuard>
 
-          <TabsContent value="parts" className="space-y-4">
+          <TabGuard tabName="parts">
+            <TabsContent value="parts" className="space-y-4">
             {partsRequests.length > 0 ? (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
@@ -774,8 +785,10 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               </div>
             )}
           </TabsContent>
+          </TabGuard>
 
-          <TabsContent value="files" className="space-y-4">
+          <TabGuard tabName="files">
+            <TabsContent value="files" className="space-y-4">
             <div className="text-center py-8">
               <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <h3 className="text-lg font-medium mb-2">File Management</h3>
@@ -799,8 +812,10 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               </div>
             </div>
           </TabsContent>
+          </TabGuard>
 
-          <TabsContent value="chat" className="space-y-4">
+          <TabGuard tabName="chat">
+            <TabsContent value="chat" className="space-y-4">
             <div className="text-center py-8">
               <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <h3 className="text-lg font-medium mb-2">Work Order Chat</h3>
@@ -824,8 +839,10 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               </div>
             </div>
           </TabsContent>
+          </TabGuard>
 
-          <TabsContent value="payment" className="space-y-4">
+          <TabGuard tabName="payments">
+            <TabsContent value="payment" className="space-y-4">
             <div className="text-center py-8">
               <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <h3 className="text-lg font-medium mb-2">Payment Requests</h3>
@@ -918,6 +935,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               )}
             </div>
           </TabsContent>
+          </TabGuard>
         </Tabs>
 
         <div className="flex justify-end pt-4 border-t">

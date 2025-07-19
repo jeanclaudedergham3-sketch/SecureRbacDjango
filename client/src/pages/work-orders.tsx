@@ -53,7 +53,7 @@ export default function WorkOrders() {
   // Filter work orders based on user permissions
   const filteredWorkOrders = workOrders.filter(workOrder => {
     // Admins and managers can see all work orders
-    if (permissions?.includes("workorders.view")) {
+    if (permissions?.includes("workorders.view") || permissions?.includes("workorders.page.view")) {
       return true;
     }
     // Regular users can only see work orders assigned to them
@@ -190,7 +190,7 @@ export default function WorkOrders() {
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">No work orders found</h3>
               <p className="text-sm">
-                {permissions?.includes("workorders.create") 
+                {(permissions?.includes("workorders.create") || permissions?.includes("workorders.modal.create"))
                   ? "Get started by creating your first work order."
                   : "You don't have any assigned work orders yet."
                 }
