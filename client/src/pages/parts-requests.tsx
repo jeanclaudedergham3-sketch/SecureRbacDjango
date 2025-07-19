@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PermissionGuard } from "@/components/rbac/permission-guard";
+import { AdvancedPermissionGuard, PageGuard } from "@/components/rbac/advanced-permission-guard";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -124,15 +124,16 @@ export default function PartsRequests() {
   };
 
   return (
-    <div className="py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Parts Request Management</h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Review and manage all parts requests for work orders.
-            </p>
-          </div>
+    <PageGuard pageName="parts">
+      <div className="py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Parts Request Management</h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Review and manage all parts requests for work orders.
+              </p>
+            </div>
           <div className="space-x-2">
             <Button variant="outline" onClick={() => window.location.href = '/work-orders'}>
               View Work Orders
@@ -331,7 +332,7 @@ export default function PartsRequests() {
 
                       <div className="flex flex-col items-end space-y-2">
                         {request.status === "pending" && (
-                          <PermissionGuard permission="system.admin">
+                          <AdvancedPermissionGuard permission="system.admin">
                             <div className="flex space-x-2">
                               <Button
                                 size="sm"
@@ -350,7 +351,7 @@ export default function PartsRequests() {
                                 Cancel
                               </Button>
                             </div>
-                          </PermissionGuard>
+                          </AdvancedPermissionGuard>
                         )}
                       </div>
                     </div>
@@ -373,7 +374,8 @@ export default function PartsRequests() {
             </div>
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </PageGuard>
   );
 }

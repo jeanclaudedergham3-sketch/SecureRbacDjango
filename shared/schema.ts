@@ -211,7 +211,7 @@ export const workOrderInvoices = pgTable("work_order_invoices", {
   materialCost: decimal("material_cost", { precision: 10, scale: 2 }).notNull(),
   additionalCosts: decimal("additional_costs", { precision: 10, scale: 2 }).default("0"),
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
-  taxRate: decimal("tax_rate", { precision: 5, scale: 4 }).notNull().default("0.1"),
+  taxRate: decimal("tax_rate", { precision: 6, scale: 4 }).notNull().default("0.1"),
   taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull(),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status", { length: 50 }).notNull().default("draft"),
