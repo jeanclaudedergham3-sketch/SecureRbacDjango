@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
-import { AdvancedPermissionGuard, PageGuard } from "@/components/rbac/advanced-permission-guard";
+import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -178,9 +178,8 @@ export default function Proposals() {
   };
 
   return (
-    <PageGuard pageName="proposals">
-      <div className="py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+    <div className="py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Proposal Management</h1>
@@ -300,7 +299,7 @@ export default function Proposals() {
                           </div>
                           
                           <div className="ml-6">
-                            <AdvancedPermissionGuard permission="proposals.create">
+                            <PermissionGuard permission="workorders.create">
                               <Button 
                                 onClick={() => handleCreateProposal(workOrder)}
                                 className="bg-blue-600 hover:bg-blue-700"
@@ -308,7 +307,7 @@ export default function Proposals() {
                                 <Plus className="h-4 w-4 mr-2" />
                                 Create Proposal
                               </Button>
-                            </AdvancedPermissionGuard>
+                            </PermissionGuard>
                           </div>
                         </div>
                       </CardContent>
@@ -469,7 +468,7 @@ export default function Proposals() {
                       
                       <div className="flex items-center space-x-2">
                         {item.status === "pending" && (
-                          <AdvancedPermissionGuard permission="proposals.approve">
+                          <PermissionGuard permission="proposals.approve">
                             <Button
                               variant="default"
                               size="sm"
@@ -488,7 +487,7 @@ export default function Proposals() {
                               <XCircle className="h-4 w-4 mr-2" />
                               Reject
                             </Button>
-                          </AdvancedPermissionGuard>
+                          </PermissionGuard>
                         )}
                         
                         <Button
@@ -530,7 +529,6 @@ export default function Proposals() {
           workOrder={selectedWorkOrder}
         />
       )}
-      </div>
-    </PageGuard>
+    </div>
   );
 }

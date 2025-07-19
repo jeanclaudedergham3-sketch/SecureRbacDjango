@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AdvancedPermissionGuard, PageGuard } from "@/components/rbac/advanced-permission-guard";
+import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { RateTechnicianModal } from "@/components/modals/rate-technician-modal";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -588,7 +588,7 @@ export default function TechnicianMapPage() {
 
               {/* Action Buttons */}
               <div className="flex gap-2 pt-4">
-                <AdvancedPermissionGuard permission="technicians.rate">
+                <PermissionGuard permission="technicians.view">
                   <Button
                     onClick={() => setShowRatingModal(true)}
                     className="flex-1"
@@ -596,7 +596,7 @@ export default function TechnicianMapPage() {
                     <Star className="h-4 w-4 mr-2" />
                     Rate Technician
                   </Button>
-                </AdvancedPermissionGuard>
+                </PermissionGuard>
               </div>
             </div>
           )}

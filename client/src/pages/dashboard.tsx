@@ -1,7 +1,7 @@
 import { Users, UserCheck, Cog, Shield, TrendingUp, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { AdvancedPermissionGuard, PageGuard } from "@/components/rbac/advanced-permission-guard";
+import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -79,16 +79,15 @@ export default function Dashboard() {
   const progress = getUserProgress();
 
   return (
-    <PageGuard pageName="dashboard">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
-            Welcome back, {user?.firstName}!
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Here's your personalized dashboard overview.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
+          Welcome back, {user?.firstName}!
+        </h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Here's your personalized dashboard overview.
+        </p>
+      </div>
 
       {/* Personal Progress Card */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
@@ -124,7 +123,7 @@ export default function Dashboard() {
       <div>
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <AdvancedPermissionGuard permission="users.view">
+          <PermissionGuard permission="view_users">
             <Card>
               <CardContent className="p-5">
                 <div className="flex items-center">
@@ -153,7 +152,7 @@ export default function Dashboard() {
                 </div>
               </div>
             </Card>
-          </AdvancedPermissionGuard>
+          </PermissionGuard>
 
           <Card>
             <CardContent className="p-5">
@@ -258,7 +257,6 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
-      </div>
-    </PageGuard>
+    </div>
   );
 }

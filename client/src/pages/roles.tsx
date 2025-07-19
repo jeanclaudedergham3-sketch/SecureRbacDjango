@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AdvancedPermissionGuard, PageGuard } from "@/components/rbac/advanced-permission-guard";
+import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { EditRoleModal } from "@/components/modals/edit-role-modal";
 import type { RoleWithPermissions, Permission } from "@shared/schema";
 
@@ -51,23 +51,22 @@ export default function Roles() {
   };
 
   return (
-    <PageGuard pageName="roles">
-      <div className="py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Roles & Permissions</h1>
-              <p className="mt-2 text-sm text-gray-600">
-                Configure roles and their associated permissions.
-              </p>
-            </div>
-            <AdvancedPermissionGuard permission="roles.create">
-              <Button onClick={() => setIsCreating(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Role
-              </Button>
-            </AdvancedPermissionGuard>
+    <div className="py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Roles & Permissions</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Configure roles and their associated permissions.
+            </p>
           </div>
+          <PermissionGuard permission="roles.create">
+            <Button onClick={() => setIsCreating(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Role
+            </Button>
+          </PermissionGuard>
+        </div>
 
         {/* Role Cards */}
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -103,7 +102,7 @@ export default function Roles() {
                 </div>
               </CardContent>
               <div className="px-6 py-3 bg-gray-50 border-t">
-                <AdvancedPermissionGuard permission="permissions.assign">
+                <PermissionGuard permission="permissions.assign">
                   <Button 
                     variant="ghost" 
                     size="sm"
@@ -112,7 +111,7 @@ export default function Roles() {
                     <Edit className="h-3 w-3 mr-1" />
                     Edit Permissions
                   </Button>
-                </AdvancedPermissionGuard>
+                </PermissionGuard>
               </div>
             </Card>
           ))}
@@ -178,7 +177,6 @@ export default function Roles() {
         onClose={() => setIsCreating(false)}
         role={null}
       />
-      </div>
-    </PageGuard>
+    </div>
   );
 }

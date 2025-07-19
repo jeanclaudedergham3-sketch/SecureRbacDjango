@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus } from "lucide-react";
-import { AdvancedPermissionGuard, TabGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
+import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
 import { PartsRequestModal } from "@/components/modals/parts-request-modal";
@@ -310,7 +310,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
 
         {/* Action Buttons - Disabled when locked */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <ButtonGuard buttonType="create">
+          <PermissionGuard permission="manage_work_orders">
             <Button
               onClick={() => workOrder.isLocked ? toast({
                 title: "Action Blocked",
@@ -323,9 +323,9 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <FileText className="h-4 w-4" />
               {workOrder.isLocked ? "Locked" : "Create Proposal"}
             </Button>
-          </ButtonGuard>
+          </PermissionGuard>
           
-          <ButtonGuard buttonType="create">
+          <PermissionGuard permission="manage_work_orders">
             <Button
               onClick={() => workOrder.isLocked ? toast({
                 title: "Action Blocked", 
@@ -338,9 +338,9 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <Receipt className="h-4 w-4" />
               {workOrder.isLocked ? "Locked" : "Create Invoice"}
             </Button>
-          </ButtonGuard>
+          </PermissionGuard>
           
-          <ButtonGuard buttonType="create">
+          <PermissionGuard permission="manage_work_orders">
             <Button
               onClick={() => workOrder.isLocked ? toast({
                 title: "Action Blocked",
@@ -353,9 +353,9 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <Hammer className="h-4 w-4" />
               {workOrder.isLocked ? "Locked" : "Request Parts"}
             </Button>
-          </ButtonGuard>
+          </PermissionGuard>
           
-          <ButtonGuard buttonType="create">
+          <PermissionGuard permission="manage_work_orders">
             <Button
               onClick={() => workOrder.isLocked ? toast({
                 title: "Action Blocked",
@@ -368,7 +368,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <Upload className="h-4 w-4" />
               {workOrder.isLocked ? "Locked" : "Upload Files"}
             </Button>
-          </ButtonGuard>
+          </PermissionGuard>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -502,7 +502,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Work Order Proposal</h3>
-                  <ButtonGuard buttonType="edit">
+                  <PermissionGuard permission="workorders.edit">
                     <Button 
                       onClick={() => workOrder.isLocked ? toast({
                         title: "Action Blocked",
@@ -515,7 +515,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                     >
                       {workOrder.isLocked ? "Locked" : "Edit Proposal"}
                     </Button>
-                  </ButtonGuard>
+                  </PermissionGuard>
                 </div>
                 
                 <Card>
@@ -833,7 +833,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 Create payment requests for technicians working on this order.
               </p>
               
-              <ButtonGuard buttonType="create">
+              <PermissionGuard permission="workorders.view">
                 <div className="space-x-2 mb-4">
                   <Button 
                     onClick={() => workOrder.isLocked ? toast({
@@ -850,7 +850,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                     View Payment Details
                   </Button>
                 </div>
-              </ButtonGuard>
+              </PermissionGuard>
 
 
 

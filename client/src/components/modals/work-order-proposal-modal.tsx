@@ -13,7 +13,7 @@ import { Plus, Trash2, Calendar } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { AdvancedPermissionGuard } from "@/components/rbac/advanced-permission-guard";
+import { PermissionGuard } from "@/components/rbac/permission-guard";
 import type { WorkOrderWithUsers, WorkOrderProposal } from "@shared/schema";
 
 interface WorkOrderProposalModalProps {
@@ -563,7 +563,7 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
           <div className="flex justify-between pt-4">
             <div className="space-x-2">
               {proposal && proposal.status === "pending" && (
-                <AdvancedPermissionGuard permission="proposals.approve">
+                <PermissionGuard permission="manage_work_orders">
                   <Button 
                     onClick={() => handleStatusUpdate("approved")}
                     disabled={updateStatusMutation.isPending}
@@ -578,7 +578,7 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
                   >
                     {updateStatusMutation.isPending ? "Cancelling..." : "Cancel"}
                   </Button>
-                </AdvancedPermissionGuard>
+                </PermissionGuard>
               )}
               {proposal && proposal.status === "pending" && !user?.permissions?.includes("manage_work_orders") && (
                 <div className="text-sm text-gray-500 italic">
@@ -591,14 +591,14 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
               <Button variant="outline" onClick={onClose}>
                 Close
               </Button>
-              <AdvancedPermissionGuard permission="proposals.create">
+              <PermissionGuard permission="workorders.create">
                 <Button 
                   onClick={handleSave}
                   disabled={saveProposalMutation.isPending}
                 >
                   {saveProposalMutation.isPending ? "Saving..." : proposal ? "Update Proposal" : "Save Proposal"}
                 </Button>
-              </AdvancedPermissionGuard>
+              </PermissionGuard>
               {proposal && (
                 <Button variant="outline" onClick={() => window.print()}>
                   Print

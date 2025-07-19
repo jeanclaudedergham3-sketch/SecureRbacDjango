@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { AdvancedPermissionGuard, PageGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
+import { PermissionGuard } from "@/components/rbac/permission-guard";
 import { CreateUserModal } from "@/components/modals/create-user-modal";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -62,27 +62,26 @@ export default function Users() {
   };
 
   return (
-    <PageGuard pageName="users">
-      <div className="py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">User Management</h1>
-              <p className="mt-2 text-sm text-gray-600">
-                Manage users and their access levels.
-              </p>
-            </div>
-            <AdvancedPermissionGuard permission="users.create">
-              <Button onClick={() => setShowCreateModal(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add User
-              </Button>
-            </AdvancedPermissionGuard>
+    <div className="py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">User Management</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Manage users and their access levels.
+            </p>
           </div>
+          <PermissionGuard permission="users.create">
+            <Button onClick={() => setShowCreateModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
+          </PermissionGuard>
+        </div>
 
-          {/* Users Table */}
-          <div className="mt-6">
-            <Card>
+        {/* Users Table */}
+        <div className="mt-6">
+          <Card>
             <CardHeader>
               <CardTitle>All Users</CardTitle>
             </CardHeader>
@@ -150,17 +149,17 @@ export default function Users() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex space-x-2">
-                              <AdvancedPermissionGuard permission="users.edit">
+                              <PermissionGuard permission="users.edit">
                                 <Button variant="ghost" size="sm">
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                              </AdvancedPermissionGuard>
-                              <AdvancedPermissionGuard permission="roles.assign">
+                              </PermissionGuard>
+                              <PermissionGuard permission="roles.assign">
                                 <Button variant="ghost" size="sm">
                                   <UserCheck className="h-4 w-4" />
                                 </Button>
-                              </AdvancedPermissionGuard>
-                              <AdvancedPermissionGuard permission="users.delete">
+                              </PermissionGuard>
+                              <PermissionGuard permission="users.delete">
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -169,7 +168,7 @@ export default function Users() {
                                 >
                                   <Trash2 className="h-4 w-4 text-red-500" />
                                 </Button>
-                              </AdvancedPermissionGuard>
+                              </PermissionGuard>
                             </div>
                           </td>
                         </tr>
@@ -179,15 +178,14 @@ export default function Users() {
                 </div>
               )}
             </CardContent>
-            </Card>
-          </div>
+          </Card>
         </div>
-
-        <CreateUserModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-        />
       </div>
-    </PageGuard>
+
+      <CreateUserModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
+    </div>
   );
 }

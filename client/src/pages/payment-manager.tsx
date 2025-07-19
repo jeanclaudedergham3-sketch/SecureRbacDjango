@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DollarSign, Edit, History, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { AdvancedPermissionGuard, PageGuard } from "@/components/rbac/advanced-permission-guard";
+import { PermissionGuard } from "@/components/rbac/permission-guard";
 
 interface PaymentRequest {
   id: number;
@@ -206,20 +206,19 @@ export default function PaymentManager() {
   }
 
   return (
-    <PageGuard pageName="payments">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Payment Manager</h1>
-            <p className="text-gray-600">Manage technician payment requests and approvals</p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <DollarSign className="h-5 w-5 text-gray-500" />
-            <span className="text-sm text-gray-500">{payments.length} payment requests</span>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Payment Manager</h1>
+          <p className="text-gray-600">Manage technician payment requests and approvals</p>
         </div>
+        <div className="flex items-center space-x-2">
+          <DollarSign className="h-5 w-5 text-gray-500" />
+          <span className="text-sm text-gray-500">{payments.length} payment requests</span>
+        </div>
+      </div>
 
-        <AdvancedPermissionGuard permission="payments.view">
+      <PermissionGuard permission="manage_work_orders">
         <Card>
           <CardHeader>
             <CardTitle>Payment Requests</CardTitle>
@@ -335,7 +334,7 @@ export default function PaymentManager() {
             </Table>
           </CardContent>
         </Card>
-        </AdvancedPermissionGuard>
+      </PermissionGuard>
 
       {/* Edit Payment Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
@@ -467,7 +466,6 @@ export default function PaymentManager() {
           </div>
         </DialogContent>
       </Dialog>
-      </div>
-    </PageGuard>
+    </div>
   );
 }
