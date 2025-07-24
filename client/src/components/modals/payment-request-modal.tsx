@@ -129,6 +129,15 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
     queryKey: ["/api/technicians"],
   });
 
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      form.reset();
+      setSelectedTechnician(null);
+      setSelectedPaymentMethods([]);
+    }
+  }, [isOpen, form]);
+
   const createPaymentMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", `/api/work-orders/${workOrder.id}/payments`, data);
@@ -336,13 +345,17 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                                     ? methodInfo.color + " border-2" 
                                     : "border hover:border-gray-300"
                                 }`}
-                                onClick={() => handlePaymentMethodToggle(method, !selectedPaymentMethods.includes(method))}
+                                onClick={(e) => {
+                                  // Prevent double triggering when clicking the checkbox
+                                  if ((e.target as HTMLElement).closest('[role="checkbox"]')) return;
+                                  handlePaymentMethodToggle(method, !selectedPaymentMethods.includes(method));
+                                }}
                               >
                                 <CardContent className="p-4">
                                   <div className="flex items-start gap-3">
                                     <Checkbox
                                       checked={selectedPaymentMethods.includes(method)}
-                                      onChange={() => {}}
+                                      onCheckedChange={(checked) => handlePaymentMethodToggle(method, checked as boolean)}
                                       className="mt-1"
                                     />
                                     <div className="flex-1">
