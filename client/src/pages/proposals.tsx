@@ -572,14 +572,16 @@ export default function Proposals() {
       </Tabs>
 
       {/* Proposal Modal */}
-      <WorkOrderProposalModal
-        isOpen={isProposalModalOpen}
-        onClose={() => {
-          setIsProposalModalOpen(false);
-          setSelectedWorkOrder(null);
-        }}
-        workOrder={selectedWorkOrder}
-      />
+      {selectedWorkOrder && (
+        <WorkOrderProposalModal
+          isOpen={isProposalModalOpen}
+          onClose={() => {
+            setIsProposalModalOpen(false);
+            setSelectedWorkOrder(null);
+          }}
+          workOrder={selectedWorkOrder}
+        />
+      )}
       </div>
     </PageGuard>
   );

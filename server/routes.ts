@@ -577,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all proposals with work order info
-  app.get("/api/proposals", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.get("/api/proposals", requireAuth, requirePermission("proposals.list.view"), async (req, res) => {
     try {
       const workOrders = await storage.getAllWorkOrders();
       const proposalsWithWorkOrders = [];
@@ -599,7 +599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get work orders without proposals for proposal creation
-  app.get("/api/work-orders-without-proposals", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.get("/api/work-orders-without-proposals", requireAuth, requirePermission("proposals.list.view"), async (req, res) => {
     try {
       const workOrders = await storage.getAllWorkOrders();
       const workOrdersWithoutProposals = [];

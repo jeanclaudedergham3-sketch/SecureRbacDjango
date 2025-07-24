@@ -137,11 +137,11 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
       setSelectedTechnician(null);
       setSelectedPaymentMethods([]);
     }
-  }, [isOpen, form]);
+  }, [isOpen]); // Remove form from dependencies to prevent infinite loop
 
   const createPaymentMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", `/api/work-orders/${workOrder.id}/payments`, data);
+      const response = await apiRequest("POST", `/api/work-orders/${workOrder?.id}/payments`, data);
       return response.json();
     },
     onSuccess: () => {
@@ -149,7 +149,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
         title: "Payment Request Created",
         description: "Payment request has been sent successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/payments`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder?.id}/payments`] });
       onClose();
       form.reset();
       setSelectedTechnician(null);
@@ -223,13 +223,13 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
 
 
   return (
-    <AdvancedPermissionGuard requiredPermission="payments.modal.create">
+    <AdvancedPermissionGuard permission="payments.modal.create">
       <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
-            Create Payment Request - {workOrder.workOrderNumber}
+            Create Payment Request - {workOrder?.workOrderNumber || "Unknown"}
           </DialogTitle>
           <DialogDescription>
             Request payment from a technician for work completed on this work order.
@@ -486,7 +486,7 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                 <Button type="button" variant="outline" onClick={onClose}>
                   Cancel
                 </Button>
-                <ButtonGuard requiredPermission="payments.create">
+                <ButtonGuard buttonType="create">
                   <Button 
                     type="submit" 
                     disabled={createPaymentMutation.isPending}

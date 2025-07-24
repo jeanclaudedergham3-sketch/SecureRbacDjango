@@ -58,8 +58,8 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
 
   // Fetch existing proposal
   const { data: proposal, isLoading } = useQuery<WorkOrderProposal | null>({
-    queryKey: [`/api/work-orders/${workOrder.id}/proposal`],
-    enabled: isOpen,
+    queryKey: [`/api/work-orders/${workOrder?.id}/proposal`],
+    enabled: isOpen && !!workOrder?.id,
   });
 
   // Load existing proposal data
@@ -170,7 +170,7 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
     const totalCost = laborTotal + partsTotal + servicesTotal;
     
     const proposalData = {
-      workOrderId: workOrder.id,
+      workOrderId: workOrder?.id,
       laborCost: laborTotal.toFixed(2),
       materialCost: partsTotal.toFixed(2),
       additionalCosts: servicesTotal.toFixed(2),
@@ -290,9 +290,9 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
-              <DialogTitle>Work Order Proposal - {workOrder.workOrderNumber}</DialogTitle>
+              <DialogTitle>Work Order Proposal - {workOrder?.workOrderNumber || "Unknown"}</DialogTitle>
               <DialogDescription>
-                Manage labor, parts, and services for {workOrder.clientName}
+                Manage labor, parts, and services for {workOrder?.clientName || "Unknown Client"}
               </DialogDescription>
             </div>
             {proposal && (
