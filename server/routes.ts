@@ -867,7 +867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Global payment manager routes
-  app.get("/api/payments/all", requireAuth, requirePermission("payments.view"), async (req, res) => {
+  app.get("/api/payments/all", requireAuth, requirePermission("payments.list.view"), async (req, res) => {
     try {
       console.log("Fetching all payments...");
       // Get all payments with work order and technician details
@@ -896,7 +896,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/payments/technician/:technicianId", requireAuth, requirePermission("payments.view"), async (req, res) => {
+  app.get("/api/payments/technician/:technicianId", requireAuth, requirePermission("payments.technician.view"), async (req, res) => {
     try {
       const technicianId = parseInt(req.params.technicianId);
       console.log(`Fetching payment history for technician ${technicianId}`);
@@ -926,7 +926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/payments/:id", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+  app.patch("/api/payments/:id", requireAuth, requirePermission("payments.approve"), async (req, res) => {
     try {
       const paymentId = parseInt(req.params.id);
       const updates = req.body;
@@ -943,7 +943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/work-orders/:id/payments", requireAuth, requirePermission("payments.view"), async (req, res) => {
+  app.post("/api/work-orders/:id/payments", requireAuth, requirePermission("payments.create"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const paymentData = insertWorkOrderTechnicianPaymentSchema.parse({
@@ -981,7 +981,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/work-orders/:workOrderId/payments/:paymentId", requireAuth, requirePermission("payments.view"), async (req, res) => {
+  app.patch("/api/work-orders/:workOrderId/payments/:paymentId", requireAuth, requirePermission("payments.approve"), async (req, res) => {
     try {
       const paymentId = parseInt(req.params.paymentId);
       const updateData = req.body;
@@ -1003,7 +1003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Global Payment routes for the payments page
-  app.get("/api/payments", requireAuth, requirePermission("payments.view"), async (req, res) => {
+  app.get("/api/payments", requireAuth, requirePermission("payments.list.view"), async (req, res) => {
     try {
       // Get all payment requests across all work orders
       const allWorkOrders = await storage.getAllWorkOrders();
@@ -1024,7 +1024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/payments/:id", requireAuth, requirePermission("manage_work_orders"), async (req, res) => {
+  app.patch("/api/payments/:id", requireAuth, requirePermission("payments.approve"), async (req, res) => {
     try {
       const paymentId = parseInt(req.params.id);
       const updateData = req.body;
