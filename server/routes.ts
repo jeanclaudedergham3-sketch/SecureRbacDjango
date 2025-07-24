@@ -798,7 +798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/work-orders/:id/chats", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.post("/api/work-orders/:id/chats", requireAuth, requirePermission("chat.send"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       
@@ -821,7 +821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/work-orders/:id/chats/file", requireAuth, requirePermission("workorders.view"), upload.single('file'), async (req, res) => {
+  app.post("/api/work-orders/:id/chats/file", requireAuth, requirePermission("chat.send"), upload.single('file'), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       
