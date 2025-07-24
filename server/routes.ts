@@ -465,7 +465,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/work-orders/:id/proposal", requireAuth, requirePermission("workorders.create"), async (req, res) => {
+  app.post("/api/work-orders/:id/proposal", requireAuth, requirePermission("proposals.create"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const proposalData = insertWorkOrderProposalSchema.parse({
@@ -483,7 +483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/work-orders/:id/proposal", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.put("/api/work-orders/:id/proposal", requireAuth, requirePermission("proposals.create"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const proposalData = insertWorkOrderProposalSchema.partial().parse(req.body);
@@ -497,7 +497,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/work-orders/:id/proposal/status", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.put("/api/work-orders/:id/proposal/status", requireAuth, requirePermission("proposals.approve"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const { status } = req.body;
