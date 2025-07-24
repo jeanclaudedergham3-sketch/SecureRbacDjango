@@ -719,7 +719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/work-orders/:id/files", requireAuth, requirePermission("workorders.view"), upload.single('file'), async (req, res) => {
+  app.post("/api/work-orders/:id/files", requireAuth, requirePermission("files.upload"), upload.single('file'), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       
@@ -750,7 +750,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/work-orders/files/:id", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.delete("/api/work-orders/files/:id", requireAuth, requirePermission("files.delete"), async (req, res) => {
     try {
       const fileId = parseInt(req.params.id);
       const success = await storage.deleteWorkOrderFile(fileId);
