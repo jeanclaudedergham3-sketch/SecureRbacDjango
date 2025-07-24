@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DollarSign, CreditCard, Building, Smartphone, QrCode, ArrowLeftRight, User, Mail, Phone, MapPin, Star, Clock, Briefcase, Award } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { AdvancedPermissionGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
 import { z } from "zod";
 import type { WorkOrder } from "@shared/schema";
 
@@ -163,47 +164,48 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
     },
   });
 
-  const handleTechnicianChange = (value: string) => {
+  const handleTechnicianChange = useCallback((value: string) => {
     const technician = (technicians as any[]).find((t: any) => t.id.toString() === value);
     setSelectedTechnician(technician);
     form.setValue("technicianId", value);
     // Reset payment methods when technician changes
     setSelectedPaymentMethods([]);
     form.setValue("paymentMethods", []);
-  };
+  }, [technicians, form]);
 
-  const handlePaymentMethodToggle = (method: string, checked: boolean) => {
-    let newMethods;
-    if (checked) {
-      newMethods = [...selectedPaymentMethods, method];
-    } else {
-      newMethods = selectedPaymentMethods.filter(m => m !== method);
-    }
-    setSelectedPaymentMethods(newMethods);
-    form.setValue("paymentMethods", newMethods);
-  };
+  const handlePaymentMethodToggle = useCallback((method: string, checked: boolean) => {
+    setSelectedPaymentMethods(prev => {
+      const newMethods = checked 
+        ? [...prev, method]
+        : prev.filter(m => m !== method);
+      
+      // Update form after state update
+      setTimeout(() => form.setValue("paymentMethods", newMethods), 0);
+      return newMethods;
+    });
+  }, [form]);
 
-  const getAvailablePaymentMethods = (technician: any) => {
-    if (!technician) return [];
+  const availablePaymentMethods = useMemo(() => {
+    if (!selectedTechnician) return [];
     
     try {
-      const methods = JSON.parse(technician.paymentMethods || "[]");
+      const methods = JSON.parse(selectedTechnician.paymentMethods || "[]");
       return Array.isArray(methods) ? methods : [];
     } catch {
       return [];
     }
-  };
+  }, [selectedTechnician]);
 
-  const getPaymentDetails = (technician: any) => {
-    if (!technician) return {};
+  const paymentDetails = useMemo(() => {
+    if (!selectedTechnician) return {};
     
     try {
-      const details = JSON.parse(technician.paymentDetails || "{}");
+      const details = JSON.parse(selectedTechnician.paymentDetails || "{}");
       return details;
     } catch {
       return {};
     }
-  };
+  }, [selectedTechnician]);
 
   const onSubmit = (data: PaymentRequestForm) => {
     const payload = {
@@ -218,11 +220,11 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
     createPaymentMutation.mutate(payload);
   };
 
-  const availablePaymentMethods = getAvailablePaymentMethods(selectedTechnician);
-  const paymentDetails = getPaymentDetails(selectedTechnician);
+
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <AdvancedPermissionGuard requiredPermission="payments.modal.create">
+      <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -484,18 +486,21 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                 <Button type="button" variant="outline" onClick={onClose}>
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
-                  disabled={createPaymentMutation.isPending}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {createPaymentMutation.isPending ? "Creating..." : "Create Payment Request"}
-                </Button>
+                <ButtonGuard requiredPermission="payments.create">
+                  <Button 
+                    type="submit" 
+                    disabled={createPaymentMutation.isPending}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {createPaymentMutation.isPending ? "Creating..." : "Create Payment Request"}
+                  </Button>
+                </ButtonGuard>
               </div>
             </form>
           </Form>
         </ScrollArea>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </AdvancedPermissionGuard>
   );
 }
