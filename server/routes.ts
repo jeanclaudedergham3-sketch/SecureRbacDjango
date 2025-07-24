@@ -629,7 +629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/work-orders/:id/parts-requests", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.post("/api/work-orders/:id/parts-requests", requireAuth, requirePermission("parts.create"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
       const partsRequestData = insertWorkOrderPartsRequestSchema.parse({
@@ -647,7 +647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/parts-requests/:id/status", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.put("/api/parts-requests/:id/status", requireAuth, requirePermission("parts.approve"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
@@ -670,7 +670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all parts requests with work order and user info
-  app.get("/api/parts-requests", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.get("/api/parts-requests", requireAuth, requirePermission("parts.list.view"), async (req, res) => {
     try {
       const workOrders = await storage.getAllWorkOrders();
       const users = await storage.getAllUsers();
@@ -1186,7 +1186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Generate invoice number if not provided
       if (!req.body.invoiceNumber) {
-        const workOrder = await storage.getWorkOrderById(req.body.workOrderId);
+        const workOrder = await storage.getWorkOrder(req.body.workOrderId);
         req.body.invoiceNumber = `INV-${workOrder?.workOrderNumber || req.body.workOrderId}-${Date.now()}`;
       }
       
