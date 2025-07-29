@@ -15,7 +15,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [location] = useLocation();
-  const { user, role, logout } = useAuth();
+  const { user, role, logout, permissions } = useAuth();
   const { hasPermission } = usePermissions();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -184,6 +184,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 !item.permission || hasPermission(item.permission)
               );
               
+              // Debug logging for manager role
+              if (user?.username === 'qqq') {
+                console.log(`Section: ${section.title}`, {
+                  hasAnyPermission,
+                  userPermissions: permissions,
+                  items: section.items.map(item => ({
+                    name: item.name,
+                    permission: item.permission,
+                    hasPermission: item.permission ? hasPermission(item.permission) : true
+                  }))
+                });
+              }
+              
               if (!hasAnyPermission) return null;
               
               return (
@@ -204,35 +217,33 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       const isActive = location === item.href;
                       const Icon = item.icon;
                       
-                      if (item.permission) {
+                      if (item.permission && hasPermission(item.permission)) {
                         return (
-                          <SidebarGuard key={item.name} section={item.permission}>
-                            <Link href={item.href}>
-                              <button
-                                className={cn(
-                                  "w-full group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
-                                  isActive
-                                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30"
-                                    : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
-                                )}
-                                onClick={onClose}
-                              >
-                                <Icon className="h-4 w-4 flex-shrink-0" />
-                                <span className={cn(
-                                  "ml-3 transition-all duration-500 whitespace-nowrap font-medium",
-                                  isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
-                                )}>
+                          <Link key={item.name} href={item.href}>
+                            <button
+                              className={cn(
+                                "w-full group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
+                                isActive
+                                  ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30"
+                                  : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
+                              )}
+                              onClick={onClose}
+                            >
+                              <Icon className="h-4 w-4 flex-shrink-0" />
+                              <span className={cn(
+                                "ml-3 transition-all duration-500 whitespace-nowrap font-medium",
+                                isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
+                              )}>
+                                {item.name}
+                              </span>
+                              {!isHovered && (
+                                <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
                                   {item.name}
-                                </span>
-                                {!isHovered && (
-                                  <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
-                                    {item.name}
-                                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
-                                  </div>
-                                )}
-                              </button>
-                            </Link>
-                          </SidebarGuard>
+                                  <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
+                                </div>
+                              )}
+                            </button>
+                          </Link>
                         );
                       }
 

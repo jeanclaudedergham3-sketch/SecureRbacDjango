@@ -23,6 +23,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       try {
         const data = await authApi.getCurrentUser();
+        // Debug logging for permissions
+        if (data.user?.username === 'qqq') {
+          console.log('Manager user checkAuth - Auth data:', data);
+          console.log('Manager permissions:', data.permissions);
+        }
         setAuthState(data);
       } catch (error) {
         // User not authenticated
@@ -37,6 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       const data = await authApi.login(username, password);
+      // Debug logging for permissions
+      if (username === 'qqq') {
+        console.log('Manager user login - Auth data:', data);
+        console.log('Manager permissions:', data.permissions);
+      }
       setAuthState(data);
       toast({
         title: "Success",
