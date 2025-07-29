@@ -36,6 +36,13 @@ const technicianSchema = z.object({
   location: z.string().optional(),
   availability: z.enum(["available", "busy", "unavailable"]),
   paymentMethods: z.array(z.string()).optional(),
+  // Payment details
+  paypalEmail: z.string().optional(),
+  bankAccount: z.string().optional(),
+  venmoHandle: z.string().optional(),
+  cashappHandle: z.string().optional(),
+  zelleInfo: z.string().optional(),
+  mailingAddress: z.string().optional(),
 });
 
 type TechnicianFormData = z.infer<typeof technicianSchema>;
@@ -69,6 +76,7 @@ export function TechnicianModal({
   mode,
 }: TechnicianModalProps) {
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
+  const [paymentDetails, setPaymentDetails] = useState<{[key: string]: string}>({});
 
   const form = useForm<TechnicianFormData>({
     resolver: zodResolver(technicianSchema),
@@ -83,6 +91,13 @@ export function TechnicianModal({
       location: "",
       availability: "available",
       paymentMethods: [],
+      // Payment details
+      paypalEmail: "",
+      bankAccount: "",
+      venmoHandle: "",
+      cashappHandle: "",
+      zelleInfo: "",
+      mailingAddress: "",
     },
   });
 
@@ -120,6 +135,13 @@ export function TechnicianModal({
           location: initialData.location || "",
           availability: initialData.availability || "available",
           paymentMethods: paymentMethods,
+          // Payment details
+          paypalEmail: initialData.paypalEmail || "",
+          bankAccount: initialData.bankAccount || "",
+          venmoHandle: initialData.venmoHandle || "",
+          cashappHandle: initialData.cashappHandle || "",
+          zelleInfo: initialData.zelleInfo || "",
+          mailingAddress: initialData.mailingAddress || "",
         });
         setSelectedPaymentMethods(paymentMethods);
       } else {
@@ -134,6 +156,13 @@ export function TechnicianModal({
           location: "",
           availability: "available",
           paymentMethods: [],
+          // Payment details
+          paypalEmail: "",
+          bankAccount: "",
+          venmoHandle: "",
+          cashappHandle: "",
+          zelleInfo: "",
+          mailingAddress: "",
         });
         setSelectedPaymentMethods([]);
       }
@@ -338,29 +367,136 @@ export function TechnicianModal({
               <CardHeader>
                 <CardTitle className="text-lg flex items-center">
                   <CreditCard className="h-5 w-5 mr-2" />
-                  Payment Methods
+                  Payment Methods & Details
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {availablePaymentMethods.map((method) => (
-                    <div key={method.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={method.id}
-                        checked={selectedPaymentMethods.includes(method.id)}
-                        onCheckedChange={(checked) => 
-                          handlePaymentMethodChange(method.id, checked as boolean)
-                        }
-                      />
-                      <label
-                        htmlFor={method.id}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {method.label}
-                      </label>
-                    </div>
-                  ))}
+              <CardContent className="space-y-4">
+                {/* Payment Method Selection */}
+                <div>
+                  <label className="text-sm font-medium mb-3 block">Select Payment Methods</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {availablePaymentMethods.map((method) => (
+                      <div key={method.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={method.id}
+                          checked={selectedPaymentMethods.includes(method.id)}
+                          onCheckedChange={(checked) => 
+                            handlePaymentMethodChange(method.id, checked as boolean)
+                          }
+                        />
+                        <label
+                          htmlFor={method.id}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {method.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Payment Details */}
+                {selectedPaymentMethods.length > 0 && (
+                  <div className="space-y-4 border-t pt-4">
+                    <h4 className="text-sm font-medium text-gray-700">Payment Details</h4>
+                    
+                    {selectedPaymentMethods.includes('paypal') && (
+                      <FormField
+                        control={form.control}
+                        name="paypalEmail"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>PayPal Email</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="email" placeholder="paypal@example.com" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {(selectedPaymentMethods.includes('credit_card') || selectedPaymentMethods.includes('bank_transfer')) && (
+                      <FormField
+                        control={form.control}
+                        name="bankAccount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Bank Account / Routing Info</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Bank account or routing information" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {selectedPaymentMethods.includes('venmo') && (
+                      <FormField
+                        control={form.control}
+                        name="venmoHandle"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Venmo Handle</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="@venmo-username" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {selectedPaymentMethods.includes('cashapp') && (
+                      <FormField
+                        control={form.control}
+                        name="cashappHandle"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Cash App Handle</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="$cashapp-handle" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {selectedPaymentMethods.includes('zelle') && (
+                      <FormField
+                        control={form.control}
+                        name="zelleInfo"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Zelle Email/Phone</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="zelle@example.com or phone number" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {selectedPaymentMethods.includes('check') && (
+                      <FormField
+                        control={form.control}
+                        name="mailingAddress"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Mailing Address for Checks</FormLabel>
+                            <FormControl>
+                              <Textarea {...field} placeholder="Full mailing address for check payments" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
