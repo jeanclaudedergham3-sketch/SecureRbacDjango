@@ -9,12 +9,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AdvancedPermissionGuard, useAdvancedPermissions, PageGuard } from "@/components/rbac/advanced-permission-guard";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { TechnicianModal } from "@/components/modals/technician-modal";
 import type { Technician } from "@shared/schema";
 
 export default function TechniciansPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -23,12 +26,49 @@ export default function TechniciansPage() {
     queryKey: ["/api/technicians"],
   });
 
+  const createTechnicianMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/technicians", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });
+      toast({ title: "Success", description: "Technician added successfully" });
+      setIsModalOpen(false);
+      setSelectedTechnician(null);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to add technician",
+        variant: "destructive"
+      });
+    },
+  });
+
+  const updateTechnicianMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const response = await apiRequest("PUT", `/api/technicians/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });
+      toast({ title: "Success", description: "Technician updated successfully" });
+      setIsModalOpen(false);
+      setSelectedTechnician(null);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to update technician",
+        variant: "destructive"
+      });
+    },
+  });
+
   const deleteTechnicianMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/technicians/${id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Failed to delete technician");
+      const response = await apiRequest("DELETE", `/api/technicians/${id}`);
       return response.json();
     },
     onSuccess: () => {
@@ -37,10 +77,10 @@ export default function TechniciansPage() {
       setShowDeleteDialog(false);
       setSelectedTechnician(null);
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({ 
         title: "Error", 
-        description: "Failed to delete technician",
+        description: error.message || "Failed to delete technician",
         variant: "destructive"
       });
     },
@@ -82,8 +122,16 @@ export default function TechniciansPage() {
     return methodNames[method] || method;
   };
 
-  const handleEdit = () => {
-    toast({ title: "Info", description: "Edit functionality coming soon" });
+  const handleAdd = () => {
+    setModalMode("create");
+    setSelectedTechnician(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (technician: Technician) => {
+    setModalMode("edit");
+    setSelectedTechnician(technician);
+    setIsModalOpen(true);
   };
 
   const handleDelete = (technician: Technician) => {
@@ -91,12 +139,17 @@ export default function TechniciansPage() {
     setShowDeleteDialog(true);
   };
 
-  const handlePaymentRequest = () => {
-    toast({ title: "Info", description: "Payment request functionality coming soon" });
+  const handleModalSubmit = (data: any) => {
+    if (modalMode === "edit" && selectedTechnician) {
+      updateTechnicianMutation.mutate({ id: selectedTechnician.id, data });
+    } else {
+      createTechnicianMutation.mutate(data);
+    }
   };
 
-  const handleRating = () => {
-    toast({ title: "Info", description: "Rating functionality coming soon" });
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedTechnician(null);
   };
 
   if (isLoading) {
@@ -122,7 +175,7 @@ export default function TechniciansPage() {
           </p>
         </div>
         <AdvancedPermissionGuard permission="technicians.create">
-          <Button onClick={() => toast({ title: "Info", description: "Add technician functionality coming soon" })} className="w-full sm:w-auto">
+          <Button onClick={handleAdd} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Add Technician
           </Button>
@@ -195,7 +248,7 @@ export default function TechniciansPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={handleEdit}
+                      onClick={() => handleEdit(technician)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -300,7 +353,7 @@ export default function TechniciansPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handlePaymentRequest}
+                    onClick={() => toast({ title: "Info", description: "Payment request functionality available in work orders" })}
                     className="flex-1"
                   >
                     <CreditCard className="h-4 w-4 mr-1" />
@@ -311,7 +364,7 @@ export default function TechniciansPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleRating}
+                    onClick={() => toast({ title: "Info", description: "Rating functionality available in work orders" })}
                     className="flex-1"
                   >
                     <Star className="h-4 w-4 mr-1" />
@@ -341,7 +394,7 @@ export default function TechniciansPage() {
           </p>
           {!searchTerm && (
             <AdvancedPermissionGuard permission="technicians.create">
-              <Button onClick={() => toast({ title: "Info", description: "Add technician functionality coming soon" })}>
+              <Button onClick={handleAdd}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Technician
               </Button>
@@ -349,6 +402,16 @@ export default function TechniciansPage() {
           )}
         </div>
       )}
+
+      {/* Add/Edit Technician Modal */}
+      <TechnicianModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onSubmit={handleModalSubmit}
+        isLoading={createTechnicianMutation.isPending || updateTechnicianMutation.isPending}
+        initialData={selectedTechnician}
+        mode={modalMode}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
