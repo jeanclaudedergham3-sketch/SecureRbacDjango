@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Edit, Trash2, Receipt, Search, Filter, Lock } from "lucide-react";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
-import { PageGuard } from "@/components/rbac/advanced-permission-guard";
+import { PageGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
 import type { WorkOrderInvoice, WorkOrder } from "@shared/schema";
 
 interface InvoiceWithWorkOrder extends WorkOrderInvoice {
@@ -35,7 +35,7 @@ export default function Invoices() {
   const queryClient = useQueryClient();
 
   // Fetch all invoices with work order details
-  const { data: invoices = [], isLoading } = useQuery({
+  const { data: invoices = [], isLoading } = useQuery<InvoiceWithWorkOrder[]>({
     queryKey: ["/api/invoices/all"],
     refetchInterval: 2000, // Refresh every 2 seconds to show new invoices
   });
@@ -120,10 +120,10 @@ export default function Invoices() {
   });
 
   // Filter invoices based on search and status
-  const filteredInvoices = invoices.filter((invoice: InvoiceWithWorkOrder) => {
+  const filteredInvoices = (invoices as InvoiceWithWorkOrder[]).filter((invoice: InvoiceWithWorkOrder) => {
     const matchesSearch = 
-      invoice.workOrderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+      invoice.workOrderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      invoice.clientName?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
     
@@ -241,7 +241,15 @@ export default function Invoices() {
           <h1 className="text-3xl font-bold">ABC Corporation - Invoice Management</h1>
           <p className="text-gray-600">Manage all invoices across work orders</p>
         </div>
-        
+        <ButtonGuard permission="invoices.create">
+          <Button 
+            onClick={() => setIsCreateModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Receipt className="h-4 w-4 mr-2" />
+            Create Invoice
+          </Button>
+        </ButtonGuard>
       </div>
 
       {/* Filters */}
@@ -356,23 +364,27 @@ export default function Invoices() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(invoice)}
-                            disabled={invoice.isLocked}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(invoice)}
-                            disabled={invoice.isLocked || deleteInvoiceMutation.isPending}
-                            className="text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <ButtonGuard permission="invoices.edit">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(invoice)}
+                              disabled={invoice.isLocked}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </ButtonGuard>
+                          <ButtonGuard permission="invoices.delete">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(invoice)}
+                              disabled={invoice.isLocked || deleteInvoiceMutation.isPending}
+                              className="text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </ButtonGuard>
                         </div>
                       </TableCell>
                     </TableRow>

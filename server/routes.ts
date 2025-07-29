@@ -1155,7 +1155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Global invoice management routes
-  app.get("/api/invoices/all", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.get("/api/invoices/all", requireAuth, requirePermission("invoices.list.view"), async (req, res) => {
     try {
       console.log("Fetching all invoices with work order details...");
       const allInvoices = await storage.getAllInvoices();
@@ -1181,7 +1181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/invoices", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.post("/api/invoices", requireAuth, requirePermission("invoices.create"), async (req, res) => {
     try {
       console.log("Creating new invoice:", req.body);
       
@@ -1207,7 +1207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/invoices/:id", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.patch("/api/invoices/:id", requireAuth, requirePermission("invoices.edit"), async (req, res) => {
     try {
       const invoiceId = parseInt(req.params.id);
       console.log(`Updating invoice ${invoiceId}:`, req.body);
@@ -1233,7 +1233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/invoices/:id", requireAuth, requirePermission("workorders.view"), async (req, res) => {
+  app.delete("/api/invoices/:id", requireAuth, requirePermission("invoices.delete"), async (req, res) => {
     try {
       const invoiceId = parseInt(req.params.id);
       console.log(`Deleting invoice ${invoiceId}`);
