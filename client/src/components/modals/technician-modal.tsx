@@ -153,8 +153,8 @@ export function TechnicianModal({
     onSubmit({
       ...data,
       experience: parseInt(data.experience),
-      hourlyRate: parseFloat(data.hourlyRate),
-      paymentMethods: selectedPaymentMethods,
+      hourlyRate: data.hourlyRate, // Keep as string - database expects decimal as string
+      paymentMethods: selectedPaymentMethods.join(','), // Convert array to comma-separated string
     });
   };
 
