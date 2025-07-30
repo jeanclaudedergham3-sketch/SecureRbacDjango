@@ -437,6 +437,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/work-orders/:id", requireAuth, requirePermission("workorders.edit"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      // Check if user has permission to edit this specific work order
+      const userPermissions = await storage.getUserPermissions(req.user.id);
+      const canEditAllWorkOrders = userPermissions.some(p => p.name === 'system.admin' || p.name === 'workorders.view_all');
+      
+      if (!canEditAllWorkOrders) {
+        // Check if user is assigned to or created this work order
+        const existingWorkOrder = await storage.getWorkOrder(id);
+        if (!existingWorkOrder || (existingWorkOrder.requestedBy !== req.user.id && existingWorkOrder.assignedTo !== req.user.id)) {
+          return res.status(403).json({ message: "Permission denied. You can only edit work orders assigned to you or created by you." });
+        }
+      }
+      
       const workOrderData = insertWorkOrderSchema.partial().parse(req.body);
       const workOrder = await storage.updateWorkOrder(id, workOrderData);
       if (!workOrder) {
@@ -444,7 +457,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(workOrder);
     } catch (error) {
-      res.status(400).json({ message: "Failed to update work order" });
+      console.error("Error updating work order:", error);
+      res.status(400).json({ 
+        message: "Failed to update work order",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -1106,9 +1123,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Dashboard stats:", stats);
       res.json(stats);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Dashboard stats error:", error);
-      res.status(500).json({ message: "Failed to get dashboard stats", error: error.message });
+      res.status(500).json({ message: "Failed to get dashboard stats", error: error?.message || String(error) });
     }
   });
 
