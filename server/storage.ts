@@ -12,7 +12,7 @@ import {
   type InsertWorkOrderTechnicianPayment, type InsertWorkOrderInvoice, type InsertNotification,
   type UserWithRole, type RoleWithPermissions, type WorkOrderWithUsers
 } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and, desc, asc, or } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 export interface IStorage {
@@ -367,7 +367,7 @@ export class DatabaseStorage implements IStorage {
 
   async getUserWorkOrders(userId: number): Promise<WorkOrderWithUsers[]> {
     const workOrdersData = await db.select().from(workOrders).where(
-      eq(workOrders.requestedBy, userId) || eq(workOrders.assignedTo, userId)
+      or(eq(workOrders.requestedBy, userId), eq(workOrders.assignedTo, userId))
     );
     const result: WorkOrderWithUsers[] = [];
     

@@ -401,7 +401,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Work Order routes
   app.get("/api/work-orders", requireAuth, requirePermission("workorders.list.view"), async (req, res) => {
     try {
-      const workOrders = await storage.getAllWorkOrders();
+      // Check if user has admin permissions to see all work orders
+      const userPermissions = await storage.getUserPermissions(req.user.id);
+      const canViewAllWorkOrders = userPermissions.some(p => p.name === 'system.admin' || p.name === 'workorders.view_all');
+      
+      let workOrders;
+      if (canViewAllWorkOrders) {
+        // Admin users can see all work orders
+        workOrders = await storage.getAllWorkOrders();
+      } else {
+        // Regular users can only see work orders assigned to them or created by them
+        workOrders = await storage.getUserWorkOrders(req.user.id);
+      }
+      
       res.json(workOrders);
     } catch (error) {
       res.status(500).json({ message: "Failed to get work orders" });
