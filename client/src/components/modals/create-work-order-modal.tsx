@@ -82,26 +82,27 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
   useEffect(() => {
     if (workOrder) {
       setFormData({
-        clientName: workOrder.title || "", // Map to available fields
-        clientPhone: "",
-        clientEmail: "",
+        clientName: workOrder.clientName || workOrder.title || "",
+        clientPhone: workOrder.clientPhone || "",
+        clientEmail: workOrder.clientEmail || "",
         clientWorkOrderNumber: workOrder.clientWorkOrderNumber || "",
-        country: "",
-        city: "",
-        street: "",
-        zipCode: "",
+        country: workOrder.country || "",
+        city: workOrder.city || "",
+        street: workOrder.street || "",
+        zipCode: workOrder.zipCode || "",
         description: workOrder.description || "",
         urgency: workOrder.priority || "medium",
-        equipmentType: workOrder.category || "",
-        problemDescription: "",
-        nte: "",
-        tnte: "",
-        startDate: workOrder.scheduledDate ? new Date(workOrder.scheduledDate).toISOString().split('T')[0] : "",
-        endDate: "",
+        equipmentType: workOrder.equipmentType || workOrder.category || "",
+        problemDescription: workOrder.problemDescription || "",
+        nte: workOrder.nte || "",
+        tnte: workOrder.tnte || "",
+        startDate: workOrder.startDate ? new Date(workOrder.startDate).toISOString().split('T')[0] : 
+                   (workOrder.scheduledDate ? new Date(workOrder.scheduledDate).toISOString().split('T')[0] : ""),
+        endDate: workOrder.endDate ? new Date(workOrder.endDate).toISOString().split('T')[0] : "",
         estimatedHours: workOrder.estimatedHours ? workOrder.estimatedHours.toString() : "",
-        specialInstructions: "",
-        accessInstructions: "",
-        safetyRequirements: "",
+        specialInstructions: workOrder.specialInstructions || "",
+        accessInstructions: workOrder.accessInstructions || "",
+        safetyRequirements: workOrder.safetyRequirements || "",
         assignedUserIds: workOrder.assignedTo ? [workOrder.assignedTo] : [],
         status: workOrder.status || "active",
       });
@@ -176,26 +177,24 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
       clientName: formData.clientName,
       clientPhone: formData.clientPhone,
       clientEmail: formData.clientEmail,
+      clientWorkOrderNumber: formData.clientWorkOrderNumber,
+      // Address Information
       country: formData.country,
       city: formData.city,
       street: formData.street,
       zipCode: formData.zipCode,
-      // Financial Information
-      nte: formData.nte || null,
-      tnte: formData.tnte || null,
-      // Timeline
-      startDate: formData.startDate,
-      endDate: formData.endDate,
       // Work Details
-      urgency: formData.urgency,
       equipmentType: formData.equipmentType,
       problemDescription: formData.problemDescription,
+      nte: formData.nte || null,
+      tnte: formData.tnte || null,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      urgency: formData.urgency,
       // Instructions
       specialInstructions: formData.specialInstructions,
       accessInstructions: formData.accessInstructions,
-      safetyRequirements: formData.safetyRequirements,
-      // Assignment
-      assignedUserIds: JSON.stringify(formData.assignedUserIds)
+      safetyRequirements: formData.safetyRequirements
     };
 
     createWorkOrderMutation.mutate(submitData);
