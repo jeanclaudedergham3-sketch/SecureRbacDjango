@@ -85,14 +85,7 @@ export default function Login() {
               </Button>
             </form>
 
-            <div className="mt-6 text-sm text-gray-600">
-              <p className="font-medium">Demo Accounts:</p>
-              <div className="mt-2 space-y-1">
-                <p>Admin: admin / admin123</p>
-                <p>Manager: manager / manager123</p>
-                <p>Viewer: viewer / viewer123</p>
-              </div>
-            </div>
+            
           </CardContent>
         </Card>
       </div>
