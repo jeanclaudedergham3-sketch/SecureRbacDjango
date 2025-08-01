@@ -8,6 +8,14 @@ This is a full-stack web application for managing a comprehensive role-based acc
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Deployment Success
+- **Date:** August 1, 2025
+- **Status:** Successfully deployed to VPS server
+- **Server:** Ubuntu VPS with PostgreSQL database
+- **Database:** postgresql://workorder_admin:workorder123@localhost:5432/workorder_db
+- **Access:** http://server-ip:3000 with admin@example.com / admin123
+- **Resolution:** Fixed Node.js 18 compatibility issues with Vite configuration and PostgreSQL imports
+
 ## System Architecture
 
 ### Frontend Architecture
