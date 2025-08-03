@@ -14,7 +14,7 @@ ssh root@your-vps-ip
 cd /var/www
 
 # Clone your repository
-git clone https://github.com/yourusername/your-repo-name.git cmms-app
+git clone https://github.com/jeanclaudder2024/uvg-cmms.git cmms-app
 cd cmms-app
 
 # Install dependencies
