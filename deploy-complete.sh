@@ -97,7 +97,7 @@ systemctl reload nginx
 
 # Setup PM2
 echo "🔄 Setting up PM2 process manager..."
-cat > ecosystem.config.js << EOF
+cat > ecosystem.config.cjs << EOF
 module.exports = {
   apps: [{
     name: 'cmms-app',
@@ -115,7 +115,7 @@ module.exports = {
 EOF
 
 mkdir -p logs
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.cjs
 pm2 save
 pm2 startup
 
