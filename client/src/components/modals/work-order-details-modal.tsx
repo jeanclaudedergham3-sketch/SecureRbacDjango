@@ -254,7 +254,8 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
     
     // Check for work order management permissions
     if (user?.permissions?.includes("workorders.details.view")) return true;
-    if (user?.permissions?.includes("workorders.view")) return true;
+    if (user?.permissions?.includes("workorders.view_all")) return true;
+    if (user?.permissions?.includes("workorders.page.view")) return true;
     
     // Check if user is assigned to this work order
     try {

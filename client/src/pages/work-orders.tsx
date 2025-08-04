@@ -53,7 +53,7 @@ export default function WorkOrders() {
   // Filter work orders based on user permissions
   const filteredWorkOrders = workOrders.filter(workOrder => {
     // Admins and managers can see all work orders
-    if (permissions?.includes("workorders.view") || permissions?.includes("workorders.page.view")) {
+    if (permissions?.includes("workorders.view_all") || permissions?.includes("workorders.page.view") || permissions?.includes("system.admin")) {
       return true;
     }
     // Regular users can only see work orders assigned to them
@@ -139,8 +139,8 @@ export default function WorkOrders() {
                 <div className="flex items-center text-sm text-gray-600">
                   <Calendar className="h-4 w-4 mr-2" />
                   <span>
-                    {workOrder.scheduledDate ? formatDate(workOrder.scheduledDate) : 'Not scheduled'}
-                    {workOrder.completedDate && ` - Completed: ${formatDate(workOrder.completedDate)}`}
+                    {workOrder.scheduledDate ? formatDate(new Date(workOrder.scheduledDate)) : 'Not scheduled'}
+                    {workOrder.completedDate && ` - Completed: ${formatDate(new Date(workOrder.completedDate))}`}
                   </span>
                 </div>
 
