@@ -7,12 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AdvancedPermissionGuard, PageGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
 import { CreateUserModal } from "@/components/modals/create-user-modal";
+import { EditUserModal } from "@/components/modals/edit-user-modal";
+import { AssignRoleModal } from "@/components/modals/assign-role-modal";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { UserWithRole } from "@shared/schema";
 
 export default function Users() {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -151,12 +156,28 @@ export default function Users() {
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex space-x-2">
                               <AdvancedPermissionGuard permission="users.edit">
-                                <Button variant="ghost" size="sm">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUser(user);
+                                    setShowEditModal(true);
+                                  }}
+                                  title="Edit User"
+                                >
                                   <Edit className="h-4 w-4" />
                                 </Button>
                               </AdvancedPermissionGuard>
                               <AdvancedPermissionGuard permission="roles.assign">
-                                <Button variant="ghost" size="sm">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUser(user);
+                                    setShowAssignRoleModal(true);
+                                  }}
+                                  title="Assign Role"
+                                >
                                   <UserCheck className="h-4 w-4" />
                                 </Button>
                               </AdvancedPermissionGuard>
@@ -166,6 +187,7 @@ export default function Users() {
                                   size="sm"
                                   onClick={() => deleteUserMutation.mutate(user.id)}
                                   disabled={deleteUserMutation.isPending}
+                                  title="Delete User"
                                 >
                                   <Trash2 className="h-4 w-4 text-red-500" />
                                 </Button>
@@ -186,6 +208,24 @@ export default function Users() {
         <CreateUserModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
+        />
+
+        <EditUserModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedUser(null);
+          }}
+          user={selectedUser}
+        />
+
+        <AssignRoleModal
+          isOpen={showAssignRoleModal}
+          onClose={() => {
+            setShowAssignRoleModal(false);
+            setSelectedUser(null);
+          }}
+          user={selectedUser}
         />
       </div>
     </PageGuard>
