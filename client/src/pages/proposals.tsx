@@ -173,7 +173,7 @@ export default function Proposals() {
   const categories = Array.from(new Set([
     ...workOrdersWithoutProposals.map(wo => wo.category),
     ...allProposals.map(p => p.workOrder.category)
-  ]));
+  ])).filter(category => category && category.trim() !== '');
 
   const proposalStats = {
     pending: allProposals.filter(p => p.status === "pending").length,
@@ -285,10 +285,10 @@ export default function Proposals() {
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
             {categories.map(category => (
-              <SelectItem key={category} value={category}>
+              <SelectItem key={category} value={category || 'uncategorized'}>
                 <div className="flex items-center">
                   {getCategoryIcon(category)}
-                  <span className="ml-2">{category}</span>
+                  <span className="ml-2">{category || 'Uncategorized'}</span>
                 </div>
               </SelectItem>
             ))}
