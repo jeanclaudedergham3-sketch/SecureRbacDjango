@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { Plus, Calendar, DollarSign, User, MapPin, Eye, Edit, Trash2, FileText } from "lucide-react";
+import { Plus, Calendar, DollarSign, User, MapPin, Eye, Edit, Trash2, FileText, Search, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdvancedPermissionGuard, PageGuard, ModalGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
 import { CreateWorkOrderModal } from "@/components/modals/create-work-order-modal";
 import { WorkOrderDetailsModal } from "@/components/modals/work-order-details-modal";
@@ -19,6 +21,9 @@ export default function WorkOrders() {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUsers | null>(null);
   const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrderWithUsers | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   const { data: workOrders = [], isLoading, refetch } = useQuery<WorkOrderWithUsers[]>({
     queryKey: ["/api/work-orders"],
@@ -67,19 +72,42 @@ export default function WorkOrders() {
     }).format(parseFloat(amount));
   };
 
-  // Filter work orders based on user permissions
+  // Get unique categories and statuses for filters
+  const categories = Array.from(new Set(workOrders.map(wo => wo.category))).filter(category => category && category.trim() !== '');
+  const statuses = Array.from(new Set(workOrders.map(wo => wo.status)));
+
+  // Filter work orders based on user permissions and search/filters
   const filteredWorkOrders = workOrders.filter(workOrder => {
-    // Admins and managers can see all work orders
+    // Permission check first
+    let hasPermission = false;
     if (permissions?.includes("workorders.view_all") || permissions?.includes("workorders.page.view") || permissions?.includes("system.admin")) {
-      return true;
+      hasPermission = true;
+    } else {
+      // Regular users can only see work orders assigned to them
+      try {
+        const assignedUserIds = workOrder.assignedUsers ? workOrder.assignedUsers.map(u => u.id) : [];
+        hasPermission = assignedUserIds.includes(user?.id || 0);
+      } catch {
+        hasPermission = false;
+      }
     }
-    // Regular users can only see work orders assigned to them
-    try {
-      const assignedUserIds = workOrder.assignedUsers ? workOrder.assignedUsers.map(u => u.id) : [];
-      return assignedUserIds.includes(user?.id || 0);
-    } catch {
-      return false;
-    }
+
+    if (!hasPermission) return false;
+
+    // Search filter
+    const matchesSearch = !searchTerm || 
+      workOrder.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      workOrder.workOrderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      workOrder.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      workOrder.description.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // Status filter
+    const matchesStatus = statusFilter === "all" || workOrder.status === statusFilter;
+
+    // Category filter
+    const matchesCategory = categoryFilter === "all" || workOrder.category === categoryFilter;
+
+    return matchesSearch && matchesStatus && matchesCategory;
   });
 
   return (
@@ -108,8 +136,70 @@ export default function WorkOrders() {
           </ModalGuard>
         </div>
 
+        {/* Search and Filters */}
+        <div className="mt-6 flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+            <Input
+              placeholder="Search by title, work order number, category, or description..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {statuses.map(status => (
+                <SelectItem key={status} value={status}>
+                  <div className="flex items-center">
+                    <Badge className={`${getStatusColor(status)} mr-2 text-xs`}>
+                      {status}
+                    </Badge>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map(category => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Results Count */}
+        <div className="mt-4 text-sm text-gray-600">
+          Showing {filteredWorkOrders.length} of {workOrders.length} work orders
+          {(searchTerm || statusFilter !== "all" || categoryFilter !== "all") && (
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => {
+                setSearchTerm("");
+                setStatusFilter("all");
+                setCategoryFilter("all");
+              }}
+              className="ml-2 p-0 h-auto text-sm"
+            >
+              Clear filters
+            </Button>
+          )}
+        </div>
+
         {/* Work Order Cards */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredWorkOrders.map((workOrder) => (
             <Card key={workOrder.id} className="overflow-hidden hover:shadow-lg transition-shadow">
               <CardHeader className="pb-3">
