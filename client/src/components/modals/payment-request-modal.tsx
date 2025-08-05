@@ -174,16 +174,13 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
   }, [technicians, form]);
 
   const handlePaymentMethodToggle = useCallback((method: string, checked: boolean) => {
-    setSelectedPaymentMethods(prev => {
-      const newMethods = checked 
-        ? [...prev, method]
-        : prev.filter(m => m !== method);
-      
-      // Update form after state update
-      setTimeout(() => form.setValue("paymentMethods", newMethods), 0);
-      return newMethods;
-    });
-  }, [form]);
+    const newMethods = checked 
+      ? [...selectedPaymentMethods, method]
+      : selectedPaymentMethods.filter(m => m !== method);
+    
+    setSelectedPaymentMethods(newMethods);
+    form.setValue("paymentMethods", newMethods);
+  }, [selectedPaymentMethods, form]);
 
   const availablePaymentMethods = useMemo(() => {
     if (!selectedTechnician || !selectedTechnician.paymentMethods) return [];
@@ -360,14 +357,18 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                                 onClick={(e) => {
                                   // Prevent double triggering when clicking the checkbox
                                   if ((e.target as HTMLElement).closest('[role="checkbox"]')) return;
-                                  handlePaymentMethodToggle(method, !selectedPaymentMethods.includes(method));
+                                  const isCurrentlySelected = selectedPaymentMethods.includes(method);
+                                  handlePaymentMethodToggle(method, !isCurrentlySelected);
                                 }}
                               >
                                 <CardContent className="p-4">
                                   <div className="flex items-start gap-3">
                                     <Checkbox
                                       checked={selectedPaymentMethods.includes(method)}
-                                      onCheckedChange={(checked) => handlePaymentMethodToggle(method, checked as boolean)}
+                                      onCheckedChange={(checked) => {
+                                        const isChecked = checked === true;
+                                        handlePaymentMethodToggle(method, isChecked);
+                                      }}
                                       className="mt-1"
                                     />
                                     <div className="flex-1">
