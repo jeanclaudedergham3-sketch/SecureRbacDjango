@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Calendar, DollarSign, User, MapPin, Eye, Edit, Trash2, FileText } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,23 @@ export default function WorkOrders() {
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });
+
+  // Check for viewId parameter in URL to auto-open work order details
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewId = urlParams.get('viewId');
+    
+    if (viewId && workOrders) {
+      const workOrder = workOrders.find(wo => wo.id === parseInt(viewId));
+      if (workOrder) {
+        setSelectedWorkOrder(workOrder);
+        
+        // Remove the parameter from URL to clean it up
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, [workOrders]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

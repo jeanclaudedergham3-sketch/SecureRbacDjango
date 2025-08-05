@@ -396,7 +396,7 @@ export default function Proposals() {
                           </AdvancedPermissionGuard>
                           <Button
                             variant="outline"
-                            onClick={() => window.open(`/work-orders/${workOrder.id}`, '_blank')}
+                            onClick={() => window.open(`/work-orders?viewId=${workOrder.id}`, '_blank')}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -548,11 +548,11 @@ export default function Proposals() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.open(`/proposals/${proposal.id}`, '_blank')}
+                              onClick={() => window.open(`/work-orders?viewId=${proposal.workOrder.id}`, '_blank')}
                               className="flex-1"
                             >
                               <Eye className="h-4 w-4 mr-1" />
-                              View Details
+                              View Work Order
                             </Button>
                             <AdvancedPermissionGuard permission="proposals.edit">
                               <Button variant="outline" size="sm">
