@@ -178,13 +178,42 @@ export function TechnicianModal({
     form.setValue("paymentMethods", newMethods);
   };
 
-  const handleSubmit = (data: TechnicianFormData) => {
-    onSubmit({
+  const handleSubmit = async (data: TechnicianFormData) => {
+    let processedData = {
       ...data,
       experience: parseInt(data.experience),
       hourlyRate: data.hourlyRate, // Keep as string - database expects decimal as string
       paymentMethods: selectedPaymentMethods.join(','), // Convert array to comma-separated string
-    });
+    };
+
+    // If location is provided and we don't have coordinates, try to geocode
+    if (data.location && data.location.trim() && (!initialData?.latitude || !initialData?.longitude)) {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(data.location.trim())}&limit=1&addressdetails=1`,
+          {
+            headers: {
+              'User-Agent': 'TechnicianApp/1.0'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const results = await response.json();
+          if (results && results.length > 0) {
+            processedData = {
+              ...processedData,
+              latitude: results[0].lat,
+              longitude: results[0].lon
+            };
+          }
+        }
+      } catch (error) {
+        console.warn('Geocoding failed, continuing without coordinates:', error);
+      }
+    }
+
+    onSubmit(processedData);
   };
 
   return (
