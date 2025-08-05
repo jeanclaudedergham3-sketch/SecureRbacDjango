@@ -186,11 +186,21 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
   }, [form]);
 
   const availablePaymentMethods = useMemo(() => {
-    if (!selectedTechnician) return [];
+    if (!selectedTechnician || !selectedTechnician.paymentMethods) return [];
     
     try {
-      const methods = JSON.parse(selectedTechnician.paymentMethods || "[]");
-      return Array.isArray(methods) ? methods : [];
+      // First try to parse as JSON (new format)
+      if (selectedTechnician.paymentMethods.startsWith('[')) {
+        const methods = JSON.parse(selectedTechnician.paymentMethods);
+        return Array.isArray(methods) ? methods : [];
+      }
+      
+      // Parse as comma-separated string (current database format)
+      const methods = selectedTechnician.paymentMethods
+        .split(',')
+        .map((method: string) => method.trim())
+        .filter((method: string) => method.length > 0);
+      return methods;
     } catch {
       return [];
     }
