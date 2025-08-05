@@ -164,24 +164,25 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
     },
   });
 
-  const handleTechnicianChange = useCallback((value: string) => {
+  const handleTechnicianChange = (value: string) => {
     const technician = (technicians as any[]).find((t: any) => t.id.toString() === value);
     setSelectedTechnician(technician);
     form.setValue("technicianId", value);
     // Reset payment methods when technician changes
     setSelectedPaymentMethods([]);
     form.setValue("paymentMethods", []);
-  }, [technicians, form]);
+  };
 
   const handlePaymentMethodToggle = (method: string, checked: boolean) => {
-    setSelectedPaymentMethods(prev => {
-      const newMethods = checked 
-        ? [...prev, method]
-        : prev.filter(m => m !== method);
-      
-      form.setValue("paymentMethods", newMethods);
-      return newMethods;
-    });
+    let newMethods: string[];
+    if (checked) {
+      newMethods = [...selectedPaymentMethods, method];
+    } else {
+      newMethods = selectedPaymentMethods.filter(m => m !== method);
+    }
+    
+    setSelectedPaymentMethods(newMethods);
+    form.setValue("paymentMethods", newMethods);
   };
 
   const availablePaymentMethods = useMemo(() => {
