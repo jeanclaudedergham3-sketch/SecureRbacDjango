@@ -1,9 +1,7 @@
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,10 +10,16 @@ import { insertUserSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import type { Role } from "@shared/schema";
+import type { RoleWithPermissions } from "@shared/schema";
+import { AlertCircle, Shield } from "lucide-react";
 
 const createUserSchema = insertUserSchema.extend({
-  roleId: z.number().optional(),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  roleId: z.number({
+    required_error: "Please select a role for this user",
+    invalid_type_error: "Please select a role for this user",
+  }).min(1, "Please select a role for this user"),
 });
 
 interface CreateUserModalProps {
@@ -27,7 +31,7 @@ export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: roles = [] } = useQuery<Role[]>({
+  const { data: roles = [] } = useQuery<RoleWithPermissions[]>({
     queryKey: ["/api/roles"],
     enabled: isOpen,
   });
@@ -41,11 +45,16 @@ export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
       lastName: "",
       password: "",
       isActive: true,
+      roleId: undefined,
     },
   });
 
+  const selectedRoleId = form.watch("roleId");
+  const selectedRole = roles.find(r => r.id === selectedRoleId);
+  const hasNoPermissions = selectedRole && selectedRole.permissions.length === 0;
+
   const createUserMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/users", data),
+    mutationFn: (data: z.infer<typeof createUserSchema>) => apiRequest("POST", "/api/users", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       toast({
@@ -66,12 +75,20 @@ export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
   });
 
   const onSubmit = (data: z.infer<typeof createUserSchema>) => {
+    if (hasNoPermissions) {
+      toast({
+        title: "Warning",
+        description: "This role has no permissions. The user won't be able to access any features. Please assign permissions to the role first.",
+        variant: "destructive",
+      });
+      return;
+    }
     createUserMutation.mutate(data);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" data-testid="create-user-modal">
         <DialogHeader>
           <DialogTitle>Create New User</DialogTitle>
           <DialogDescription>
@@ -87,9 +104,14 @@ export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>First Name</FormLabel>
+                    <FormLabel>First Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter first name" {...field} />
+                      <Input 
+                        placeholder="Enter first name" 
+                        {...field} 
+                        value={field.value || ""} 
+                        data-testid="input-firstName"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -101,9 +123,14 @@ export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Last Name</FormLabel>
+                    <FormLabel>Last Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter last name" {...field} />
+                      <Input 
+                        placeholder="Enter last name" 
+                        {...field} 
+                        value={field.value || ""} 
+                        data-testid="input-lastName"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -116,9 +143,13 @@ export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
               name="username"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Username</FormLabel>
+                  <FormLabel>Username *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter username" {...field} />
+                    <Input 
+                      placeholder="Enter username" 
+                      {...field} 
+                      data-testid="input-username"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -130,9 +161,14 @@ export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Email *</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="Enter email address" {...field} />
+                    <Input 
+                      type="email" 
+                      placeholder="Enter email address" 
+                      {...field} 
+                      data-testid="input-email"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -144,9 +180,14 @@ export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>Password *</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Enter password" {...field} />
+                    <Input 
+                      type="password" 
+                      placeholder="Enter password" 
+                      {...field} 
+                      data-testid="input-password"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -158,31 +199,56 @@ export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
               name="roleId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                  <FormLabel>Role *</FormLabel>
+                  <Select 
+                    onValueChange={(value) => field.onChange(parseInt(value))} 
+                    value={field.value?.toString() || ""}
+                  >
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger data-testid="select-role">
                         <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {roles.map((role) => (
-                        <SelectItem key={role.id} value={role.id.toString()}>
-                          {role.name}
+                        <SelectItem key={role.id} value={role.id.toString()} data-testid={`option-role-${role.id}`}>
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-3 w-3" />
+                            <span className="capitalize">{role.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({role.permissions.length} permissions)
+                            </span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
+                  {hasNoPermissions && (
+                    <div className="flex items-center gap-2 mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-sm">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>This role has no permissions. User won't be able to access any features.</span>
+                    </div>
+                  )}
+                  {selectedRole && selectedRole.permissions.length > 0 && (
+                    <div className="flex items-center gap-2 mt-2 p-2 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
+                      <Shield className="h-4 w-4" />
+                      <span>User will have {selectedRole.permissions.length} permissions</span>
+                    </div>
+                  )}
                 </FormItem>
               )}
             />
 
             <div className="flex justify-end space-x-3 pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                 Cancel
               </Button>
-              <Button type="submit" disabled={createUserMutation.isPending}>
+              <Button 
+                type="submit" 
+                disabled={createUserMutation.isPending || hasNoPermissions}
+                data-testid="button-create-user"
+              >
                 {createUserMutation.isPending ? "Creating..." : "Create User"}
               </Button>
             </div>
