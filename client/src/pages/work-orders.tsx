@@ -74,7 +74,7 @@ export default function WorkOrders() {
 
   // Get unique categories and statuses for filters
   const categories = Array.from(new Set(workOrders.map(wo => wo.category))).filter(category => category && category.trim() !== '');
-  const statuses = Array.from(new Set(workOrders.map(wo => wo.status)));
+  const statuses = Array.from(new Set(workOrders.map(wo => wo.status))).filter(status => status && status.trim() !== '');
 
   // Filter work orders based on user permissions and search/filters
   const filteredWorkOrders = workOrders.filter(workOrder => {
