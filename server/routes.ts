@@ -150,9 +150,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Creating user with data:", req.body);
       
       // Validate required fields manually since the schema might not catch everything
-      const { username, email, firstName, lastName, password } = req.body;
+      const { username, email, firstName, lastName, password, roleId } = req.body;
       if (!username || !email || !firstName || !lastName || !password) {
         throw new Error("Missing required fields");
+      }
+      
+      // Validate role is provided and has permissions
+      if (!roleId) {
+        throw new Error("Role is required. Please select a role for this user.");
+      }
+      
+      // Check if the role exists and has permissions
+      const rolePermissions = await storage.getRolePermissions(roleId);
+      if (rolePermissions.length === 0) {
+        console.log(`Role ${roleId} has no permissions - blocking user creation`);
+        throw new Error("Selected role has no permissions. Please assign permissions to this role first, or choose a different role.");
       }
       
       const userData = insertUserSchema.parse(req.body);
@@ -164,11 +176,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser(userWithHashedPassword);
       console.log("User created:", user);
       
-      // Assign role if provided
-      if (req.body.roleId) {
-        console.log("Assigning role:", req.body.roleId);
-        await storage.assignUserRole(user.id, req.body.roleId);
-      }
+      // Assign role (now required)
+      console.log("Assigning role:", roleId);
+      await storage.assignUserRole(user.id, roleId);
       
       res.status(201).json(user);
     } catch (error: any) {
