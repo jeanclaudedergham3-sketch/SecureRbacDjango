@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp } from "lucide-react";
+import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp, UsersRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -48,6 +48,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       items: [
         { name: "Technician List", href: "/technicians", icon: Settings, permission: "sidebar.technicians" },
         { name: "Technician Map", href: "/technician-map", icon: Map, permission: "sidebar.technicians" },
+        { name: "Teams", href: "/teams", icon: UsersRound, permission: "sidebar.technicians" },
       ]
     },
     {

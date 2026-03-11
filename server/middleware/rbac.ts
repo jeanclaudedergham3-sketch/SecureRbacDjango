@@ -9,7 +9,8 @@ export const requirePermission = (permissionName: string) => {
 
     try {
       const userPermissions = await storage.getUserPermissions(req.user.id);
-      const hasPermission = userPermissions.some(perm => perm.name === permissionName);
+      const isAdmin = userPermissions.some(perm => perm.name === "system.admin");
+      const hasPermission = isAdmin || userPermissions.some(perm => perm.name === permissionName);
 
       if (!hasPermission) {
         return res.status(403).json({ 
@@ -32,7 +33,8 @@ export const requireAnyPermission = (permissionNames: string[]) => {
 
     try {
       const userPermissions = await storage.getUserPermissions(req.user.id);
-      const hasAnyPermission = permissionNames.some(permName => 
+      const isAdmin = userPermissions.some(perm => perm.name === "system.admin");
+      const hasAnyPermission = isAdmin || permissionNames.some(permName => 
         userPermissions.some(perm => perm.name === permName)
       );
 

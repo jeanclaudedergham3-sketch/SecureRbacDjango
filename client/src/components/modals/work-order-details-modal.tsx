@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus } from "lucide-react";
+import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, Phone, Mail, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, BarChart3, Building } from "lucide-react";
 import { AdvancedPermissionGuard, TabGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
@@ -95,6 +95,41 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const { data: existingPayments = [] } = useQuery({
     queryKey: [`/api/work-orders/${workOrder?.id}/payments`],
     enabled: !!workOrder?.id,
+  });
+
+  const { data: clientPayments = [], refetch: refetchClientPayments } = useQuery({
+    queryKey: [`/api/work-orders/${workOrder?.id}/client-payments`],
+    enabled: !!workOrder?.id,
+  });
+
+  const [isAddingClientPayment, setIsAddingClientPayment] = useState(false);
+  const [clientPaymentForm, setClientPaymentForm] = useState({
+    paymentType: "full",
+    amount: "",
+    paymentMethod: "check",
+    referenceNumber: "",
+    notes: "",
+  });
+
+  const addClientPaymentMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", `/api/work-orders/${workOrder.id}/client-payments`, data),
+    onSuccess: () => {
+      toast({ title: "Payment recorded", description: "Client payment has been recorded successfully." });
+      setIsAddingClientPayment(false);
+      setClientPaymentForm({ paymentType: "full", amount: "", paymentMethod: "check", referenceNumber: "", notes: "" });
+      queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/client-payments`] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to record payment", variant: "destructive" });
+    },
+  });
+
+  const confirmClientPaymentMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/client-payments/${id}`, { status: "confirmed", receivedAt: new Date().toISOString() }),
+    onSuccess: () => {
+      toast({ title: "Payment confirmed", description: "Client payment confirmed successfully." });
+      queryClient.invalidateQueries({ queryKey: [`/api/work-orders/${workOrder.id}/client-payments`] });
+    },
   });
 
   const paymentForm = useForm<PaymentRequestFormData>({
@@ -364,7 +399,7 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8 text-xs">
             <TabsTrigger value="overview" className="flex items-center gap-1">
               <FileText className="h-3 w-3" />
               Overview
@@ -372,6 +407,10 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
             <TabsTrigger value="proposal" className="flex items-center gap-1">
               <Receipt className="h-3 w-3" />
               Proposal
+            </TabsTrigger>
+            <TabsTrigger value="financial" className="flex items-center gap-1">
+              <BarChart3 className="h-3 w-3" />
+              Financial
             </TabsTrigger>
             <TabsTrigger value="invoice" className="flex items-center gap-1">
               <DollarSign className="h-3 w-3" />
@@ -395,95 +434,218 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <TabsContent value="overview" className="space-y-4">
+            {/* Work Order Summary Banner */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-500 text-xs uppercase font-medium">WO Number</p>
+                  <p className="font-bold text-blue-700">{workOrder.workOrderNumber}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs uppercase font-medium">Category</p>
+                  <p className="font-semibold text-gray-800">{workOrder.category}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs uppercase font-medium">Priority</p>
+                  <Badge variant={workOrder.priority === "urgent" ? "destructive" : workOrder.priority === "high" ? "default" : "secondary"}>
+                    {workOrder.priority}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs uppercase font-medium">Urgency</p>
+                  <p className="font-semibold text-gray-800">{workOrder.urgency || "Standard"}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Client Information */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <MapPin className="h-5 w-5 mr-2" />
-                    Location Details
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center text-base">
+                    <Building className="h-4 w-4 mr-2 text-blue-600" />
+                    Client Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div>
-                    <span className="font-medium">Address:</span>
-                    <p className="text-gray-600">
-                      {workOrder.street}<br />
-                      {workOrder.city}, {workOrder.country}
-                    </p>
-                  </div>
+                <CardContent className="space-y-2 text-sm">
+                  {workOrder.clientName && (
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-gray-400" />
+                      <span className="font-medium">{workOrder.clientName}</span>
+                    </div>
+                  )}
+                  {workOrder.clientPhone && (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Phone className="h-4 w-4 text-gray-400" />
+                      <span>{workOrder.clientPhone}</span>
+                    </div>
+                  )}
+                  {workOrder.clientEmail && (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Mail className="h-4 w-4 text-gray-400" />
+                      <span>{workOrder.clientEmail}</span>
+                    </div>
+                  )}
+                  {workOrder.clientWorkOrderNumber && (
+                    <div className="pt-1 border-t">
+                      <span className="text-xs text-gray-500">Client WO#:</span>
+                      <span className="ml-1 font-medium text-gray-700">{workOrder.clientWorkOrderNumber}</span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Assignment Information */}
+              {/* Location */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <User className="h-5 w-5 mr-2" />
-                    Assignment
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center text-base">
+                    <MapPin className="h-4 w-4 mr-2 text-red-500" />
+                    Service Location
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div>
-                    <span className="font-medium">Assigned to:</span>
-                    {workOrder.assignedUsers && workOrder.assignedUsers.length > 0 ? (
-                      <div className="space-y-1">
-                        {workOrder.assignedUsers.map((user) => (
-                          <div key={user.id}>
-                            <p className="text-gray-600">
-                              {user.firstName} {user.lastName}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              ({user.email})
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-400">No users assigned</p>
-                    )}
-                  </div>
+                <CardContent className="space-y-2 text-sm">
+                  {workOrder.street && <p className="text-gray-700">{workOrder.street}</p>}
+                  <p className="text-gray-700">
+                    {[workOrder.city, workOrder.country, workOrder.zipCode].filter(Boolean).join(", ")}
+                  </p>
+                  {workOrder.accessInstructions && (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-gray-500 font-medium uppercase mb-1">Access Instructions</p>
+                      <p className="text-gray-600 text-xs">{workOrder.accessInstructions}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Timeline */}
+              {/* Equipment & Problem */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Calendar className="h-5 w-5 mr-2" />
-                    Project Timeline
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center text-base">
+                    <Hammer className="h-4 w-4 mr-2 text-orange-500" />
+                    Equipment & Problem
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div>
-                    <span className="font-medium">Start Date:</span>
-                    <p className="text-gray-600">{formatDate(workOrder.startDate)}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">End Date:</span>
-                    <p className="text-gray-600">{formatDate(workOrder.endDate)}</p>
-                  </div>
+                <CardContent className="space-y-2 text-sm">
+                  {workOrder.equipmentType && (
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium uppercase mb-1">Equipment Type</p>
+                      <p className="font-semibold text-gray-800">{workOrder.equipmentType}</p>
+                    </div>
+                  )}
+                  {workOrder.problemDescription && (
+                    <div className="pt-1 border-t">
+                      <p className="text-xs text-gray-500 font-medium uppercase mb-1">Problem Description</p>
+                      <p className="text-gray-700">{workOrder.problemDescription}</p>
+                    </div>
+                  )}
+                  {workOrder.description && (
+                    <div className="pt-1 border-t">
+                      <p className="text-xs text-gray-500 font-medium uppercase mb-1">Description</p>
+                      <p className="text-gray-700">{workOrder.description}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Financial Details */}
+              {/* Timeline & Assignment */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <DollarSign className="h-5 w-5 mr-2" />
-                    Financial Details
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center text-base">
+                    <Calendar className="h-4 w-4 mr-2 text-green-600" />
+                    Timeline & Assignment
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div>
-                    <span className="font-medium">NTE (without tax):</span>
-                    <p className="text-gray-600">{formatCurrency(workOrder.nte)}</p>
+                <CardContent className="space-y-2 text-sm">
+                  {workOrder.scheduledDate && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Scheduled:</span>
+                      <span className="font-medium">{workOrder.scheduledDate}</span>
+                    </div>
+                  )}
+                  {workOrder.startDate && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Start:</span>
+                      <span className="font-medium">{workOrder.startDate}</span>
+                    </div>
+                  )}
+                  {workOrder.endDate && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">End:</span>
+                      <span className="font-medium">{workOrder.endDate}</span>
+                    </div>
+                  )}
+                  {workOrder.estimatedHours && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Est. Hours:</span>
+                      <span className="font-medium">{workOrder.estimatedHours}h</span>
+                    </div>
+                  )}
+                  {workOrder.assignedUsers && workOrder.assignedUsers.length > 0 && (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-gray-500 font-medium uppercase mb-1">Assigned To</p>
+                      {workOrder.assignedUsers.map((u) => (
+                        <div key={u.id} className="flex items-center gap-1">
+                          <User className="h-3 w-3 text-gray-400" />
+                          <span className="text-gray-700">{u.firstName} {u.lastName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Financial Summary */}
+              <Card className="md:col-span-2">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center text-base">
+                    <DollarSign className="h-4 w-4 mr-2 text-green-600" />
+                    Financial Summary (NTE)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <p className="text-xs text-gray-500 uppercase font-medium mb-1">NTE (Before Tax)</p>
+                      <p className="text-xl font-bold text-blue-700">
+                        {workOrder.nte ? formatCurrency(workOrder.nte) : "Not Set"}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <p className="text-xs text-gray-500 uppercase font-medium mb-1">TNTE (With Tax)</p>
+                      <p className="text-xl font-bold text-green-700">
+                        {workOrder.tnte ? formatCurrency(workOrder.tnte) : "Not Set"}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-purple-50 rounded-lg">
+                      <p className="text-xs text-gray-500 uppercase font-medium mb-1">Financial Status</p>
+                      <Badge className={
+                        workOrder.financialStatus === "paid" ? "bg-green-100 text-green-800" :
+                        workOrder.financialStatus === "partial" ? "bg-yellow-100 text-yellow-800" :
+                        workOrder.financialStatus === "invoiced" ? "bg-blue-100 text-blue-800" :
+                        workOrder.financialStatus === "overdue" ? "bg-red-100 text-red-800" :
+                        "bg-gray-100 text-gray-800"
+                      }>
+                        {workOrder.financialStatus || "Pending"}
+                      </Badge>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-medium">TNTE (including tax):</span>
-                    <p className="text-lg font-semibold text-green-600">{formatCurrency(workOrder.tnte)}</p>
-                  </div>
+                  {(workOrder.specialInstructions || workOrder.safetyRequirements) && (
+                    <div className="mt-4 pt-3 border-t grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {workOrder.specialInstructions && (
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium uppercase mb-1">Special Instructions</p>
+                          <p className="text-sm text-gray-700">{workOrder.specialInstructions}</p>
+                        </div>
+                      )}
+                      {workOrder.safetyRequirements && (
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium uppercase mb-1">Safety Requirements</p>
+                          <p className="text-sm text-gray-700">{workOrder.safetyRequirements}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -666,6 +828,173 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           </TabsContent>
           </TabGuard>
 
+          <TabsContent value="financial" className="space-y-4">
+            {(() => {
+              const nte = parseFloat(workOrder.nte || "0");
+              const tnte = parseFloat(workOrder.tnte || "0");
+              
+              let proposalTotal = 0;
+              let technicianCost = 0;
+              let nteCost = 0;
+              if (proposalData) {
+                try {
+                  const laborData = JSON.parse((proposalData as any).laborData || "[]");
+                  const partsData = JSON.parse((proposalData as any).partsData || "[]");
+                  const servicesData = JSON.parse((proposalData as any).servicesData || "[]");
+                  const laborTotal = laborData.reduce((s: number, i: any) => {
+                    const r = parseFloat(i.payRate||"0"); const h = parseFloat(i.regularHours||"0"); const ot = parseFloat(i.otHours||"0"); const os = parseFloat(i.otScale||"1.5");
+                    return s + (r*h) + (r*ot*os);
+                  }, 0);
+                  const partsTotal = partsData.reduce((s: number, i: any) => s + parseFloat(i.unitCost||"0") * parseInt(i.quantity||"1"), 0);
+                  const servicesTotal = servicesData.reduce((s: number, i: any) => s + parseFloat(i.unitCost||"0") * parseInt(i.quantity||"1"), 0);
+                  proposalTotal = laborTotal + partsTotal + servicesTotal;
+                  technicianCost = parseFloat((proposalData as any).technicianCost || "0");
+                  nteCost = parseFloat((proposalData as any).nteCost || "0") || nte;
+                } catch {}
+              }
+              
+              const totalTechPayments = (existingPayments as any[]).reduce((s, p) => s + parseFloat(p.amountPaid||"0"), 0);
+              const totalClientPayments = (clientPayments as any[]).reduce((s, p) => p.status === "confirmed" ? s + parseFloat(p.amount||"0") : s, 0);
+              const profit = totalClientPayments - totalTechPayments;
+              const isOverNTE = proposalTotal > nte && nte > 0;
+              
+              return (
+                <div className="space-y-4">
+                  {/* NTE vs Proposal Alert */}
+                  {isOverNTE && (
+                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3 text-red-800">
+                      <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                      <span className="text-sm font-medium">Warning: Proposal total (${proposalTotal.toFixed(2)}) exceeds NTE (${nte.toFixed(2)})</span>
+                    </div>
+                  )}
+                  {!isOverNTE && proposalTotal > 0 && nte > 0 && (
+                    <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-3 text-green-800">
+                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                      <span className="text-sm font-medium">Proposal is within NTE budget (${(nte - proposalTotal).toFixed(2)} remaining)</span>
+                    </div>
+                  )}
+                  
+                  {/* Financial Overview Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card className="border-blue-200">
+                      <CardContent className="p-4 text-center">
+                        <p className="text-xs text-gray-500 uppercase font-medium mb-2">NTE Budget</p>
+                        <p className="text-2xl font-bold text-blue-700">${nte.toFixed(2)}</p>
+                        <p className="text-xs text-gray-400">Not to Exceed</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-orange-200">
+                      <CardContent className="p-4 text-center">
+                        <p className="text-xs text-gray-500 uppercase font-medium mb-2">Proposal Total</p>
+                        <p className={`text-2xl font-bold ${isOverNTE ? "text-red-600" : "text-orange-600"}`}>${proposalTotal.toFixed(2)}</p>
+                        <p className="text-xs text-gray-400">Job Cost</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-purple-200">
+                      <CardContent className="p-4 text-center">
+                        <p className="text-xs text-gray-500 uppercase font-medium mb-2">Tech Payments</p>
+                        <p className="text-2xl font-bold text-purple-700">${totalTechPayments.toFixed(2)}</p>
+                        <p className="text-xs text-gray-400">Paid to Technicians</p>
+                      </CardContent>
+                    </Card>
+                    <Card className={`border-${profit >= 0 ? "green" : "red"}-200`}>
+                      <CardContent className="p-4 text-center">
+                        <p className="text-xs text-gray-500 uppercase font-medium mb-2">Net Result</p>
+                        <p className={`text-2xl font-bold ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {profit >= 0 ? "+" : ""}${profit.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-gray-400">Client Paid - Tech Paid</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Financial Breakdown */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <TrendingDown className="h-4 w-4 text-red-500" />
+                          Cost Breakdown
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Proposal Total</span>
+                          <span className="font-medium">${proposalTotal.toFixed(2)}</span>
+                        </div>
+                        {technicianCost > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Technician Cost</span>
+                            <span className="font-medium text-purple-600">${technicianCost.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between border-t pt-2">
+                          <span className="text-gray-600">Total Paid to Technicians</span>
+                          <span className="font-bold text-red-600">${totalTechPayments.toFixed(2)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-green-500" />
+                          Client Payments Received
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2 text-sm">
+                        {(clientPayments as any[]).length === 0 ? (
+                          <p className="text-gray-400 text-center py-2">No client payments recorded</p>
+                        ) : (
+                          (clientPayments as any[]).map((cp: any) => (
+                            <div key={cp.id} className="flex justify-between items-center">
+                              <div>
+                                <span className="capitalize text-gray-600">{cp.paymentType.replace("_", " ")}</span>
+                                <Badge className={`ml-2 text-xs ${cp.status === "confirmed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
+                                  {cp.status}
+                                </Badge>
+                              </div>
+                              <span className="font-medium text-green-600">${parseFloat(cp.amount).toFixed(2)}</span>
+                            </div>
+                          ))
+                        )}
+                        <div className="flex justify-between border-t pt-2">
+                          <span className="font-medium">Total Confirmed</span>
+                          <span className="font-bold text-green-600">${totalClientPayments.toFixed(2)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Financial Status Update */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Update Financial Status</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex gap-2 flex-wrap">
+                        {["pending","invoiced","partial","paid","overdue"].map(status => (
+                          <Button
+                            key={status}
+                            size="sm"
+                            variant={workOrder.financialStatus === status ? "default" : "outline"}
+                            onClick={() => apiRequest("PATCH", `/api/work-orders/${workOrder.id}/financial-status`, { financialStatus: status }).then(() => {
+                              toast({ title: "Updated", description: `Financial status set to ${status}` });
+                              queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+                            })}
+                            className="capitalize"
+                          >
+                            {status}
+                          </Button>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })()}
+          </TabsContent>
+
           <TabGuard tabName="invoice">
             <TabsContent value="invoice" className="space-y-4">
             <InvoiceManagement 
@@ -828,98 +1157,217 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           </TabGuard>
 
           <TabGuard tabName="payments">
-            <TabsContent value="payment" className="space-y-4">
-            <div className="text-center py-8">
-              <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium mb-2">Payment Requests</h3>
-              <p className="text-gray-600 mb-6">
-                Create payment requests for technicians working on this order.
-              </p>
-              
-              <ButtonGuard buttonType="create">
-                <div className="space-x-2 mb-4">
-                  <Button 
-                    onClick={() => workOrder.isLocked ? toast({
-                      title: "Action Blocked",
-                      description: "Cannot create payment requests - work order is locked due to paid invoice.",
-                      variant: "destructive"
-                    }) : setIsPaymentRequestModalOpen(true)} 
-                    disabled={workOrder.isLocked}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {workOrder.isLocked ? "Locked" : "Create Payment Request"}
-                  </Button>
-                  <Button variant="outline" onClick={() => setIsViewPaymentModalOpen(true)}>
-                    View Payment Details
-                  </Button>
-                </div>
-              </ButtonGuard>
+            <TabsContent value="payment" className="space-y-6">
+              {/* Client Payment Section */}
+              <Card className="border-green-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-base">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-green-600" />
+                      Client Payments
+                    </div>
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() => setIsAddingClientPayment(!isAddingClientPayment)}
+                      disabled={workOrder.isLocked}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Record Payment
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {/* Add Client Payment Form */}
+                  {isAddingClientPayment && (
+                    <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
+                      <h4 className="font-medium text-green-800">Record Client Payment</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-medium text-gray-600">Payment Type</label>
+                          <select
+                            className="w-full mt-1 text-sm border rounded px-3 py-2"
+                            value={clientPaymentForm.paymentType}
+                            onChange={e => setClientPaymentForm(f => ({ ...f, paymentType: e.target.value }))}
+                          >
+                            <option value="down_payment">Down Payment</option>
+                            <option value="full">Full Payment</option>
+                            <option value="partial">Partial Payment</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-gray-600">Amount ($)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="w-full mt-1 text-sm border rounded px-3 py-2"
+                            placeholder="0.00"
+                            value={clientPaymentForm.amount}
+                            onChange={e => setClientPaymentForm(f => ({ ...f, amount: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-gray-600">Payment Method</label>
+                          <select
+                            className="w-full mt-1 text-sm border rounded px-3 py-2"
+                            value={clientPaymentForm.paymentMethod}
+                            onChange={e => setClientPaymentForm(f => ({ ...f, paymentMethod: e.target.value }))}
+                          >
+                            <option value="check">Check</option>
+                            <option value="ach">ACH Transfer</option>
+                            <option value="wire">Wire Transfer</option>
+                            <option value="credit_card">Credit Card</option>
+                            <option value="cash">Cash</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-gray-600">Reference #</label>
+                          <input
+                            type="text"
+                            className="w-full mt-1 text-sm border rounded px-3 py-2"
+                            placeholder="Check # or ref"
+                            value={clientPaymentForm.referenceNumber}
+                            onChange={e => setClientPaymentForm(f => ({ ...f, referenceNumber: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-600">Notes</label>
+                        <textarea
+                          className="w-full mt-1 text-sm border rounded px-3 py-2"
+                          rows={2}
+                          placeholder="Optional notes"
+                          value={clientPaymentForm.notes}
+                          onChange={e => setClientPaymentForm(f => ({ ...f, notes: e.target.value }))}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => addClientPaymentMutation.mutate(clientPaymentForm)}
+                          disabled={!clientPaymentForm.amount || addClientPaymentMutation.isPending}
+                        >
+                          Save Payment
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setIsAddingClientPayment(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Client Payments List */}
+                  {(clientPayments as any[]).length === 0 ? (
+                    <p className="text-gray-400 text-sm text-center py-4">No client payments recorded yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {(clientPayments as any[]).map((cp: any) => (
+                        <div key={cp.id} className="flex items-center justify-between p-3 bg-white border rounded-lg">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium capitalize text-sm">{cp.paymentType.replace("_", " ")}</span>
+                              <Badge className={cp.status === "confirmed" ? "bg-green-100 text-green-800" : cp.status === "received" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}>
+                                {cp.status}
+                              </Badge>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {cp.paymentMethod} {cp.referenceNumber && `• Ref: ${cp.referenceNumber}`}
+                            </div>
+                            {cp.notes && <div className="text-xs text-gray-500">{cp.notes}</div>}
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-green-600">${parseFloat(cp.amount).toFixed(2)}</div>
+                            {cp.status === "pending" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs mt-1"
+                                onClick={() => confirmClientPaymentMutation.mutate(cp.id)}
+                              >
+                                Confirm
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center pt-2 border-t font-medium">
+                        <span>Total Confirmed:</span>
+                        <span className="text-green-600 text-lg">
+                          ${(clientPayments as any[]).filter((p: any) => p.status === "confirmed").reduce((s: number, p: any) => s + parseFloat(p.amount), 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-
-
-              {/* Existing Payment Requests */}
-              {existingPayments.length > 0 && (
-                <div className="mt-8">
-                  <h3 className="text-lg font-medium mb-4">Existing Payment Requests</h3>
-                  <div className="space-y-3">
-                    {existingPayments.map((payment: any) => {
-                      const technician = technicians.find(t => t.id === payment.technicianId);
-                      const paymentMethods = JSON.parse(payment.paymentMethod || "[]");
-                      const requested = parseFloat(payment.amountRequested || "0");
-                      const paid = parseFloat(payment.amountPaid || "0");
-                      const remaining = Math.max(0, requested - paid);
-                      
-                      const getStatusColor = (status: string) => {
-                        switch (status) {
-                          case "paid": return "bg-green-100 text-green-800";
-                          case "partially_paid": return "bg-yellow-100 text-yellow-800";
-                          case "approved": return "bg-blue-100 text-blue-800";
-                          case "rejected": return "bg-red-100 text-red-800";
-                          default: return "bg-gray-100 text-gray-800";
-                        }
-                      };
-
-                      return (
-                        <Card key={payment.id} className="p-4">
-                          <div className="flex justify-between items-start">
-                            <div className="space-y-2">
-                              <div className="flex items-center space-x-2">
-                                <span className="font-medium">
+              {/* Technician Payment Requests Section */}
+              <Card className="border-purple-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-base">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-purple-600" />
+                      Technician Payment Requests
+                    </div>
+                    <ButtonGuard buttonType="create">
+                      <Button 
+                        size="sm"
+                        className="bg-purple-600 hover:bg-purple-700"
+                        onClick={() => workOrder.isLocked ? toast({
+                          title: "Action Blocked",
+                          description: "Work order is locked.",
+                          variant: "destructive"
+                        }) : setIsPaymentRequestModalOpen(true)} 
+                        disabled={workOrder.isLocked}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Request Payment
+                      </Button>
+                    </ButtonGuard>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(existingPayments as any[]).length === 0 ? (
+                    <p className="text-gray-400 text-sm text-center py-4">No technician payment requests yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {(existingPayments as any[]).map((payment: any) => {
+                        const technician = technicians.find(t => t.id === payment.technicianId);
+                        const requested = parseFloat(payment.amountRequested || "0");
+                        const paid = parseFloat(payment.amountPaid || "0");
+                        const remaining = Math.max(0, requested - paid);
+                        return (
+                          <div key={payment.id} className="flex justify-between items-start p-3 bg-purple-50 border border-purple-100 rounded-lg">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">
                                   {technician ? `${technician.firstName} ${technician.lastName}` : `Technician #${payment.technicianId}`}
                                 </span>
-                                <Badge className={getStatusColor(payment.status)}>
+                                <Badge className={
+                                  payment.status === "paid" ? "bg-green-100 text-green-800" :
+                                  payment.status === "approved" ? "bg-blue-100 text-blue-800" :
+                                  payment.status === "rejected" ? "bg-red-100 text-red-800" :
+                                  "bg-gray-100 text-gray-800"
+                                }>
                                   {payment.status.replace("_", " ")}
                                 </Badge>
                               </div>
-                              
-                              <div className="text-sm text-gray-600">
-                                <div>Payment Methods: {paymentMethods.join(", ")}</div>
-                                <div>Description: {payment.description || "No description"}</div>
-                                <div>Requested: {new Date(payment.requestedAt).toLocaleDateString()}</div>
-                              </div>
+                              <div className="text-xs text-gray-500">{payment.description || "No description"}</div>
                             </div>
-                            
                             <div className="text-right">
-                              <div className="text-lg font-medium">${requested.toFixed(2)}</div>
-                              {payment.amountPaid && (
-                                <div className="text-sm text-gray-600">
-                                  Paid: ${paid.toFixed(2)}
-                                </div>
-                              )}
-                              {remaining > 0 && (
-                                <div className="text-sm text-red-600">
-                                  Remaining: ${remaining.toFixed(2)}
-                                </div>
-                              )}
+                              <div className="font-bold text-purple-600">${requested.toFixed(2)}</div>
+                              {paid > 0 && <div className="text-xs text-green-600">Paid: ${paid.toFixed(2)}</div>}
+                              {remaining > 0 && <div className="text-xs text-red-600">Rem: ${remaining.toFixed(2)}</div>}
                             </div>
                           </div>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
           </TabsContent>
           </TabGuard>
         </Tabs>

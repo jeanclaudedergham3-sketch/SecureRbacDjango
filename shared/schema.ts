@@ -68,6 +68,11 @@ export const technicians = pgTable("technicians", {
   cashappHandle: varchar("cashapp_handle", { length: 255 }),
   zelleInfo: text("zelle_info"),
   mailingAddress: text("mailing_address"),
+  // W9 Information
+  w9Status: varchar("w9_status", { length: 50 }).default("not_submitted"),
+  w9FilePath: varchar("w9_file_path", { length: 500 }),
+  w9FileName: varchar("w9_file_name", { length: 255 }),
+  w9SubmittedAt: timestamp("w9_submitted_at"),
   averageRating: decimal("average_rating", { precision: 3, scale: 2 }).default("0"),
   totalRatings: integer("total_ratings").default(0),
   isActive: boolean("is_active").notNull().default(true),
@@ -85,6 +90,23 @@ export const technicianRatings = pgTable("technician_ratings", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Teams table for team structure
+export const teams = pgTable("teams", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  teamLeadId: integer("team_lead_id").references(() => technicians.id, { onDelete: "set null" }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const teamMembers = pgTable("team_members", {
+  id: serial("id").primaryKey(),
+  teamId: integer("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  technicianId: integer("technician_id").notNull().references(() => technicians.id, { onDelete: "cascade" }),
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+});
+
 export const workOrders = pgTable("work_orders", {
   id: serial("id").primaryKey(),
   workOrderNumber: varchar("work_order_number", { length: 255 }).notNull().unique(),
@@ -97,6 +119,7 @@ export const workOrders = pgTable("work_orders", {
   requestedBy: integer("requested_by").notNull().references(() => users.id),
   assignedTo: integer("assigned_to").references(() => users.id),
   technicianId: integer("technician_id").references(() => technicians.id),
+  teamId: integer("team_id").references(() => teams.id, { onDelete: "set null" }),
   // Client Information
   clientName: varchar("client_name", { length: 255 }),
   clientPhone: varchar("client_phone", { length: 50 }),
@@ -108,6 +131,7 @@ export const workOrders = pgTable("work_orders", {
   // Financial Information
   nte: decimal("nte", { precision: 10, scale: 2 }),
   tnte: decimal("tnte", { precision: 10, scale: 2 }),
+  financialStatus: varchar("financial_status", { length: 50 }).default("pending"),
   // Timeline and Work Details
   estimatedHours: varchar("estimated_hours", { length: 20 }),
   actualHours: decimal("actual_hours", { precision: 8, scale: 2 }),
@@ -137,6 +161,8 @@ export const workOrderProposals = pgTable("work_order_proposals", {
   materialCost: decimal("material_cost", { precision: 10, scale: 2 }).default("0"),
   additionalCosts: decimal("additional_costs", { precision: 10, scale: 2 }).default("0"),
   totalCost: decimal("total_cost", { precision: 10, scale: 2 }).default("0"),
+  nteCost: decimal("nte_cost", { precision: 10, scale: 2 }).default("0"),
+  technicianCost: decimal("technician_cost", { precision: 10, scale: 2 }).default("0"),
   estimatedDuration: varchar("estimated_duration", { length: 255 }).default("TBD"),
   description: text("description"),
   status: varchar("status", { length: 50 }).notNull().default("pending"),
@@ -144,6 +170,10 @@ export const workOrderProposals = pgTable("work_order_proposals", {
   partsData: text("parts_data"),
   servicesData: text("services_data"),
   message: text("message"),
+  teamLeadApproval: varchar("team_lead_approval", { length: 50 }).default("pending"),
+  teamLeadId: integer("team_lead_id").references(() => technicians.id, { onDelete: "set null" }),
+  teamLeadNotes: text("team_lead_notes"),
+  teamLeadApprovedAt: timestamp("team_lead_approved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   approvedAt: timestamp("approved_at"),
 });
@@ -203,6 +233,20 @@ export const workOrderTechnicianPayments = pgTable("work_order_technician_paymen
   paidAt: timestamp("paid_at"),
 });
 
+// Client payments within work orders (down payment or full payment)
+export const workOrderClientPayments = pgTable("work_order_client_payments", {
+  id: serial("id").primaryKey(),
+  workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
+  paymentType: varchar("payment_type", { length: 50 }).notNull().default("full"), // 'down_payment' | 'full'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: varchar("payment_method", { length: 100 }).notNull().default("check"),
+  status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, received, confirmed
+  referenceNumber: varchar("reference_number", { length: 255 }),
+  notes: text("notes"),
+  receivedAt: timestamp("received_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const workOrderInvoices = pgTable("work_order_invoices", {
   id: serial("id").primaryKey(),
   workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
@@ -259,17 +303,31 @@ export const techniciansRelations = relations(technicians, ({ many }) => ({
   ratings: many(technicianRatings),
   workOrders: many(workOrders),
   payments: many(workOrderTechnicianPayments),
+  teamMemberships: many(teamMembers),
+}));
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+  teamLead: one(technicians, { fields: [teams.teamLeadId], references: [technicians.id] }),
+  members: many(teamMembers),
+  workOrders: many(workOrders),
+}));
+
+export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
+  team: one(teams, { fields: [teamMembers.teamId], references: [teams.id] }),
+  technician: one(technicians, { fields: [teamMembers.technicianId], references: [technicians.id] }),
 }));
 
 export const workOrdersRelations = relations(workOrders, ({ one, many }) => ({
   requestedByUser: one(users, { fields: [workOrders.requestedBy], references: [users.id], relationName: "requestedBy" }),
   assignedToUser: one(users, { fields: [workOrders.assignedTo], references: [users.id], relationName: "assignedTo" }),
   technician: one(technicians, { fields: [workOrders.technicianId], references: [technicians.id] }),
+  team: one(teams, { fields: [workOrders.teamId], references: [teams.id] }),
   proposal: one(workOrderProposals),
   partsRequests: many(workOrderPartsRequests),
   files: many(workOrderFiles),
   chats: many(workOrderChats),
   payments: many(workOrderTechnicianPayments),
+  clientPayments: many(workOrderClientPayments),
   invoice: one(workOrderInvoices),
 }));
 
@@ -300,6 +358,16 @@ export const insertTechnicianSchema = createInsertSchema(technicians).omit({
 export const insertRatingSchema = createInsertSchema(technicianRatings).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertTeamSchema = createInsertSchema(teams).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({
+  id: true,
+  joinedAt: true,
 });
 
 export const insertWorkOrderSchema = createInsertSchema(workOrders).omit({
@@ -334,6 +402,11 @@ export const insertWorkOrderTechnicianPaymentSchema = createInsertSchema(workOrd
   requestedAt: true,
 });
 
+export const insertWorkOrderClientPaymentSchema = createInsertSchema(workOrderClientPayments).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertWorkOrderInvoiceSchema = createInsertSchema(workOrderInvoices).omit({
   id: true,
   createdAt: true,
@@ -357,12 +430,15 @@ export type UserRole = typeof userRoles.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
 export type Technician = typeof technicians.$inferSelect;
 export type TechnicianRating = typeof technicianRatings.$inferSelect;
+export type Team = typeof teams.$inferSelect;
+export type TeamMember = typeof teamMembers.$inferSelect;
 export type WorkOrder = typeof workOrders.$inferSelect;
 export type WorkOrderProposal = typeof workOrderProposals.$inferSelect;
 export type WorkOrderPartsRequest = typeof workOrderPartsRequests.$inferSelect;
 export type WorkOrderFile = typeof workOrderFiles.$inferSelect;
 export type WorkOrderChat = typeof workOrderChats.$inferSelect;
 export type WorkOrderTechnicianPayment = typeof workOrderTechnicianPayments.$inferSelect;
+export type WorkOrderClientPayment = typeof workOrderClientPayments.$inferSelect;
 export type WorkOrderInvoice = typeof workOrderInvoices.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 
@@ -371,12 +447,15 @@ export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertPermission = z.infer<typeof insertPermissionSchema>;
 export type InsertTechnician = z.infer<typeof insertTechnicianSchema>;
 export type InsertRating = z.infer<typeof insertRatingSchema>;
+export type InsertTeam = z.infer<typeof insertTeamSchema>;
+export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
 export type InsertWorkOrder = z.infer<typeof insertWorkOrderSchema>;
 export type InsertWorkOrderProposal = z.infer<typeof insertWorkOrderProposalSchema>;
 export type InsertWorkOrderPartsRequest = z.infer<typeof insertWorkOrderPartsRequestSchema>;
 export type InsertWorkOrderFile = z.infer<typeof insertWorkOrderFileSchema>;
 export type InsertWorkOrderChat = z.infer<typeof insertWorkOrderChatSchema>;
 export type InsertWorkOrderTechnicianPayment = z.infer<typeof insertWorkOrderTechnicianPaymentSchema>;
+export type InsertWorkOrderClientPayment = z.infer<typeof insertWorkOrderClientPaymentSchema>;
 export type InsertWorkOrderInvoice = z.infer<typeof insertWorkOrderInvoiceSchema>;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
@@ -388,6 +467,11 @@ export type UserWithRole = User & {
 
 export type RoleWithPermissions = Role & {
   permissions: Permission[];
+};
+
+export type TeamWithDetails = Team & {
+  teamLead?: Technician;
+  members?: (TeamMember & { technician: Technician })[];
 };
 
 export type WorkOrderWithUsers = WorkOrder & {

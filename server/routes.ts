@@ -5,7 +5,7 @@ import session from "express-session";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
-import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, insertWorkOrderClientPaymentSchema, insertTeamSchema, loginSchema } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
@@ -1352,6 +1352,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "All notifications marked as read" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ===== TEAM ROUTES =====
+  app.get("/api/teams", requireAuth, async (req, res) => {
+    try {
+      const allTeams = await storage.getAllTeams();
+      res.json(allTeams);
+    } catch (error) {
+      console.error("Error fetching teams:", error);
+      res.status(500).json({ message: "Failed to fetch teams" });
+    }
+  });
+
+  app.get("/api/teams/:id", requireAuth, async (req, res) => {
+    try {
+      const team = await storage.getTeam(parseInt(req.params.id));
+      if (!team) return res.status(404).json({ message: "Team not found" });
+      res.json(team);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch team" });
+    }
+  });
+
+  app.post("/api/teams", requireAuth, async (req, res) => {
+    try {
+      const team = await storage.createTeam(req.body);
+      res.status(201).json(team);
+    } catch (error) {
+      console.error("Error creating team:", error);
+      res.status(400).json({ message: "Failed to create team" });
+    }
+  });
+
+  app.patch("/api/teams/:id", requireAuth, async (req, res) => {
+    try {
+      const team = await storage.updateTeam(parseInt(req.params.id), req.body);
+      if (!team) return res.status(404).json({ message: "Team not found" });
+      res.json(team);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update team" });
+    }
+  });
+
+  app.delete("/api/teams/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteTeam(parseInt(req.params.id));
+      if (!deleted) return res.status(404).json({ message: "Team not found" });
+      res.json({ message: "Team deleted successfully" });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete team" });
+    }
+  });
+
+  app.post("/api/teams/:id/members", requireAuth, async (req, res) => {
+    try {
+      const { technicianId } = req.body;
+      const member = await storage.addTeamMember(parseInt(req.params.id), technicianId);
+      res.status(201).json(member);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to add team member" });
+    }
+  });
+
+  app.delete("/api/teams/:id/members/:technicianId", requireAuth, async (req, res) => {
+    try {
+      const removed = await storage.removeTeamMember(parseInt(req.params.id), parseInt(req.params.technicianId));
+      if (!removed) return res.status(404).json({ message: "Team member not found" });
+      res.json({ message: "Member removed from team" });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to remove team member" });
+    }
+  });
+
+  // ===== CLIENT PAYMENT ROUTES =====
+  app.get("/api/work-orders/:id/client-payments", requireAuth, async (req, res) => {
+    try {
+      const payments = await storage.getWorkOrderClientPayments(parseInt(req.params.id));
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch client payments" });
+    }
+  });
+
+  app.post("/api/work-orders/:id/client-payments", requireAuth, async (req, res) => {
+    try {
+      const payment = await storage.createWorkOrderClientPayment({
+        ...req.body,
+        workOrderId: parseInt(req.params.id),
+      });
+      res.status(201).json(payment);
+    } catch (error) {
+      console.error("Error creating client payment:", error);
+      res.status(400).json({ message: "Failed to create client payment" });
+    }
+  });
+
+  app.patch("/api/client-payments/:id", requireAuth, async (req, res) => {
+    try {
+      const payment = await storage.updateWorkOrderClientPayment(parseInt(req.params.id), req.body);
+      if (!payment) return res.status(404).json({ message: "Payment not found" });
+      res.json(payment);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update client payment" });
+    }
+  });
+
+  app.delete("/api/client-payments/:id", requireAuth, async (req, res) => {
+    try {
+      const deleted = await storage.deleteWorkOrderClientPayment(parseInt(req.params.id));
+      if (!deleted) return res.status(404).json({ message: "Payment not found" });
+      res.json({ message: "Payment deleted successfully" });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete client payment" });
+    }
+  });
+
+  // ===== W9 UPLOAD ROUTE =====
+  const w9Storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadPath = path.join(process.cwd(), 'uploads', 'w9');
+      if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath, { recursive: true });
+      }
+      cb(null, uploadPath);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, `w9-${req.params.id}-${uniqueSuffix}${path.extname(file.originalname)}`);
+    }
+  });
+  const w9Upload = multer({ storage: w9Storage, limits: { fileSize: 10 * 1024 * 1024 } });
+
+  app.post("/api/technicians/:id/w9", requireAuth, w9Upload.single('w9'), async (req, res) => {
+    try {
+      const technicianId = parseInt(req.params.id);
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const updatedTechnician = await storage.updateTechnician(technicianId, {
+        w9Status: "submitted",
+        w9FilePath: req.file.path,
+        w9FileName: req.file.originalname,
+        w9SubmittedAt: new Date(),
+      } as any);
+      if (!updatedTechnician) return res.status(404).json({ message: "Technician not found" });
+      res.json({ message: "W9 uploaded successfully", technician: updatedTechnician });
+    } catch (error) {
+      console.error("Error uploading W9:", error);
+      res.status(500).json({ message: "Failed to upload W9" });
+    }
+  });
+
+  app.patch("/api/technicians/:id/w9-status", requireAuth, async (req, res) => {
+    try {
+      const technicianId = parseInt(req.params.id);
+      const { status } = req.body;
+      const updatedTechnician = await storage.updateTechnician(technicianId, {
+        w9Status: status,
+      } as any);
+      if (!updatedTechnician) return res.status(404).json({ message: "Technician not found" });
+      res.json(updatedTechnician);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update W9 status" });
+    }
+  });
+
+  // ===== FINANCIAL STATUS ROUTE =====
+  app.patch("/api/work-orders/:id/financial-status", requireAuth, async (req, res) => {
+    try {
+      const { financialStatus } = req.body;
+      const workOrder = await storage.updateWorkOrder(parseInt(req.params.id), { financialStatus } as any);
+      if (!workOrder) return res.status(404).json({ message: "Work order not found" });
+      res.json(workOrder);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update financial status" });
+    }
+  });
+
+  // ===== SETUP NEW ROLES (Logistics & Finance Officer) =====
+  app.post("/api/setup/roles", requireAuth, async (req, res) => {
+    try {
+      const existingRoles = await storage.getAllRoles();
+      const roleNames = existingRoles.map(r => r.name);
+      const created = [];
+
+      if (!roleNames.includes("logistics")) {
+        const role = await storage.createRole({ name: "logistics", description: "Logistics management - handles parts, dispatch, and supply chain operations" });
+        created.push(role.name);
+        // Assign key permissions
+        const allPerms = await storage.getAllPermissions();
+        const logisticsPerms = allPerms.filter(p => 
+          ["sidebar.overview","sidebar.operations","sidebar.technicians","dashboard.view","dashboard.stats",
+           "workorders.page.view","workorders.list.view","workorders.details.view","workorders.tab.overview",
+           "workorders.tab.parts","workorders.tab.files","workorders.search","workorders.filter",
+           "parts.page.view","parts.list.view","parts.modal.create","parts.create","parts.approve","parts.order",
+           "technicians.page.view","technicians.list.view","technicians.map.view","technicians.map",
+           "files.view","files.upload","files.download","buttons.create","buttons.search","buttons.filter",
+           "notifications.view","notifications.mark_read"].includes(p.name)
+        );
+        for (const perm of logisticsPerms) {
+          await storage.assignRolePermission(role.id, perm.id);
+        }
+      }
+
+      if (!roleNames.includes("finance_officer")) {
+        const role = await storage.createRole({ name: "finance_officer", description: "Finance Officer - manages payments, invoices, and financial reporting" });
+        created.push(role.name);
+        const allPerms = await storage.getAllPermissions();
+        const financePerms = allPerms.filter(p =>
+          ["sidebar.overview","sidebar.operations","sidebar.payments","dashboard.view","dashboard.stats",
+           "analytics.view","analytics.financial","workorders.page.view","workorders.list.view","workorders.details.view",
+           "workorders.tab.overview","workorders.tab.invoice","workorders.tab.payments","workorders.search",
+           "payments.page.view","payments.list.view","payments.modal.create","payments.create","payments.approve",
+           "payments.process","payments.history","payments.technician.view","payments.technician","payments.search",
+           "invoices.page.view","invoices.list.view","invoices.modal.create","invoices.create","invoices.edit",
+           "invoices.send","invoices.export","invoices.search","financial.page.view","financial.view",
+           "financial.reports","financial.export","financial.charts","financial.comparison",
+           "buttons.create","buttons.approve","buttons.export","buttons.search","buttons.filter",
+           "notifications.view","notifications.mark_read"].includes(p.name)
+        );
+        for (const perm of financePerms) {
+          await storage.assignRolePermission(role.id, perm.id);
+        }
+      }
+
+      res.json({ message: created.length > 0 ? `Created roles: ${created.join(", ")}` : "Roles already exist" });
+    } catch (error) {
+      console.error("Error setting up roles:", error);
+      res.status(500).json({ message: "Failed to setup roles" });
     }
   });
 

@@ -55,6 +55,8 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
   const [partsEntries, setPartsEntries] = useState<PartsEntry[]>([]);
   const [servicesEntries, setServicesEntries] = useState<ServicesEntry[]>([]);
   const [message, setMessage] = useState("");
+  const [nteCost, setNteCost] = useState("");
+  const [technicianCost, setTechnicianCost] = useState("");
 
   // Fetch existing proposal
   const { data: proposal, isLoading } = useQuery<WorkOrderProposal | null>({
@@ -71,6 +73,8 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
           setPartsEntries(proposal.partsData ? JSON.parse(proposal.partsData) : [createEmptyPartsEntry()]);
           setServicesEntries(proposal.servicesData ? JSON.parse(proposal.servicesData) : [createEmptyServicesEntry()]);
           setMessage(proposal.message || "");
+          setNteCost((proposal as any).nteCost || workOrder.nte || "");
+          setTechnicianCost((proposal as any).technicianCost || "");
         } catch (error) {
           console.error("Error parsing proposal data:", error);
           // Initialize with empty entries on error
@@ -78,6 +82,8 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
           setPartsEntries([createEmptyPartsEntry()]);
           setServicesEntries([createEmptyServicesEntry()]);
           setMessage("");
+          setNteCost(workOrder.nte || "");
+          setTechnicianCost("");
         }
       } else {
         // Initialize with empty entries for new proposal
@@ -85,6 +91,8 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
         setPartsEntries([createEmptyPartsEntry()]);
         setServicesEntries([createEmptyServicesEntry()]);
         setMessage("");
+        setNteCost(workOrder.nte || "");
+        setTechnicianCost("");
       }
     }
   }, [proposal, isOpen]);
@@ -175,12 +183,14 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
       materialCost: partsTotal.toFixed(2),
       additionalCosts: servicesTotal.toFixed(2),
       totalCost: totalCost.toFixed(2),
-      estimatedDuration: "TBD", // Default value
+      estimatedDuration: "TBD",
       description: message || "",
       laborData: JSON.stringify(laborEntries),
       partsData: JSON.stringify(partsEntries),
       servicesData: JSON.stringify(servicesEntries),
       message,
+      nteCost: nteCost || null,
+      technicianCost: technicianCost || null,
       status: proposal?.status || "pending"
     };
 
@@ -546,6 +556,43 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
           <div className="text-right text-xl font-bold">
             Grand Total: ${(calculateLaborTotal() + calculatePartsTotal() + calculateServicesTotal()).toFixed(2)}
           </div>
+
+          {/* NTE and Technician Cost */}
+          <Card className="border-orange-200 bg-orange-50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-orange-800">Cost Parameters</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="nteCost" className="text-sm font-medium">NTE Cost (Not to Exceed) $</Label>
+                  <Input
+                    id="nteCost"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={nteCost}
+                    onChange={(e) => setNteCost(e.target.value)}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-orange-700 mt-1">Maximum amount approved for this proposal</p>
+                </div>
+                <div>
+                  <Label htmlFor="technicianCost" className="text-sm font-medium">Technician Cost $</Label>
+                  <Input
+                    id="technicianCost"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={technicianCost}
+                    onChange={(e) => setTechnicianCost(e.target.value)}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-orange-700 mt-1">Total estimated technician labor cost</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Message Section */}
           <div>

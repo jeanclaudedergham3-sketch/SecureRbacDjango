@@ -1,15 +1,18 @@
 import { db } from "./db";
 import { 
   users, roles, permissions, userRoles, rolePermissions, technicians, technicianRatings,
+  teams, teamMembers,
   workOrders, workOrderProposals, workOrderPartsRequests, workOrderFiles, workOrderChats, 
-  workOrderTechnicianPayments, workOrderInvoices, notifications,
+  workOrderTechnicianPayments, workOrderClientPayments, workOrderInvoices, notifications,
   type User, type Role, type Permission, type Technician, type TechnicianRating,
+  type Team, type TeamMember, type TeamWithDetails,
   type WorkOrder, type WorkOrderProposal, type WorkOrderPartsRequest, type WorkOrderFile, 
-  type WorkOrderChat, type WorkOrderTechnicianPayment, type WorkOrderInvoice, type Notification,
+  type WorkOrderChat, type WorkOrderTechnicianPayment, type WorkOrderClientPayment, type WorkOrderInvoice, type Notification,
   type InsertUser, type InsertRole, type InsertPermission, 
-  type InsertTechnician, type InsertRating, type InsertWorkOrder, type InsertWorkOrderProposal,
+  type InsertTechnician, type InsertRating, type InsertTeam, type InsertTeamMember,
+  type InsertWorkOrder, type InsertWorkOrderProposal,
   type InsertWorkOrderPartsRequest, type InsertWorkOrderFile, type InsertWorkOrderChat,
-  type InsertWorkOrderTechnicianPayment, type InsertWorkOrderInvoice, type InsertNotification,
+  type InsertWorkOrderTechnicianPayment, type InsertWorkOrderClientPayment, type InsertWorkOrderInvoice, type InsertNotification,
   type UserWithRole, type RoleWithPermissions, type WorkOrderWithUsers
 } from "@shared/schema";
 import { eq, sql, and, desc, asc, or } from "drizzle-orm";
@@ -109,6 +112,21 @@ export interface IStorage {
   
   // Proposal operations for financial analysis
   getAllProposals(): Promise<WorkOrderProposal[]>;
+  
+  // Team operations
+  getAllTeams(): Promise<TeamWithDetails[]>;
+  getTeam(id: number): Promise<TeamWithDetails | undefined>;
+  createTeam(team: InsertTeam): Promise<Team>;
+  updateTeam(id: number, team: Partial<InsertTeam>): Promise<Team | undefined>;
+  deleteTeam(id: number): Promise<boolean>;
+  addTeamMember(teamId: number, technicianId: number): Promise<TeamMember>;
+  removeTeamMember(teamId: number, technicianId: number): Promise<boolean>;
+  
+  // Work Order Client Payment operations
+  getWorkOrderClientPayments(workOrderId: number): Promise<WorkOrderClientPayment[]>;
+  createWorkOrderClientPayment(payment: InsertWorkOrderClientPayment): Promise<WorkOrderClientPayment>;
+  updateWorkOrderClientPayment(id: number, payment: Partial<InsertWorkOrderClientPayment>): Promise<WorkOrderClientPayment | undefined>;
+  deleteWorkOrderClientPayment(id: number): Promise<boolean>;
   
   // Notification operations
   getNotifications(userId?: number): Promise<Notification[]>;
@@ -509,6 +527,90 @@ export class DatabaseStorage implements IStorage {
 
   async getAllProposals(): Promise<WorkOrderProposal[]> {
     return await db.select().from(workOrderProposals);
+  }
+
+  async getAllTeams(): Promise<TeamWithDetails[]> {
+    const teamsData = await db.select().from(teams);
+    const result: TeamWithDetails[] = [];
+    for (const team of teamsData) {
+      const members = await db.select().from(teamMembers).where(eq(teamMembers.teamId, team.id));
+      const membersWithTech: (TeamMember & { technician: Technician })[] = [];
+      for (const member of members) {
+        const [tech] = await db.select().from(technicians).where(eq(technicians.id, member.technicianId));
+        if (tech) membersWithTech.push({ ...member, technician: tech });
+      }
+      let teamLead: Technician | undefined;
+      if (team.teamLeadId) {
+        const [lead] = await db.select().from(technicians).where(eq(technicians.id, team.teamLeadId));
+        teamLead = lead;
+      }
+      result.push({ ...team, teamLead, members: membersWithTech });
+    }
+    return result;
+  }
+
+  async getTeam(id: number): Promise<TeamWithDetails | undefined> {
+    const [team] = await db.select().from(teams).where(eq(teams.id, id));
+    if (!team) return undefined;
+    const members = await db.select().from(teamMembers).where(eq(teamMembers.teamId, id));
+    const membersWithTech: (TeamMember & { technician: Technician })[] = [];
+    for (const member of members) {
+      const [tech] = await db.select().from(technicians).where(eq(technicians.id, member.technicianId));
+      if (tech) membersWithTech.push({ ...member, technician: tech });
+    }
+    let teamLead: Technician | undefined;
+    if (team.teamLeadId) {
+      const [lead] = await db.select().from(technicians).where(eq(technicians.id, team.teamLeadId));
+      teamLead = lead;
+    }
+    return { ...team, teamLead, members: membersWithTech };
+  }
+
+  async createTeam(insertTeam: InsertTeam): Promise<Team> {
+    const [team] = await db.insert(teams).values(insertTeam).returning();
+    return team;
+  }
+
+  async updateTeam(id: number, updateData: Partial<InsertTeam>): Promise<Team | undefined> {
+    const [team] = await db.update(teams).set(updateData).where(eq(teams.id, id)).returning();
+    return team || undefined;
+  }
+
+  async deleteTeam(id: number): Promise<boolean> {
+    const result = await db.delete(teams).where(eq(teams.id, id));
+    return result.rowCount! > 0;
+  }
+
+  async addTeamMember(teamId: number, technicianId: number): Promise<TeamMember> {
+    const [member] = await db.insert(teamMembers).values({ teamId, technicianId }).returning();
+    return member;
+  }
+
+  async removeTeamMember(teamId: number, technicianId: number): Promise<boolean> {
+    const result = await db.delete(teamMembers)
+      .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.technicianId, technicianId)));
+    return result.rowCount! > 0;
+  }
+
+  async getWorkOrderClientPayments(workOrderId: number): Promise<WorkOrderClientPayment[]> {
+    return await db.select().from(workOrderClientPayments)
+      .where(eq(workOrderClientPayments.workOrderId, workOrderId))
+      .orderBy(desc(workOrderClientPayments.createdAt));
+  }
+
+  async createWorkOrderClientPayment(payment: InsertWorkOrderClientPayment): Promise<WorkOrderClientPayment> {
+    const [created] = await db.insert(workOrderClientPayments).values(payment).returning();
+    return created;
+  }
+
+  async updateWorkOrderClientPayment(id: number, payment: Partial<InsertWorkOrderClientPayment>): Promise<WorkOrderClientPayment | undefined> {
+    const [updated] = await db.update(workOrderClientPayments).set(payment).where(eq(workOrderClientPayments.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteWorkOrderClientPayment(id: number): Promise<boolean> {
+    const result = await db.delete(workOrderClientPayments).where(eq(workOrderClientPayments.id, id));
+    return result.rowCount! > 0;
   }
 
   async getNotifications(userId?: number): Promise<Notification[]> {
