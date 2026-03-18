@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, Phone, Mail, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, BarChart3, Building, Pencil, X, Save, Users, ClipboardList, Clock, Shield } from "lucide-react";
+import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, Phone, Mail, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, BarChart3, Building, Pencil, X, Save, Users, ClipboardList, Clock, Shield, Printer } from "lucide-react";
 import { AdvancedPermissionGuard, TabGuard, ButtonGuard, useAdvancedPermissions } from "@/components/rbac/advanced-permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
@@ -276,6 +276,79 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
     
     setSelectedPaymentMethods(newMethods);
     paymentForm.setValue("paymentMethods", newMethods);
+  };
+
+  const handlePrintProposal = () => {
+    if (!proposalData) return;
+    try {
+      const laborData = JSON.parse((proposalData as any).laborData || "[]");
+      const partsData = JSON.parse((proposalData as any).partsData || "[]");
+      const servicesData = JSON.parse((proposalData as any).servicesData || "[]");
+      const laborTotal = laborData.reduce((s: number, i: any) => s + (parseFloat(i.payRate||"0") * parseFloat(i.regularHours||"0")) + (parseFloat(i.payRate||"0") * parseFloat(i.otHours||"0") * parseFloat(i.otScale||"1.5")), 0);
+      const partsTotal = partsData.reduce((s: number, i: any) => s + parseFloat(i.unitCost||"0") * parseInt(i.quantity||"1"), 0);
+      const servicesTotal = servicesData.reduce((s: number, i: any) => s + parseFloat(i.unitCost||"0") * parseInt(i.quantity||"1"), 0);
+      const grandTotal = laborTotal + partsTotal + servicesTotal;
+
+      const rows = (items: any[], type: string, color: string) => items.length === 0 ? "" : `
+        <h3 style="color:${color};margin:16px 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.05em">${type}</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:${color}15">
+            <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Description</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd">Qty/Hours</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd">Rate</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd">Total</th>
+          </tr></thead>
+          <tbody>${items.map((item: any) => {
+            const isLabor = type === "Labor";
+            const desc = item.remark || item.transactionType || (isLabor ? "Labor" : type.slice(0,-1));
+            const qty = isLabor ? `${item.regularHours||0}h reg + ${item.otHours||0}h OT` : (item.quantity||1);
+            const rate = isLabor ? `$${parseFloat(item.payRate||"0").toFixed(2)}/hr` : `$${parseFloat(item.unitCost||"0").toFixed(2)}`;
+            const total = isLabor
+              ? (parseFloat(item.payRate||"0") * parseFloat(item.regularHours||"0")) + (parseFloat(item.payRate||"0") * parseFloat(item.otHours||"0") * parseFloat(item.otScale||"1.5"))
+              : parseFloat(item.unitCost||"0") * parseInt(item.quantity||"1");
+            return `<tr><td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${desc}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f0f0f0">${qty}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f0f0f0">${rate}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f0f0f0;font-weight:600">$${total.toFixed(2)}</td></tr>`;
+          }).join("")}</tbody>
+        </table>`;
+
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Proposal - ${workOrder.workOrderNumber}</title>
+        <style>body{font-family:system-ui,sans-serif;color:#111;margin:0;padding:24px}@media print{body{padding:0}}</style>
+      </head><body>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:3px solid #1e40af;padding-bottom:16px">
+          <div>
+            <h1 style="margin:0;color:#1e40af;font-size:22px">Work Order Proposal</h1>
+            <p style="margin:4px 0 0;color:#555;font-size:15px">${workOrder.workOrderNumber} — ${workOrder.clientName}</p>
+          </div>
+          <div style="text-align:right;font-size:12px;color:#666">
+            <div style="font-weight:600;margin-bottom:2px">Status: <span style="color:#1e40af">${(proposalData as any).status?.toUpperCase() || "PENDING"}</span></div>
+            <div>Date: ${new Date((proposalData as any).createdAt).toLocaleDateString()}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;font-size:13px">
+          <div><span style="color:#666">Client:</span> <strong>${workOrder.clientName}</strong></div>
+          <div><span style="color:#666">Phone:</span> ${workOrder.clientPhone || "N/A"}</div>
+          <div><span style="color:#666">Email:</span> ${workOrder.clientEmail || "N/A"}</div>
+          <div><span style="color:#666">Address:</span> ${[workOrder.street, workOrder.city, workOrder.country].filter(Boolean).join(", ") || "N/A"}</div>
+        </div>
+        ${rows(laborData, "Labor", "#2563eb")}
+        ${rows(partsData, "Parts", "#16a34a")}
+        ${rows(servicesData, "Services", "#7c3aed")}
+        <div style="margin-top:20px;border-top:2px solid #e5e7eb;padding-top:12px">
+          <table style="width:100%;font-size:13px"><tbody>
+            ${laborTotal > 0 ? `<tr><td style="padding:3px 0;color:#555">Labor Total</td><td style="text-align:right;font-weight:600;color:#2563eb">$${laborTotal.toFixed(2)}</td></tr>` : ""}
+            ${partsTotal > 0 ? `<tr><td style="padding:3px 0;color:#555">Parts Total</td><td style="text-align:right;font-weight:600;color:#16a34a">$${partsTotal.toFixed(2)}</td></tr>` : ""}
+            ${servicesTotal > 0 ? `<tr><td style="padding:3px 0;color:#555">Services Total</td><td style="text-align:right;font-weight:600;color:#7c3aed">$${servicesTotal.toFixed(2)}</td></tr>` : ""}
+            <tr style="border-top:1px solid #e5e7eb"><td style="padding:8px 0;font-weight:700;font-size:15px">Grand Total</td><td style="text-align:right;font-weight:700;font-size:17px;color:#111">$${grandTotal.toFixed(2)}</td></tr>
+          </tbody></table>
+        </div>
+        ${(proposalData as any).message ? `<div style="margin-top:16px;padding:12px;background:#f8f9fa;border-radius:6px;font-size:13px"><strong>Notes:</strong><br>${(proposalData as any).message}</div>` : ""}
+        <div style="margin-top:24px;font-size:11px;color:#999;border-top:1px solid #e5e7eb;padding-top:8px">Printed on ${new Date().toLocaleString()}</div>
+      </body></html>`;
+
+      const w = window.open("", "_blank", "width=800,height=600");
+      if (w) { w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 300); }
+    } catch {
+      toast({ title: "Print Error", description: "Could not generate proposal for printing.", variant: "destructive" });
+    }
   };
 
 
@@ -779,20 +852,31 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Work Order Proposal</h3>
-                  <ButtonGuard buttonType="edit">
-                    <Button 
-                      onClick={() => workOrder.isLocked ? toast({
-                        title: "Action Blocked",
-                        description: "Cannot edit proposals - work order is locked due to paid invoice.",
-                        variant: "destructive"
-                      }) : setIsProposalModalOpen(true)}
-                      disabled={workOrder.isLocked}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={handlePrintProposal}
                       variant="outline"
                       size="sm"
+                      className="flex items-center gap-1.5 text-slate-700 border-slate-300 hover:bg-slate-50"
                     >
-                      {workOrder.isLocked ? "Locked" : "Edit Proposal"}
+                      <Printer className="h-3.5 w-3.5" />
+                      Print
                     </Button>
-                  </ButtonGuard>
+                    <ButtonGuard buttonType="edit">
+                      <Button 
+                        onClick={() => workOrder.isLocked ? toast({
+                          title: "Action Blocked",
+                          description: "Cannot edit proposals - work order is locked due to paid invoice.",
+                          variant: "destructive"
+                        }) : setIsProposalModalOpen(true)}
+                        disabled={workOrder.isLocked}
+                        variant="outline"
+                        size="sm"
+                      >
+                        {workOrder.isLocked ? "Locked" : "Edit Proposal"}
+                      </Button>
+                    </ButtonGuard>
+                  </div>
                 </div>
                 
                 <Card>
