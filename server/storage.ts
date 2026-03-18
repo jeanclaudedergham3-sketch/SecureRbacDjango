@@ -179,7 +179,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async verifyPassword(username: string, password: string): Promise<User | null> {
-    const user = await this.getUserByUsername(username);
+    // Try by username first, then by email so both work
+    let user = await this.getUserByUsername(username);
+    if (!user) {
+      user = await this.getUserByEmail(username);
+    }
     if (!user) return null;
     
     const isValid = await bcrypt.compare(password, user.password);
