@@ -3,11 +3,12 @@ import {
   users, roles, permissions, userRoles, rolePermissions, technicians, technicianRatings,
   teams, teamMembers,
   workOrders, workOrderProposals, workOrderPartsRequests, workOrderFiles, workOrderChats, 
-  workOrderTechnicianPayments, workOrderClientPayments, workOrderInvoices, notifications,
+  workOrderTechnicianPayments, workOrderClientPayments, workOrderInvoices, notifications, jobInspections,
   type User, type Role, type Permission, type Technician, type TechnicianRating,
   type Team, type TeamMember, type TeamWithDetails,
   type WorkOrder, type WorkOrderProposal, type WorkOrderPartsRequest, type WorkOrderFile, 
   type WorkOrderChat, type WorkOrderTechnicianPayment, type WorkOrderClientPayment, type WorkOrderInvoice, type Notification,
+  type JobInspection, type InsertJobInspection,
   type InsertUser, type InsertRole, type InsertPermission, 
   type InsertTechnician, type InsertRating, type InsertTeam, type InsertTeamMember,
   type InsertWorkOrder, type InsertWorkOrderProposal,
@@ -133,6 +134,13 @@ export interface IStorage {
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationAsRead(id: number): Promise<boolean>;
   markAllNotificationsAsRead(userId: number): Promise<boolean>;
+
+  // Job Inspection operations
+  getAllJobInspections(): Promise<JobInspection[]>;
+  getJobInspectionByWorkOrder(workOrderId: number): Promise<JobInspection | undefined>;
+  getJobInspectionById(id: number): Promise<JobInspection | undefined>;
+  createJobInspection(data: InsertJobInspection): Promise<JobInspection>;
+  updateJobInspection(id: number, data: Partial<InsertJobInspection>): Promise<JobInspection | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -652,6 +660,30 @@ export class DatabaseStorage implements IStorage {
       .set({ isRead: true, readAt: new Date() })
       .where(eq(notifications.userId, userId));
     return result.rowCount! > 0;
+  }
+
+  async getAllJobInspections(): Promise<JobInspection[]> {
+    return db.select().from(jobInspections).orderBy(desc(jobInspections.createdAt));
+  }
+
+  async getJobInspectionByWorkOrder(workOrderId: number): Promise<JobInspection | undefined> {
+    const [inspection] = await db.select().from(jobInspections).where(eq(jobInspections.workOrderId, workOrderId));
+    return inspection || undefined;
+  }
+
+  async getJobInspectionById(id: number): Promise<JobInspection | undefined> {
+    const [inspection] = await db.select().from(jobInspections).where(eq(jobInspections.id, id));
+    return inspection || undefined;
+  }
+
+  async createJobInspection(data: InsertJobInspection): Promise<JobInspection> {
+    const [inspection] = await db.insert(jobInspections).values(data).returning();
+    return inspection;
+  }
+
+  async updateJobInspection(id: number, data: Partial<InsertJobInspection>): Promise<JobInspection | undefined> {
+    const [updated] = await db.update(jobInspections).set({ ...data, updatedAt: new Date() }).where(eq(jobInspections.id, id)).returning();
+    return updated || undefined;
   }
 }
 

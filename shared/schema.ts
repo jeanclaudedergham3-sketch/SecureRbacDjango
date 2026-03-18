@@ -379,6 +379,27 @@ export const insertWorkOrderSchema = createInsertSchema(workOrders).omit({
   updatedAt: true,
 });
 
+export const jobInspections = pgTable("job_inspections", {
+  id: serial("id").primaryKey(),
+  workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
+  scopeOfWork: text("scope_of_work"),
+  technicianRequirements: text("technician_requirements"),
+  overviewStatus: varchar("overview_status", { length: 50 }).notNull().default("nt"),
+  submissionStatus: varchar("submission_status", { length: 50 }).notNull().default("not_started"),
+  photos: text("photos").default("[]"),
+  adminNotes: text("admin_notes"),
+  submittedBy: integer("submitted_by").references(() => users.id),
+  submittedAt: timestamp("submitted_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertJobInspectionSchema = createInsertSchema(jobInspections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertWorkOrderProposalSchema = createInsertSchema(workOrderProposals).omit({
   id: true,
   createdAt: true,
@@ -443,6 +464,7 @@ export type WorkOrderTechnicianPayment = typeof workOrderTechnicianPayments.$inf
 export type WorkOrderClientPayment = typeof workOrderClientPayments.$inferSelect;
 export type WorkOrderInvoice = typeof workOrderInvoices.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
+export type JobInspection = typeof jobInspections.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
@@ -460,6 +482,7 @@ export type InsertWorkOrderTechnicianPayment = z.infer<typeof insertWorkOrderTec
 export type InsertWorkOrderClientPayment = z.infer<typeof insertWorkOrderClientPaymentSchema>;
 export type InsertWorkOrderInvoice = z.infer<typeof insertWorkOrderInvoiceSchema>;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type InsertJobInspection = z.infer<typeof insertJobInspectionSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
 
 // Extended types

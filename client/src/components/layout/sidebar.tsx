@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp, UsersRound } from "lucide-react";
+import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp, UsersRound, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -38,6 +38,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Operations",
       items: [
         { name: "Work Orders", href: "/work-orders", icon: ClipboardList, permission: "sidebar.operations" },
+        { name: "Job Inspections", href: "/job-inspections", icon: Search, permission: "sidebar.operations" },
         { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "sidebar.operations" },
         { name: "Proposals", href: "/proposals", icon: FileText, permission: "sidebar.operations" },
         { name: "Invoices", href: "/invoices", icon: FileText, permission: "sidebar.operations" },

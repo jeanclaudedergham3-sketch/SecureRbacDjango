@@ -1601,6 +1601,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ─── Job Inspection Routes ────────────────────────────────────────
+  app.get("/api/job-inspections", requireAuth, async (req, res) => {
+    try {
+      const inspections = await storage.getAllJobInspections();
+      const allWorkOrders = await storage.getAllWorkOrders();
+      const result = inspections.map((insp: any) => ({
+        ...insp,
+        workOrder: allWorkOrders.find((wo: any) => wo.id === insp.workOrderId) || null,
+      }));
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/work-orders/:id/job-inspection", requireAuth, async (req, res) => {
+    try {
+      const inspection = await storage.getJobInspectionByWorkOrder(parseInt(req.params.id));
+      if (!inspection) return res.status(404).json({ message: "Not found" });
+      res.json(inspection);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/work-orders/:id/job-inspection", requireAuth, async (req, res) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      const existing = await storage.getJobInspectionByWorkOrder(workOrderId);
+      const user = req.session.userId;
+      const data = {
+        ...req.body,
+        workOrderId,
+        submittedBy: user,
+        submittedAt: req.body.overviewStatus === "needs_proposal" ? new Date() : null,
+        submissionStatus: req.body.overviewStatus === "needs_proposal" ? "sent" : "not_started",
+      };
+      let inspection;
+      if (existing) {
+        inspection = await storage.updateJobInspection(existing.id, data);
+      } else {
+        inspection = await storage.createJobInspection(data);
+      }
+      res.json(inspection);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.put("/api/job-inspections/:id", requireAuth, async (req, res) => {
+    try {
+      const inspection = await storage.updateJobInspection(parseInt(req.params.id), req.body);
+      if (!inspection) return res.status(404).json({ message: "Not found" });
+      res.json(inspection);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.patch("/api/job-inspections/:id/status", requireAuth, async (req, res) => {
+    try {
+      const { submissionStatus, adminNotes } = req.body;
+      const inspection = await storage.updateJobInspection(parseInt(req.params.id), { submissionStatus, adminNotes });
+      if (!inspection) return res.status(404).json({ message: "Not found" });
+      res.json(inspection);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Photo upload for job inspections
+  const inspectionUpload = multer({
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => {
+        const uploadPath = path.join(process.cwd(), "uploads", "inspections", req.params.id);
+        if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
+        cb(null, uploadPath);
+      },
+      filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`);
+      },
+    }),
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype.startsWith("image/")) cb(null, true);
+      else cb(new Error("Only images are allowed"));
+    },
+    limits: { fileSize: 10 * 1024 * 1024 },
+  });
+
+  app.post("/api/job-inspections/:id/photos", requireAuth, inspectionUpload.array("photos", 10), async (req, res) => {
+    try {
+      const inspection = await storage.getJobInspectionById(parseInt(req.params.id));
+      if (!inspection) return res.status(404).json({ message: "Inspection not found" });
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) return res.status(400).json({ message: "No images uploaded" });
+      const existing = JSON.parse(inspection.photos || "[]");
+      const newPaths = files.map(f => `/uploads/inspections/${req.params.id}/${f.filename}`);
+      const updated = await storage.updateJobInspection(inspection.id, { photos: JSON.stringify([...existing, ...newPaths]) });
+      res.json({ photos: JSON.parse(updated!.photos || "[]") });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message || "Photo upload failed" });
+    }
+  });
+
+  app.delete("/api/job-inspections/:id/photos", requireAuth, async (req, res) => {
+    try {
+      const { photoPath } = req.body;
+      const inspection = await storage.getJobInspectionById(parseInt(req.params.id));
+      if (!inspection) return res.status(404).json({ message: "Not found" });
+      const existing = JSON.parse(inspection.photos || "[]");
+      const updated = existing.filter((p: string) => p !== photoPath);
+      await storage.updateJobInspection(inspection.id, { photos: JSON.stringify(updated) });
+      res.json({ photos: updated });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // Analytics endpoint - computes stats from real data
   app.get("/api/analytics", requireAuth, async (req, res) => {
     try {

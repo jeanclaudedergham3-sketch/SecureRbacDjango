@@ -20,6 +20,7 @@ import TechnicianPayments from "@/pages/technician-payments";
 import Invoices from "@/pages/invoices";
 import FinancialAnalysis from "@/pages/financial-analysis";
 import Analytics from "@/pages/analytics";
+import JobInspections from "@/pages/job-inspections";
 import Teams from "@/pages/teams";
 import NotFound from "@/pages/not-found";
 
@@ -87,6 +88,7 @@ function Router() {
       <Route path="/invoices" component={() => <ProtectedRoute component={Invoices} />} />
       <Route path="/financial-analysis" component={() => <ProtectedRoute component={FinancialAnalysis} />} />
       <Route path="/analytics" component={() => <ProtectedRoute component={Analytics} />} />
+      <Route path="/job-inspections" component={() => <ProtectedRoute component={JobInspections} />} />
       <Route path="/teams" component={() => <ProtectedRoute component={Teams} />} />
       <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
