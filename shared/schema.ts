@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   password: varchar("password", { length: 255 }).notNull(),
   firstName: varchar("first_name", { length: 255 }),
   lastName: varchar("last_name", { length: 255 }),
+  teamId: integer("team_id"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -131,6 +132,7 @@ export const workOrders = pgTable("work_orders", {
   // Financial Information
   nte: decimal("nte", { precision: 10, scale: 2 }),
   tnte: decimal("tnte", { precision: 10, scale: 2 }),
+  totalPayment: decimal("total_payment", { precision: 10, scale: 2 }),
   financialStatus: varchar("financial_status", { length: 50 }).default("pending"),
   // Timeline and Work Details
   estimatedHours: varchar("estimated_hours", { length: 20 }),

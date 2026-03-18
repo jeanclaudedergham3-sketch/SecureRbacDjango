@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, Phone, Mail, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, BarChart3, Building } from "lucide-react";
+import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, Phone, Mail, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, BarChart3, Building, Pencil, X, Save, Users, ClipboardList, Clock, Shield } from "lucide-react";
 import { AdvancedPermissionGuard, TabGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
@@ -66,8 +66,28 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [isViewChatModalOpen, setIsViewChatModalOpen] = useState(false);
   const [isViewPaymentModalOpen, setIsViewPaymentModalOpen] = useState(false);
 
+  // Inline financial editing state
+  const [isEditingFinancials, setIsEditingFinancials] = useState(false);
+  const [financialEdit, setFinancialEdit] = useState({ nte: "", tnte: "", totalPayment: "" });
+
   const { data: technicians = [] } = useQuery<Technician[]>({
     queryKey: ["/api/technicians"],
+  });
+
+  const { data: teams = [] } = useQuery<any[]>({
+    queryKey: ["/api/teams"],
+  });
+
+  const updateFinancialsMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("PUT", `/api/work-orders/${workOrder.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+      toast({ title: "Saved", description: "Financial details updated successfully." });
+      setIsEditingFinancials(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update", variant: "destructive" });
+    },
   });
 
   const { data: proposalData } = useQuery({
@@ -435,219 +455,347 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
-            {/* Work Order Summary Banner */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            {/* Top Status Banner */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-4 text-white">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-gray-500 text-xs uppercase font-medium">WO Number</p>
-                  <p className="font-bold text-blue-700">{workOrder.workOrderNumber}</p>
+                  <p className="text-blue-200 text-xs font-medium uppercase tracking-wide">Work Order</p>
+                  <p className="text-2xl font-bold">{workOrder.workOrderNumber}</p>
                 </div>
-                <div>
-                  <p className="text-gray-500 text-xs uppercase font-medium">Category</p>
-                  <p className="font-semibold text-gray-800">{workOrder.category}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs uppercase font-medium">Priority</p>
-                  <Badge variant={workOrder.priority === "urgent" ? "destructive" : workOrder.priority === "high" ? "default" : "secondary"}>
-                    {workOrder.priority}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs uppercase font-medium">Urgency</p>
-                  <p className="font-semibold text-gray-800">{workOrder.urgency || "Standard"}</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    workOrder.priority === "urgent" ? "bg-red-500 text-white" :
+                    workOrder.priority === "high" ? "bg-orange-400 text-white" :
+                    workOrder.priority === "medium" ? "bg-yellow-300 text-yellow-900" :
+                    "bg-green-300 text-green-900"
+                  }`}>{(workOrder.priority || "medium").toUpperCase()} PRIORITY</span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    workOrder.status === "completed" ? "bg-green-400 text-green-900" :
+                    workOrder.status === "cancelled" ? "bg-red-400 text-white" :
+                    "bg-blue-300 text-blue-900"
+                  }`}>{(workOrder.status || "active").toUpperCase()}</span>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Client Information */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center text-base">
-                    <Building className="h-4 w-4 mr-2 text-blue-600" />
+
+              {/* CLIENT INFORMATION */}
+              <Card className="border-l-4 border-l-blue-500">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    <Building className="h-4 w-4 text-blue-500" />
                     Client Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  {workOrder.clientName && (
+                <CardContent className="px-4 pb-3 space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-gray-400 shrink-0" />
+                    <span className="font-semibold text-gray-900">{workOrder.clientName || <span className="text-gray-400 italic">Not provided</span>}</span>
+                  </div>
+                  {workOrder.clientWorkOrderNumber && (
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-400" />
-                      <span className="font-medium">{workOrder.clientName}</span>
+                      <ClipboardList className="h-4 w-4 text-gray-400 shrink-0" />
+                      <span className="text-gray-600">Client WO#: </span>
+                      <span className="font-medium text-gray-800">{workOrder.clientWorkOrderNumber}</span>
                     </div>
                   )}
                   {workOrder.clientPhone && (
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Phone className="h-4 w-4 text-gray-400" />
-                      <span>{workOrder.clientPhone}</span>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-gray-400 shrink-0" />
+                      <span className="text-gray-700">{workOrder.clientPhone}</span>
                     </div>
                   )}
                   {workOrder.clientEmail && (
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Mail className="h-4 w-4 text-gray-400" />
-                      <span>{workOrder.clientEmail}</span>
-                    </div>
-                  )}
-                  {workOrder.clientWorkOrderNumber && (
-                    <div className="pt-1 border-t">
-                      <span className="text-xs text-gray-500">Client WO#:</span>
-                      <span className="ml-1 font-medium text-gray-700">{workOrder.clientWorkOrderNumber}</span>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-gray-400 shrink-0" />
+                      <span className="text-gray-700 break-all">{workOrder.clientEmail}</span>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Location */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center text-base">
-                    <MapPin className="h-4 w-4 mr-2 text-red-500" />
+              {/* SERVICE LOCATION */}
+              <Card className="border-l-4 border-l-red-400">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    <MapPin className="h-4 w-4 text-red-500" />
                     Service Location
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  {workOrder.street && <p className="text-gray-700">{workOrder.street}</p>}
-                  <p className="text-gray-700">
-                    {[workOrder.city, workOrder.country, workOrder.zipCode].filter(Boolean).join(", ")}
+                <CardContent className="px-4 pb-3 space-y-1 text-sm">
+                  {workOrder.street && <p className="font-medium text-gray-800">{workOrder.street}</p>}
+                  <p className="text-gray-600">
+                    {[workOrder.city, workOrder.country].filter(Boolean).join(", ")}
+                    {workOrder.zipCode && <span className="ml-1">— {workOrder.zipCode}</span>}
                   </p>
-                  {workOrder.accessInstructions && (
-                    <div className="pt-2 border-t">
-                      <p className="text-xs text-gray-500 font-medium uppercase mb-1">Access Instructions</p>
-                      <p className="text-gray-600 text-xs">{workOrder.accessInstructions}</p>
-                    </div>
+                  {!workOrder.street && !workOrder.city && (
+                    <p className="text-gray-400 italic text-xs">No address provided</p>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Equipment & Problem */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center text-base">
-                    <Hammer className="h-4 w-4 mr-2 text-orange-500" />
-                    Equipment & Problem
+              {/* WORK DETAILS */}
+              <Card className="border-l-4 border-l-orange-400">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    <Hammer className="h-4 w-4 text-orange-500" />
+                    Work Details
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
+                <CardContent className="px-4 pb-3 space-y-3 text-sm">
                   {workOrder.equipmentType && (
                     <div>
-                      <p className="text-xs text-gray-500 font-medium uppercase mb-1">Equipment Type</p>
+                      <p className="text-xs text-gray-400 font-medium uppercase">Equipment Type</p>
                       <p className="font-semibold text-gray-800">{workOrder.equipmentType}</p>
                     </div>
                   )}
-                  {workOrder.problemDescription && (
-                    <div className="pt-1 border-t">
-                      <p className="text-xs text-gray-500 font-medium uppercase mb-1">Problem Description</p>
-                      <p className="text-gray-700">{workOrder.problemDescription}</p>
+                  {workOrder.description && (
+                    <div>
+                      <p className="text-xs text-gray-400 font-medium uppercase">Description</p>
+                      <p className="text-gray-700 leading-relaxed">{workOrder.description}</p>
                     </div>
                   )}
-                  {workOrder.description && (
-                    <div className="pt-1 border-t">
-                      <p className="text-xs text-gray-500 font-medium uppercase mb-1">Description</p>
-                      <p className="text-gray-700">{workOrder.description}</p>
+                  {workOrder.problemDescription && (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-gray-400 font-medium uppercase">Problem Description</p>
+                      <p className="text-gray-700 leading-relaxed">{workOrder.problemDescription}</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Timeline & Assignment */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center text-base">
-                    <Calendar className="h-4 w-4 mr-2 text-green-600" />
-                    Timeline & Assignment
+              {/* TIMELINE */}
+              <Card className="border-l-4 border-l-green-500">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    <Calendar className="h-4 w-4 text-green-500" />
+                    Timeline
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  {workOrder.scheduledDate && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Scheduled:</span>
-                      <span className="font-medium">{workOrder.scheduledDate}</span>
-                    </div>
-                  )}
+                <CardContent className="px-4 pb-3 space-y-2 text-sm">
                   {workOrder.startDate && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Start:</span>
-                      <span className="font-medium">{workOrder.startDate}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500 flex items-center gap-1"><Clock className="h-3 w-3" /> Start Date</span>
+                      <span className="font-semibold text-gray-800">{workOrder.startDate}</span>
                     </div>
                   )}
                   {workOrder.endDate && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">End:</span>
-                      <span className="font-medium">{workOrder.endDate}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500 flex items-center gap-1"><Clock className="h-3 w-3" /> End Date</span>
+                      <span className="font-semibold text-gray-800">{workOrder.endDate}</span>
                     </div>
                   )}
                   {workOrder.estimatedHours && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Est. Hours:</span>
-                      <span className="font-medium">{workOrder.estimatedHours}h</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">Estimated Hours</span>
+                      <span className="font-semibold text-gray-800">{workOrder.estimatedHours}h</span>
                     </div>
                   )}
-                  {workOrder.assignedUsers && workOrder.assignedUsers.length > 0 && (
-                    <div className="pt-2 border-t">
-                      <p className="text-xs text-gray-500 font-medium uppercase mb-1">Assigned To</p>
-                      {workOrder.assignedUsers.map((u) => (
-                        <div key={u.id} className="flex items-center gap-1">
-                          <User className="h-3 w-3 text-gray-400" />
-                          <span className="text-gray-700">{u.firstName} {u.lastName}</span>
+                  {!workOrder.startDate && !workOrder.endDate && (
+                    <p className="text-gray-400 italic text-xs">No timeline set</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* TEAM ASSIGNMENT */}
+              <Card className="border-l-4 border-l-purple-500">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    <Users className="h-4 w-4 text-purple-500" />
+                    Team Assignment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3 text-sm">
+                  {(() => {
+                    const assignedTeam = (teams as any[]).find((t: any) => t.id === (workOrder as any).teamId);
+                    if (assignedTeam) {
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-900 text-base">{assignedTeam.name}</span>
+                          </div>
+                          {assignedTeam.description && (
+                            <p className="text-gray-500 text-xs">{assignedTeam.description}</p>
+                          )}
+                          {assignedTeam.members && assignedTeam.members.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {assignedTeam.members.map((m: any) => (
+                                <span key={m.id} className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full text-xs">
+                                  <User className="h-2.5 w-2.5" />
+                                  {m.technicianId}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      ))}
+                      );
+                    }
+                    return <p className="text-gray-400 italic text-xs">No team assigned</p>;
+                  })()}
+                </CardContent>
+              </Card>
+
+              {/* INSTRUCTIONS & SAFETY */}
+              <Card className="border-l-4 border-l-yellow-400">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    <Shield className="h-4 w-4 text-yellow-500" />
+                    Instructions & Safety
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3 space-y-3 text-sm">
+                  {workOrder.accessInstructions && (
+                    <div>
+                      <p className="text-xs text-gray-400 font-medium uppercase mb-0.5">Access Instructions</p>
+                      <p className="text-gray-700">{workOrder.accessInstructions}</p>
+                    </div>
+                  )}
+                  {workOrder.specialInstructions && (
+                    <div className={workOrder.accessInstructions ? "pt-2 border-t" : ""}>
+                      <p className="text-xs text-gray-400 font-medium uppercase mb-0.5">Special Instructions</p>
+                      <p className="text-gray-700">{workOrder.specialInstructions}</p>
+                    </div>
+                  )}
+                  {workOrder.safetyRequirements && (
+                    <div className={(workOrder.accessInstructions || workOrder.specialInstructions) ? "pt-2 border-t" : ""}>
+                      <p className="text-xs text-amber-600 font-medium uppercase mb-0.5 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Safety Requirements
+                      </p>
+                      <p className="text-gray-700">{workOrder.safetyRequirements}</p>
+                    </div>
+                  )}
+                  {!workOrder.accessInstructions && !workOrder.specialInstructions && !workOrder.safetyRequirements && (
+                    <p className="text-gray-400 italic text-xs">No instructions provided</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* FINANCIAL DETAILS — full width with inline edit */}
+              <Card className="md:col-span-2 border-l-4 border-l-emerald-500">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                      <DollarSign className="h-4 w-4 text-emerald-500" />
+                      Financial Details
+                    </CardTitle>
+                    {!isEditingFinancials ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs text-blue-600 hover:text-blue-800"
+                        onClick={() => {
+                          setFinancialEdit({
+                            nte: (workOrder as any).nte || "",
+                            tnte: (workOrder as any).tnte || "",
+                            totalPayment: (workOrder as any).totalPayment || "",
+                          });
+                          setIsEditingFinancials(true);
+                        }}
+                      >
+                        <Pencil className="h-3 w-3 mr-1" /> Edit
+                      </Button>
+                    ) : (
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-green-600 hover:text-green-800"
+                          disabled={updateFinancialsMutation.isPending}
+                          onClick={() => updateFinancialsMutation.mutate({
+                            nte: financialEdit.nte || null,
+                            tnte: financialEdit.tnte || null,
+                            totalPayment: financialEdit.totalPayment || null,
+                          })}
+                        >
+                          <Save className="h-3 w-3 mr-1" /> {updateFinancialsMutation.isPending ? "Saving..." : "Save"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-gray-500"
+                          onClick={() => setIsEditingFinancials(false)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  {isEditingFinancials ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-xs text-gray-500 font-medium uppercase block mb-1">NTE (Before Tax)</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={financialEdit.nte}
+                          onChange={(e) => setFinancialEdit(prev => ({ ...prev, nte: e.target.value }))}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 font-medium uppercase block mb-1">TNTE (With Tax)</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={financialEdit.tnte}
+                          onChange={(e) => setFinancialEdit(prev => ({ ...prev, tnte: e.target.value }))}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 font-medium uppercase block mb-1">Total Payment</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={financialEdit.totalPayment}
+                          onChange={(e) => setFinancialEdit(prev => ({ ...prev, totalPayment: e.target.value }))}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="bg-blue-50 rounded-lg p-3 text-center">
+                        <p className="text-xs text-gray-500 font-medium uppercase mb-1">NTE (Before Tax)</p>
+                        <p className="text-lg font-bold text-blue-700">
+                          {(workOrder as any).nte ? formatCurrency((workOrder as any).nte) : <span className="text-gray-400 text-sm font-normal italic">Not set</span>}
+                        </p>
+                      </div>
+                      <div className="bg-green-50 rounded-lg p-3 text-center">
+                        <p className="text-xs text-gray-500 font-medium uppercase mb-1">TNTE (With Tax)</p>
+                        <p className="text-lg font-bold text-green-700">
+                          {(workOrder as any).tnte ? formatCurrency((workOrder as any).tnte) : <span className="text-gray-400 text-sm font-normal italic">Not set</span>}
+                        </p>
+                      </div>
+                      <div className="bg-indigo-50 rounded-lg p-3 text-center">
+                        <p className="text-xs text-gray-500 font-medium uppercase mb-1">Total Payment</p>
+                        <p className="text-lg font-bold text-indigo-700">
+                          {(workOrder as any).totalPayment ? formatCurrency((workOrder as any).totalPayment) : <span className="text-gray-400 text-sm font-normal italic">Not set</span>}
+                        </p>
+                      </div>
+                      <div className="bg-purple-50 rounded-lg p-3 text-center">
+                        <p className="text-xs text-gray-500 font-medium uppercase mb-1">Financial Status</p>
+                        <Badge className={
+                          workOrder.financialStatus === "paid" ? "bg-green-100 text-green-800 border-green-200" :
+                          workOrder.financialStatus === "partial" ? "bg-yellow-100 text-yellow-800 border-yellow-200" :
+                          workOrder.financialStatus === "invoiced" ? "bg-blue-100 text-blue-800 border-blue-200" :
+                          workOrder.financialStatus === "overdue" ? "bg-red-100 text-red-800 border-red-200" :
+                          "bg-gray-100 text-gray-600 border-gray-200"
+                        }>
+                          {workOrder.financialStatus || "Pending"}
+                        </Badge>
+                      </div>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Financial Summary */}
-              <Card className="md:col-span-2">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center text-base">
-                    <DollarSign className="h-4 w-4 mr-2 text-green-600" />
-                    Financial Summary (NTE)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <p className="text-xs text-gray-500 uppercase font-medium mb-1">NTE (Before Tax)</p>
-                      <p className="text-xl font-bold text-blue-700">
-                        {workOrder.nte ? formatCurrency(workOrder.nte) : "Not Set"}
-                      </p>
-                    </div>
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <p className="text-xs text-gray-500 uppercase font-medium mb-1">TNTE (With Tax)</p>
-                      <p className="text-xl font-bold text-green-700">
-                        {workOrder.tnte ? formatCurrency(workOrder.tnte) : "Not Set"}
-                      </p>
-                    </div>
-                    <div className="text-center p-3 bg-purple-50 rounded-lg">
-                      <p className="text-xs text-gray-500 uppercase font-medium mb-1">Financial Status</p>
-                      <Badge className={
-                        workOrder.financialStatus === "paid" ? "bg-green-100 text-green-800" :
-                        workOrder.financialStatus === "partial" ? "bg-yellow-100 text-yellow-800" :
-                        workOrder.financialStatus === "invoiced" ? "bg-blue-100 text-blue-800" :
-                        workOrder.financialStatus === "overdue" ? "bg-red-100 text-red-800" :
-                        "bg-gray-100 text-gray-800"
-                      }>
-                        {workOrder.financialStatus || "Pending"}
-                      </Badge>
-                    </div>
-                  </div>
-                  {(workOrder.specialInstructions || workOrder.safetyRequirements) && (
-                    <div className="mt-4 pt-3 border-t grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {workOrder.specialInstructions && (
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium uppercase mb-1">Special Instructions</p>
-                          <p className="text-sm text-gray-700">{workOrder.specialInstructions}</p>
-                        </div>
-                      )}
-                      {workOrder.safetyRequirements && (
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium uppercase mb-1">Safety Requirements</p>
-                          <p className="text-sm text-gray-700">{workOrder.safetyRequirements}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
 

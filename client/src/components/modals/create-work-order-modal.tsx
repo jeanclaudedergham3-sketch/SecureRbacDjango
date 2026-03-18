@@ -46,6 +46,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     accessInstructions: "",
     safetyRequirements: "",
     teamId: "",
+    totalPayment: "",
     status: "active",
   });
 
@@ -96,6 +97,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         problemDescription: workOrder.problemDescription || "",
         nte: workOrder.nte || "",
         tnte: workOrder.tnte || "",
+        totalPayment: (workOrder as any).totalPayment || "",
         startDate: workOrder.startDate ? new Date(workOrder.startDate).toISOString().split('T')[0] :
                    (workOrder.scheduledDate ? new Date(workOrder.scheduledDate).toISOString().split('T')[0] : ""),
         endDate: workOrder.endDate ? new Date(workOrder.endDate).toISOString().split('T')[0] : "",
@@ -122,6 +124,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         problemDescription: "",
         nte: "",
         tnte: "",
+        totalPayment: "",
         startDate: "",
         endDate: "",
         estimatedHours: "",
@@ -140,7 +143,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     e.preventDefault();
 
     if (!formData.clientName.trim() || !formData.country.trim() || !formData.city.trim() ||
-        !formData.street.trim() || !formData.description.trim() || !formData.nte.trim() || !formData.tnte.trim() ||
+        !formData.street.trim() || !formData.description.trim() ||
         !formData.startDate || !formData.endDate) {
       toast({
         title: "Error",
@@ -196,6 +199,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
       problemDescription: formData.problemDescription,
       nte: formData.nte || null,
       tnte: formData.tnte || null,
+      totalPayment: formData.totalPayment || null,
       startDate: formData.startDate,
       endDate: formData.endDate,
       urgency: formData.urgency,
@@ -418,11 +422,11 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
 
           {/* Financial Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium border-b pb-2">Financial Details</h3>
+            <h3 className="text-lg font-medium border-b pb-2">Financial Details <span className="text-sm text-gray-400 font-normal">(optional — can be filled later from the Overview)</span></h3>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="nte">NTE (without tax) *</Label>
+                <Label htmlFor="nte">NTE (without tax)</Label>
                 <Input
                   id="nte"
                   type="number"
@@ -430,11 +434,10 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
                   value={formData.nte}
                   onChange={(e) => setFormData(prev => ({ ...prev, nte: e.target.value }))}
                   placeholder="0.00"
-                  required
                 />
               </div>
               <div>
-                <Label htmlFor="tnte">TNTE (including tax) *</Label>
+                <Label htmlFor="tnte">TNTE (including tax)</Label>
                 <Input
                   id="tnte"
                   type="number"
@@ -442,7 +445,17 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
                   value={formData.tnte}
                   onChange={(e) => setFormData(prev => ({ ...prev, tnte: e.target.value }))}
                   placeholder="0.00"
-                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="totalPayment">Total Payment</Label>
+                <Input
+                  id="totalPayment"
+                  type="number"
+                  step="0.01"
+                  value={formData.totalPayment}
+                  onChange={(e) => setFormData(prev => ({ ...prev, totalPayment: e.target.value }))}
+                  placeholder="0.00"
                 />
               </div>
             </div>

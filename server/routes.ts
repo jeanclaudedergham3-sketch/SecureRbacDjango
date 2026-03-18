@@ -618,10 +618,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all proposals with work order info
   app.get("/api/proposals", requireAuth, requirePermission("proposals.list.view"), async (req, res) => {
     try {
+      const userPermissions = await storage.getUserPermissions(req.user.id);
+      const isAdmin = userPermissions.some(p => p.name === 'system.admin' || p.name === 'proposals.approve');
+      const currentUser = await storage.getUser(req.user.id);
+      const userTeamId = (currentUser as any)?.teamId || null;
+
       const workOrders = await storage.getAllWorkOrders();
       const proposalsWithWorkOrders = [];
       
       for (const workOrder of workOrders) {
+        // Team-based visibility: admins/approvers see all; others only see their team's proposals
+        if (!isAdmin && userTeamId !== null && (workOrder as any).teamId !== null) {
+          if ((workOrder as any).teamId !== userTeamId) continue;
+        }
         const proposal = await storage.getWorkOrderProposal(workOrder.id);
         if (proposal) {
           proposalsWithWorkOrders.push({
@@ -640,10 +649,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get work orders without proposals for proposal creation
   app.get("/api/work-orders-without-proposals", requireAuth, requirePermission("proposals.list.view"), async (req, res) => {
     try {
+      const userPermissions = await storage.getUserPermissions(req.user.id);
+      const isAdmin = userPermissions.some(p => p.name === 'system.admin' || p.name === 'proposals.approve');
+      const currentUser = await storage.getUser(req.user.id);
+      const userTeamId = (currentUser as any)?.teamId || null;
+
       const workOrders = await storage.getAllWorkOrders();
       const workOrdersWithoutProposals = [];
       
       for (const workOrder of workOrders) {
+        // Team-based visibility: admins/approvers see all; others only see their team's work orders
+        if (!isAdmin && userTeamId !== null && (workOrder as any).teamId !== null) {
+          if ((workOrder as any).teamId !== userTeamId) continue;
+        }
         const proposal = await storage.getWorkOrderProposal(workOrder.id);
         if (!proposal) {
           workOrdersWithoutProposals.push(workOrder);
