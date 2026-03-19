@@ -1003,11 +1003,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/work-orders/:id/payments", requireAuth, requirePermission("payments.create"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
+      const amount = parseFloat(req.body.amountRequested || "0");
+      if (amount >= 500 && req.body.technicianId) {
+        const tech = await storage.getTechnician(parseInt(req.body.technicianId));
+        if (!tech || tech.w9Status !== "submitted") {
+          return res.status(400).json({ message: "W9 required: payments of $500 or more require the technician to have a W9 on file before payment can be processed." });
+        }
+      }
       const paymentData = insertWorkOrderTechnicianPaymentSchema.parse({
         ...req.body,
         workOrderId
       });
-      
       const payment = await storage.createWorkOrderTechnicianPayment(paymentData);
       console.log(`Payment request created for work order ${workOrderId} by user ${req.session.userId}`);
       res.status(201).json(payment);
@@ -1023,6 +1029,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Direct payment creation endpoint (used by work order modal)
   app.post("/api/payments", requireAuth, async (req, res) => {
     try {
+      const amount = parseFloat(req.body.amountRequested || "0");
+      if (amount >= 500 && req.body.technicianId) {
+        const tech = await storage.getTechnician(parseInt(req.body.technicianId));
+        if (!tech || tech.w9Status !== "submitted") {
+          return res.status(400).json({ message: "W9 required: payments of $500 or more require the technician to have a W9 on file before payment can be processed." });
+        }
+      }
       console.log("Creating payment request:", req.body);
       const validatedData = insertWorkOrderTechnicianPaymentSchema.parse(req.body);
       const payment = await storage.createWorkOrderTechnicianPayment(validatedData);

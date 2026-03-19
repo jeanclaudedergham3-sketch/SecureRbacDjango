@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useWatch } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -14,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DollarSign, CreditCard, Building, Smartphone, QrCode, ArrowLeftRight, User, Mail, Phone, MapPin, Star, Clock, Briefcase, Award } from "lucide-react";
+import { DollarSign, CreditCard, Building, Smartphone, QrCode, ArrowLeftRight, User, Mail, Phone, MapPin, Star, Clock, Briefcase, Award, AlertTriangle, FileText } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AdvancedPermissionGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
@@ -129,6 +130,15 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
   const { data: technicians = [] } = useQuery({
     queryKey: ["/api/technicians"],
   });
+
+  const amountValue = useWatch({ control: form.control, name: "amountRequested" });
+
+  const w9Blocked = useMemo(() => {
+    if (!selectedTechnician) return false;
+    const amount = parseFloat(amountValue || "0");
+    if (amount < 500) return false;
+    return selectedTechnician.w9Status !== "submitted";
+  }, [selectedTechnician, amountValue]);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -490,6 +500,24 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                 )}
               />
 
+              {/* W9 Blocking Warning */}
+              {w9Blocked && (
+                <div className="rounded-lg border border-red-300 bg-red-50 p-4 flex gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-red-700">W9 Required — Payment Blocked</p>
+                    <p className="text-sm text-red-600 mt-1">
+                      Payments of <span className="font-semibold">$500 or more</span> require the technician to have a W9 on file. 
+                      {" "}<span className="font-semibold">{selectedTechnician?.firstName} {selectedTechnician?.lastName}</span> does not have a submitted W9 yet.
+                    </p>
+                    <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                      <FileText className="h-3.5 w-3.5" />
+                      Please upload a W9 for this technician in the Technician profile first, then retry.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <Separator />
 
               <div className="flex justify-end gap-3">
@@ -499,8 +527,9 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                 <ButtonGuard buttonType="create">
                   <Button 
                     type="submit" 
-                    disabled={createPaymentMutation.isPending}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={createPaymentMutation.isPending || w9Blocked}
+                    className={w9Blocked ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}
+                    title={w9Blocked ? "W9 required for payments $500 or more" : undefined}
                   >
                     {createPaymentMutation.isPending ? "Creating..." : "Create Payment Request"}
                   </Button>

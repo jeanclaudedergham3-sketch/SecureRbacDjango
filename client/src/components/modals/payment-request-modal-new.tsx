@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,6 +37,8 @@ import {
   Building,
   Smartphone,
   ArrowLeftRight,
+  AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -192,6 +194,15 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
       return [];
     }
   }, [selectedTechnician]);
+
+  const amountValue = useWatch({ control: form.control, name: "amountRequested" });
+
+  const w9Blocked = useMemo(() => {
+    if (!selectedTechnician) return false;
+    const amount = parseFloat(amountValue || "0");
+    if (amount < 500) return false;
+    return selectedTechnician.w9Status !== "submitted";
+  }, [selectedTechnician, amountValue]);
 
   const handleTechnicianChange = (value: string) => {
     const technician = (technicians as any[]).find((t: any) => t.id.toString() === value);
@@ -455,14 +466,33 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
                   )}
                 />
 
+                {/* W9 Blocking Warning */}
+                {w9Blocked && (
+                  <div className="rounded-lg border border-red-300 bg-red-50 p-4 flex gap-3">
+                    <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-red-700">W9 Required — Payment Blocked</p>
+                      <p className="text-sm text-red-600 mt-1">
+                        Payments of <span className="font-semibold">$500 or more</span> require the technician to have a W9 on file.{" "}
+                        <span className="font-semibold">{selectedTechnician?.firstName} {selectedTechnician?.lastName}</span> does not have a submitted W9 yet.
+                      </p>
+                      <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                        <FileText className="h-3.5 w-3.5" />
+                        Please upload a W9 for this technician in the Technician profile first, then retry.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                   </Button>
                   <Button 
                     type="submit" 
-                    disabled={createPaymentMutation.isPending}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    disabled={createPaymentMutation.isPending || w9Blocked}
+                    className={w9Blocked ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"}
+                    title={w9Blocked ? "W9 required for payments $500 or more" : undefined}
                   >
                     {createPaymentMutation.isPending ? "Creating..." : "Create Payment Request"}
                   </Button>
