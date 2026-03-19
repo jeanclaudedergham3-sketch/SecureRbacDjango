@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, Phone, Mail, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, BarChart3, Building, Pencil, X, Save, Users, ClipboardList, Clock, Shield, Printer } from "lucide-react";
+import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, Phone, Mail, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, BarChart3, Building, Pencil, X, Save, Users, ClipboardList, Clock, Shield, Printer, XCircle, Lock, Ban } from "lucide-react";
 import { AdvancedPermissionGuard, TabGuard, ButtonGuard, useAdvancedPermissions } from "@/components/rbac/advanced-permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
@@ -67,6 +67,10 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [isViewChatModalOpen, setIsViewChatModalOpen] = useState(false);
   const [isViewPaymentModalOpen, setIsViewPaymentModalOpen] = useState(false);
 
+  // Reject work order state
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+
   // Inline financial editing state
   const [isEditingFinancials, setIsEditingFinancials] = useState(false);
   const [financialEdit, setFinancialEdit] = useState({ nte: "", tnte: "", totalPayment: "" });
@@ -90,6 +94,24 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
       toast({ title: "Error", description: error.message || "Failed to update", variant: "destructive" });
     },
   });
+
+  const rejectWorkOrderMutation = useMutation({
+    mutationFn: async (reason: string) => {
+      const response = await apiRequest("POST", `/api/work-orders/${workOrder.id}/reject`, { reason });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+      setIsRejectDialogOpen(false);
+      setRejectReason("");
+      toast({ title: "Work Order Rejected", description: "The work order has been rejected and locked.", variant: "destructive" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to reject work order", variant: "destructive" });
+    },
+  });
+
+  const isRejected = workOrder.status === "rejected" || (workOrder as any).isLocked;
 
   const { data: proposalData } = useQuery({
     queryKey: [`/api/work-orders/${workOrder?.id}/proposal`],
@@ -502,14 +524,35 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
+            {/* Rejection Banner — shown when rejected */}
+            {isRejected && (
+              <div className="flex items-start gap-3 p-4 bg-red-50 border-2 border-red-300 rounded-xl">
+                <Ban className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-red-700 text-sm">This work order has been REJECTED and is locked</p>
+                  {(workOrder as any).rejectionReason && (
+                    <p className="text-red-600 text-sm mt-1">
+                      <span className="font-semibold">Reason: </span>{(workOrder as any).rejectionReason}
+                    </p>
+                  )}
+                  {(workOrder as any).rejectedAt && (
+                    <p className="text-red-400 text-xs mt-1">
+                      Rejected on {new Date((workOrder as any).rejectedAt).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+                <Lock className="h-5 w-5 text-red-400 flex-shrink-0" />
+              </div>
+            )}
+
             {/* Top Status Banner */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-4 text-white">
+            <div className={`rounded-xl p-4 text-white ${isRejected ? "bg-gradient-to-r from-red-700 to-red-500" : "bg-gradient-to-r from-blue-600 to-indigo-600"}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-blue-200 text-xs font-medium uppercase tracking-wide">Work Order</p>
+                  <p className={`text-xs font-medium uppercase tracking-wide ${isRejected ? "text-red-200" : "text-blue-200"}`}>Work Order</p>
                   <p className="text-2xl font-bold">{workOrder.workOrderNumber}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 items-center">
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                     workOrder.priority === "urgent" ? "bg-red-500 text-white" :
                     workOrder.priority === "high" ? "bg-orange-400 text-white" :
@@ -518,9 +561,22 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                   }`}>{(workOrder.priority || "medium").toUpperCase()} PRIORITY</span>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                     workOrder.status === "completed" ? "bg-green-400 text-green-900" :
+                    workOrder.status === "rejected" ? "bg-red-900 text-white" :
                     workOrder.status === "cancelled" ? "bg-red-400 text-white" :
                     "bg-blue-300 text-blue-900"
                   }`}>{(workOrder.status || "active").toUpperCase()}</span>
+                  {/* Reject button — only if not already rejected */}
+                  {!isRejected && (
+                    <ButtonGuard permission="workorders.edit">
+                      <button
+                        onClick={() => { setRejectReason(""); setIsRejectDialogOpen(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/30 text-white text-xs font-semibold transition-all"
+                      >
+                        <XCircle className="h-3.5 w-3.5" />
+                        Reject Work Order
+                      </button>
+                    </ButtonGuard>
+                  )}
                 </div>
               </div>
             </div>
@@ -2143,6 +2199,71 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
           onClose={() => setIsPaymentRequestModalOpen(false)}
           workOrder={workOrder}
         />
+      )}
+
+      {/* Reject Work Order Dialog */}
+      {isRejectDialogOpen && (
+        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-700">
+                <XCircle className="h-5 w-5 text-red-600" />
+                Reject Work Order
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-red-700">
+                  <p className="font-semibold">This action will lock the work order.</p>
+                  <p className="mt-1 text-red-600">All editing, proposals, payments, and other actions will be disabled. This cannot be undone from the interface.</p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-lg border text-sm text-slate-700">
+                <span className="text-slate-500">Work Order: </span>
+                <span className="font-semibold">{workOrder.workOrderNumber}</span>
+                {workOrder.title && (
+                  <span className="text-slate-500"> — {workOrder.title}</span>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Why is this work order being rejected? <span className="text-red-500">*</span>
+                </label>
+                <Textarea
+                  placeholder="Enter the rejection reason — e.g. Client cancelled, budget not approved, duplicate work order..."
+                  rows={4}
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  className="border-red-200 focus:border-red-400 resize-none"
+                />
+                {rejectReason.trim().length > 0 && (
+                  <p className="text-xs text-slate-400">{rejectReason.trim().length} characters</p>
+                )}
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => { setIsRejectDialogOpen(false); setRejectReason(""); }}
+                  disabled={rejectWorkOrderMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
+                  disabled={!rejectReason.trim() || rejectWorkOrderMutation.isPending}
+                  onClick={() => rejectWorkOrderMutation.mutate(rejectReason)}
+                >
+                  <XCircle className="h-4 w-4" />
+                  {rejectWorkOrderMutation.isPending ? "Rejecting..." : "Confirm Rejection"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </Dialog>
   );

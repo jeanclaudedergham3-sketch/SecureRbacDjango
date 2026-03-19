@@ -475,6 +475,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/work-orders/:id/reject", requireAuth, requirePermission("workorders.edit"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { reason } = req.body;
+      if (!reason || !reason.trim()) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+      const workOrder = await storage.updateWorkOrder(id, {
+        status: "rejected",
+        isLocked: true,
+        rejectionReason: reason.trim(),
+        rejectedAt: new Date(),
+      } as any);
+      if (!workOrder) {
+        return res.status(404).json({ message: "Work order not found" });
+      }
+      res.json(workOrder);
+    } catch (error) {
+      console.error("Error rejecting work order:", error);
+      res.status(500).json({ message: "Failed to reject work order" });
+    }
+  });
+
   app.delete("/api/work-orders/:id", requireAuth, requirePermission("workorders.delete"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
