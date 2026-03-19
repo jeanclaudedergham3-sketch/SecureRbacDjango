@@ -26,10 +26,32 @@ export default function TechniciansPage() {
     queryKey: ["/api/technicians"],
   });
 
+  const uploadW9 = async (technicianId: number, file: File) => {
+    const formData = new FormData();
+    formData.append("w9", file);
+    try {
+      const res = await fetch(`/api/technicians/${technicianId}/w9`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Upload failed" }));
+        throw new Error(err.message || "W9 upload failed");
+      }
+      toast({ title: "W9 uploaded", description: "W9 document uploaded successfully." });
+    } catch (err: any) {
+      toast({ title: "W9 upload failed", description: err.message || "Failed to upload W9. Please try again from Edit Technician.", variant: "destructive" });
+    }
+  };
+
   const createTechnicianMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/technicians", data);
-      return response.json();
+      const { _w9File, ...submitData } = data;
+      const response = await apiRequest("POST", "/api/technicians", submitData);
+      const saved = await response.json();
+      if (_w9File && saved?.id) await uploadW9(saved.id, _w9File);
+      return saved;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });
@@ -48,8 +70,11 @@ export default function TechniciansPage() {
 
   const updateTechnicianMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const response = await apiRequest("PUT", `/api/technicians/${id}`, data);
-      return response.json();
+      const { _w9File, ...submitData } = data;
+      const response = await apiRequest("PUT", `/api/technicians/${id}`, submitData);
+      const saved = await response.json();
+      if (_w9File && id) await uploadW9(id, _w9File);
+      return saved;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,7 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Phone, Mail, MapPin, Star, CreditCard } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { User, Phone, Mail, MapPin, Star, CreditCard, FileText, Upload, CheckCircle, Clock, X, AlertCircle } from "lucide-react";
 import type { Technician } from "@shared/schema";
 
 const technicianSchema = z.object({
@@ -77,6 +78,9 @@ export function TechnicianModal({
 }: TechnicianModalProps) {
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
   const [paymentDetails, setPaymentDetails] = useState<{[key: string]: string}>({});
+  const [w9File, setW9File] = useState<File | null>(null);
+  const [w9UploadError, setW9UploadError] = useState<string | null>(null);
+  const w9InputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<TechnicianFormData>({
     resolver: zodResolver(technicianSchema),
@@ -166,6 +170,8 @@ export function TechnicianModal({
         });
         setSelectedPaymentMethods([]);
       }
+      setW9File(null);
+      setW9UploadError(null);
     }
   }, [isOpen, mode, initialData, form]);
 
@@ -213,7 +219,7 @@ export function TechnicianModal({
       }
     }
 
-    onSubmit(processedData);
+    onSubmit({ ...processedData, _w9File: w9File });
   };
 
   return (
@@ -524,6 +530,91 @@ export function TechnicianModal({
                         )}
                       />
                     )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* W9 Tax Document */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  W9 Tax Document
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Required for payments of $500 or more. Upload the technician's W9 form (PDF or image).</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Current W9 status when editing */}
+                {mode === "edit" && initialData && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+                    {initialData.w9Status === "submitted" ? (
+                      <>
+                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-green-700">W9 on file</p>
+                          {initialData.w9FileName && (
+                            <p className="text-xs text-slate-500 truncate">{initialData.w9FileName}</p>
+                          )}
+                        </div>
+                        <Badge className="bg-green-100 text-green-700 border-green-300">Submitted</Badge>
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-amber-700">No W9 on file</p>
+                          <p className="text-xs text-slate-500">Payments of $500+ will be blocked until a W9 is uploaded</p>
+                        </div>
+                        <Badge className="bg-amber-100 text-amber-700 border-amber-300">Not Submitted</Badge>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* File picker */}
+                <input
+                  ref={w9InputRef}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setW9File(file);
+                    setW9UploadError(null);
+                  }}
+                />
+                {w9File ? (
+                  <div className="flex items-center gap-3 p-3 border-2 border-blue-300 bg-blue-50 rounded-lg">
+                    <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-blue-800 truncate">{w9File.name}</p>
+                      <p className="text-xs text-blue-500">{(w9File.size / 1024).toFixed(1)} KB — will be uploaded on save</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setW9File(null); if (w9InputRef.current) w9InputRef.current.value = ""; }}
+                      className="text-red-400 hover:text-red-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => w9InputRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                  >
+                    <Upload className="h-4 w-4" />
+                    {mode === "edit" && initialData?.w9Status === "submitted" ? "Replace W9 document" : "Upload W9 document"} (PDF or image)
+                  </button>
+                )}
+
+                {/* Upload error */}
+                {w9UploadError && (
+                  <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-300 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-600">{w9UploadError}</p>
                   </div>
                 )}
               </CardContent>
