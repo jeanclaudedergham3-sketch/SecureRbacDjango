@@ -928,7 +928,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Fetching all payments...");
       // Get all payments with work order and technician details
-      const allPayments = await storage.getWorkOrderTechnicianPayments(0); // 0 = all
+      const allPayments = await storage.getAllTechnicianPayments();
       console.log("Found payments:", allPayments);
       
       const workOrders = await storage.getAllWorkOrders();
@@ -958,7 +958,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const technicianId = parseInt(req.params.technicianId);
       console.log(`Fetching payment history for technician ${technicianId}`);
       
-      const allPayments = await storage.getWorkOrderTechnicianPayments(0);
+      const allPayments = await storage.getAllTechnicianPayments();
       const workOrders = await storage.getAllWorkOrders();
       
       console.log(`Total payments found: ${allPayments.length}`);

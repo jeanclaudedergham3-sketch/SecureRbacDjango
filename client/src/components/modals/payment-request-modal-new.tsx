@@ -46,9 +46,9 @@ import { AdvancedPermissionGuard } from "@/components/rbac/advanced-permission-g
 
 const paymentRequestSchema = z.object({
   technicianId: z.string().min(1, "Technician is required"),
-  amountRequested: z.string().min(1, "Amount is required"),
+  amountRequested: z.string().min(1, "Amount is required").refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, "Amount must be greater than 0"),
   description: z.string().optional(),
-  paymentMethods: z.array(z.string()).min(1, "At least one payment method is required"),
+  paymentMethods: z.array(z.string()).optional().default([]),
   priority: z.enum(["low", "normal", "high", "urgent"]),
   dueDate: z.string().optional(),
 });
@@ -322,6 +322,12 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
                 </div>
 
                 {/* Payment Methods */}
+                {selectedTechnician && availablePaymentMethods.length === 0 && (
+                  <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                    <span>This technician has no payment methods configured. You can still create the request — edit the technician's profile to add payment methods.</span>
+                  </div>
+                )}
                 {selectedTechnician && availablePaymentMethods.length > 0 && (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
