@@ -160,6 +160,12 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
     enabled: !!workOrder?.id,
   });
 
+  const { data: invoiceData } = useQuery({
+    queryKey: [`/api/work-orders/${workOrder?.id}/invoice`],
+    enabled: !!workOrder?.id,
+    retry: false,
+  });
+
   const [isAddingClientPayment, setIsAddingClientPayment] = useState(false);
   const [clientPaymentForm, setClientPaymentForm] = useState({
     paymentType: "full",
@@ -615,6 +621,134 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                 </div>
               </div>
             </div>
+
+            {/* ── Work Order Progress Tracker ── */}
+            {(() => {
+              const proposalStatus = (proposalData as any)?.status;
+              const hasApprovedProposal = proposalStatus === "approved";
+              const hasPendingProposal = !!proposalData && !hasApprovedProposal;
+              const hasPartsRequest = (partsRequests as any[]).length > 0;
+              const hasInvoice = !!(invoiceData as any)?.id;
+              const hasTechPayment = (existingPayments as any[]).length > 0;
+              const hasClientPayment = (clientPayments as any[]).length > 0;
+              const isCompleted = workOrder.status === "completed";
+              const isRej = isRejected; // use top-level: status==="rejected" || isLocked
+
+              const steps: {
+                label: string;
+                sublabel: string;
+                status: "done" | "skipped" | "active" | "waiting" | "error";
+                icon: React.ReactNode;
+              }[] = [
+                {
+                  label: "Created",
+                  sublabel: workOrder.createdAt ? new Date(workOrder.createdAt).toLocaleDateString() : "Done",
+                  status: "done",
+                  icon: <CheckCircle className="h-4 w-4" />,
+                },
+                {
+                  label: "Proposal",
+                  sublabel: isRej ? "Rejected" : isFastWorkOrder ? "Skipped (Fast Track)" : hasApprovedProposal ? "Approved" : hasPendingProposal ? `${proposalStatus}` : "Not submitted",
+                  status: isRej ? "error" : isFastWorkOrder ? "skipped" : hasApprovedProposal ? "done" : hasPendingProposal ? "active" : "waiting",
+                  icon: <Receipt className="h-4 w-4" />,
+                },
+                {
+                  label: "Parts",
+                  sublabel: hasPartsRequest ? `${(partsRequests as any[]).length} request${(partsRequests as any[]).length > 1 ? "s" : ""}` : "No request",
+                  status: hasPartsRequest ? "done" : "waiting",
+                  icon: <Hammer className="h-4 w-4" />,
+                },
+                {
+                  label: "Tech Payment",
+                  sublabel: hasTechPayment ? `${(existingPayments as any[]).length} request${(existingPayments as any[]).length > 1 ? "s" : ""}` : "Not requested",
+                  status: hasTechPayment ? "done" : "waiting",
+                  icon: <DollarSign className="h-4 w-4" />,
+                },
+                {
+                  label: "Invoice",
+                  sublabel: hasInvoice ? `#${(invoiceData as any).invoiceNumber || "Created"}` : "Not created",
+                  status: hasInvoice ? "done" : "waiting",
+                  icon: <FileText className="h-4 w-4" />,
+                },
+                {
+                  label: "Client Payment",
+                  sublabel: hasClientPayment ? `${(clientPayments as any[]).length} payment${(clientPayments as any[]).length > 1 ? "s" : ""}` : "Not received",
+                  status: hasClientPayment ? "done" : "waiting",
+                  icon: <CreditCard className="h-4 w-4" />,
+                },
+                {
+                  label: "Completed",
+                  sublabel: isRej ? "Rejected & Locked" : isCompleted ? "Done" : "In progress",
+                  status: isRej ? "error" : isCompleted ? "done" : "waiting",
+                  icon: isCompleted ? <CheckCircle className="h-4 w-4" /> : <Clock className="h-4 w-4" />,
+                },
+              ];
+
+              const colorMap = {
+                done:    { bg: "bg-green-500",  ring: "ring-green-200",  text: "text-green-700",  bar: "bg-green-400",  labelColor: "text-green-700",  sublabel: "text-green-600" },
+                skipped: { bg: "bg-amber-400",  ring: "ring-amber-200",  text: "text-amber-700",  bar: "bg-amber-300",  labelColor: "text-amber-700",  sublabel: "text-amber-500" },
+                active:  { bg: "bg-blue-500",   ring: "ring-blue-200",   text: "text-blue-700",   bar: "bg-blue-300",   labelColor: "text-blue-700",   sublabel: "text-blue-500" },
+                waiting: { bg: "bg-slate-200",  ring: "ring-slate-100",  text: "text-slate-400",  bar: "bg-slate-100",  labelColor: "text-slate-500",  sublabel: "text-slate-400" },
+                error:   { bg: "bg-red-500",    ring: "ring-red-200",    text: "text-red-100",    bar: "bg-red-300",    labelColor: "text-red-700",    sublabel: "text-red-500" },
+              };
+
+              const doneCount = steps.filter(s => s.status === "done" || s.status === "skipped").length;
+              const pct = Math.round((doneCount / steps.length) * 100);
+
+              return (
+                <Card className="border border-slate-200 shadow-sm">
+                  <CardHeader className="pb-2 pt-3 px-4">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                        <BarChart3 className="h-4 w-4 text-slate-400" />
+                        Work Order Progress
+                      </CardTitle>
+                      <span className="text-xs font-bold text-slate-500">{doneCount}/{steps.length} steps complete</span>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${isRej ? "bg-red-400" : isCompleted ? "bg-green-500" : "bg-blue-500"}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 pt-1">
+                    <div className="flex items-start gap-0 overflow-x-auto pb-1">
+                      {steps.map((step, i) => {
+                        const c = colorMap[step.status];
+                        const isLast = i === steps.length - 1;
+                        return (
+                          <div key={step.label} className="flex items-start flex-1 min-w-0">
+                            <div className="flex flex-col items-center flex-1 min-w-0">
+                              {/* Circle + icon */}
+                              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ring-4 ${c.bg} ${c.ring} ${c.text} shadow-sm`}>
+                                {step.icon}
+                              </div>
+                              {/* Label */}
+                              <p className={`mt-1.5 text-xs font-semibold text-center leading-tight ${c.labelColor} max-w-[72px]`}>
+                                {step.label}
+                              </p>
+                              {/* Sub-label */}
+                              <p className={`text-[10px] text-center leading-tight mt-0.5 ${c.sublabel} max-w-[72px] break-words`}>
+                                {step.sublabel}
+                              </p>
+                            </div>
+                            {/* Connector line */}
+                            {!isLast && (
+                              <div className={`flex-shrink-0 w-full h-0.5 mt-4 mx-1 rounded-full ${
+                                (steps[i].status === "done" || steps[i].status === "skipped") && (steps[i+1].status === "done" || steps[i+1].status === "skipped" || steps[i+1].status === "active")
+                                  ? "bg-green-400" : "bg-slate-200"
+                              }`} style={{ maxWidth: 32 }} />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
