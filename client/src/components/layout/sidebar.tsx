@@ -109,7 +109,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <h1 className={cn(
               "ml-4 text-xl font-bold text-white transition-all duration-500 bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent",
               isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
-            )}>UVG</h1>
+            )}>Noviq</h1>
           </div>
 
           {/* User Info */}
