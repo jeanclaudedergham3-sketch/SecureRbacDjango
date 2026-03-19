@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, Phone, Mail, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, BarChart3, Building, Pencil, X, Save, Users, ClipboardList, Clock, Shield, Printer, XCircle, Lock, Ban } from "lucide-react";
+import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, Phone, Mail, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, BarChart3, Building, Pencil, X, Save, Users, ClipboardList, Clock, Shield, Printer, XCircle, Lock, Ban, Zap } from "lucide-react";
 import { AdvancedPermissionGuard, TabGuard, ButtonGuard, useAdvancedPermissions } from "@/components/rbac/advanced-permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
@@ -112,6 +112,21 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   });
 
   const isRejected = workOrder.status === "rejected" || (workOrder as any).isLocked;
+  const isFastWorkOrder = !!(workOrder as any).isFastWorkOrder;
+
+  const fastTrackMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/work-orders/${workOrder.id}/fast-track`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+      toast({ title: "Fast Work Order Set", description: "This work order no longer requires a proposal." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update work order", variant: "destructive" });
+    },
+  });
 
   const { data: proposalData } = useQuery({
     queryKey: [`/api/work-orders/${workOrder?.id}/proposal`],
@@ -565,6 +580,26 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
                     workOrder.status === "cancelled" ? "bg-red-400 text-white" :
                     "bg-blue-300 text-blue-900"
                   }`}>{(workOrder.status || "active").toUpperCase()}</span>
+                  {/* Fast Work Order badge */}
+                  {isFastWorkOrder && (
+                    <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-400 text-amber-900">
+                      <Zap className="h-3 w-3 fill-amber-900" />
+                      FAST TRACK
+                    </span>
+                  )}
+                  {/* Make Fast Work Order button — only if not fast and not rejected */}
+                  {!isFastWorkOrder && !isRejected && (
+                    <ButtonGuard permission="workorders.edit">
+                      <button
+                        onClick={() => fastTrackMutation.mutate()}
+                        disabled={fastTrackMutation.isPending}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400/20 hover:bg-amber-400/40 border border-amber-300/60 text-amber-100 text-xs font-semibold transition-all"
+                      >
+                        <Zap className="h-3.5 w-3.5" />
+                        {fastTrackMutation.isPending ? "Saving..." : "Fast Work Order"}
+                      </button>
+                    </ButtonGuard>
+                  )}
                   {/* Reject button — only if not already rejected */}
                   {!isRejected && (
                     <ButtonGuard permission="workorders.edit">
@@ -904,6 +939,16 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
 
           <TabGuard tabName="proposal">
             <TabsContent value="proposal" className="space-y-4">
+            {/* Fast Work Order notice */}
+            {isFastWorkOrder && (
+              <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <Zap className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5 fill-amber-400" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Fast Work Order — No Proposal Required</p>
+                  <p className="text-xs text-amber-700 mt-0.5">This work order has been marked as fast track. It can be completed and invoiced without an approved proposal. A proposal is still optional if needed.</p>
+                </div>
+              </div>
+            )}
             {proposalData ? (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">

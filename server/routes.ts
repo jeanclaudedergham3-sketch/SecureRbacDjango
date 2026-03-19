@@ -498,6 +498,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/work-orders/:id/fast-track", requireAuth, requirePermission("workorders.edit"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const workOrder = await storage.updateWorkOrder(id, { isFastWorkOrder: true } as any);
+      if (!workOrder) return res.status(404).json({ message: "Work order not found" });
+      res.json(workOrder);
+    } catch (error) {
+      console.error("Error marking fast work order:", error);
+      res.status(500).json({ message: "Failed to update work order" });
+    }
+  });
+
   app.delete("/api/work-orders/:id", requireAuth, requirePermission("workorders.delete"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
