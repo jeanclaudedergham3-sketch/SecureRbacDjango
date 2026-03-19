@@ -1517,10 +1517,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/client-payments/:id", requireAuth, async (req, res) => {
     try {
-      const payment = await storage.updateWorkOrderClientPayment(parseInt(req.params.id), req.body);
+      const body: any = { ...req.body };
+      if (body.receivedAt) body.receivedAt = new Date(body.receivedAt);
+      if (body.createdAt) body.createdAt = new Date(body.createdAt);
+      const payment = await storage.updateWorkOrderClientPayment(parseInt(req.params.id), body);
       if (!payment) return res.status(404).json({ message: "Payment not found" });
       res.json(payment);
     } catch (error) {
+      console.error("Error updating client payment:", error);
       res.status(400).json({ message: "Failed to update client payment" });
     }
   });
