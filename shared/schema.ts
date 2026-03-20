@@ -97,6 +97,7 @@ export const teams = pgTable("teams", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   teamLeadId: integer("team_lead_id").references(() => technicians.id, { onDelete: "set null" }),
+  leadUserId: integer("lead_user_id").references(() => users.id, { onDelete: "set null" }),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -104,7 +105,8 @@ export const teams = pgTable("teams", {
 export const teamMembers = pgTable("team_members", {
   id: serial("id").primaryKey(),
   teamId: integer("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
-  technicianId: integer("technician_id").notNull().references(() => technicians.id, { onDelete: "cascade" }),
+  technicianId: integer("technician_id").references(() => technicians.id, { onDelete: "cascade" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
 });
 
@@ -314,6 +316,7 @@ export const techniciansRelations = relations(technicians, ({ many }) => ({
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
   teamLead: one(technicians, { fields: [teams.teamLeadId], references: [technicians.id] }),
+  leadUser: one(users, { fields: [teams.leadUserId], references: [users.id] }),
   members: many(teamMembers),
   workOrders: many(workOrders),
 }));
@@ -321,6 +324,7 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
 export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
   team: one(teams, { fields: [teamMembers.teamId], references: [teams.id] }),
   technician: one(technicians, { fields: [teamMembers.technicianId], references: [technicians.id] }),
+  user: one(users, { fields: [teamMembers.userId], references: [users.id] }),
 }));
 
 export const workOrdersRelations = relations(workOrders, ({ one, many }) => ({
@@ -500,7 +504,8 @@ export type RoleWithPermissions = Role & {
 
 export type TeamWithDetails = Team & {
   teamLead?: Technician;
-  members?: (TeamMember & { technician: Technician })[];
+  leadUser?: User;
+  members?: (TeamMember & { technician?: Technician; user?: User })[];
 };
 
 export type WorkOrderWithUsers = WorkOrder & {

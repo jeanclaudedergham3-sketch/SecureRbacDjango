@@ -121,8 +121,8 @@ export interface IStorage {
   createTeam(team: InsertTeam): Promise<Team>;
   updateTeam(id: number, team: Partial<InsertTeam>): Promise<Team | undefined>;
   deleteTeam(id: number): Promise<boolean>;
-  addTeamMember(teamId: number, technicianId: number): Promise<TeamMember>;
-  removeTeamMember(teamId: number, technicianId: number): Promise<boolean>;
+  addTeamMember(teamId: number, userId: number): Promise<TeamMember>;
+  removeTeamMember(teamId: number, userId: number): Promise<boolean>;
   
   // Work Order Client Payment operations
   getWorkOrderClientPayments(workOrderId: number): Promise<WorkOrderClientPayment[]>;
@@ -551,17 +551,28 @@ export class DatabaseStorage implements IStorage {
     const result: TeamWithDetails[] = [];
     for (const team of teamsData) {
       const members = await db.select().from(teamMembers).where(eq(teamMembers.teamId, team.id));
-      const membersWithTech: (TeamMember & { technician: Technician })[] = [];
+      const membersResolved: (TeamMember & { technician?: Technician; user?: User })[] = [];
       for (const member of members) {
-        const [tech] = await db.select().from(technicians).where(eq(technicians.id, member.technicianId));
-        if (tech) membersWithTech.push({ ...member, technician: tech });
+        if (member.userId) {
+          const [u] = await db.select().from(users).where(eq(users.id, member.userId));
+          membersResolved.push({ ...member, user: u });
+        } else if (member.technicianId) {
+          const [tech] = await db.select().from(technicians).where(eq(technicians.id, member.technicianId));
+          membersResolved.push({ ...member, technician: tech });
+        } else {
+          membersResolved.push(member);
+        }
       }
       let teamLead: Technician | undefined;
-      if (team.teamLeadId) {
+      let leadUser: User | undefined;
+      if (team.leadUserId) {
+        const [u] = await db.select().from(users).where(eq(users.id, team.leadUserId));
+        leadUser = u;
+      } else if (team.teamLeadId) {
         const [lead] = await db.select().from(technicians).where(eq(technicians.id, team.teamLeadId));
         teamLead = lead;
       }
-      result.push({ ...team, teamLead, members: membersWithTech });
+      result.push({ ...team, teamLead, leadUser, members: membersResolved });
     }
     return result;
   }
@@ -570,17 +581,28 @@ export class DatabaseStorage implements IStorage {
     const [team] = await db.select().from(teams).where(eq(teams.id, id));
     if (!team) return undefined;
     const members = await db.select().from(teamMembers).where(eq(teamMembers.teamId, id));
-    const membersWithTech: (TeamMember & { technician: Technician })[] = [];
+    const membersResolved: (TeamMember & { technician?: Technician; user?: User })[] = [];
     for (const member of members) {
-      const [tech] = await db.select().from(technicians).where(eq(technicians.id, member.technicianId));
-      if (tech) membersWithTech.push({ ...member, technician: tech });
+      if (member.userId) {
+        const [u] = await db.select().from(users).where(eq(users.id, member.userId));
+        membersResolved.push({ ...member, user: u });
+      } else if (member.technicianId) {
+        const [tech] = await db.select().from(technicians).where(eq(technicians.id, member.technicianId));
+        membersResolved.push({ ...member, technician: tech });
+      } else {
+        membersResolved.push(member);
+      }
     }
     let teamLead: Technician | undefined;
-    if (team.teamLeadId) {
+    let leadUser: User | undefined;
+    if (team.leadUserId) {
+      const [u] = await db.select().from(users).where(eq(users.id, team.leadUserId));
+      leadUser = u;
+    } else if (team.teamLeadId) {
       const [lead] = await db.select().from(technicians).where(eq(technicians.id, team.teamLeadId));
       teamLead = lead;
     }
-    return { ...team, teamLead, members: membersWithTech };
+    return { ...team, teamLead, leadUser, members: membersResolved };
   }
 
   async createTeam(insertTeam: InsertTeam): Promise<Team> {
@@ -598,14 +620,14 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount! > 0;
   }
 
-  async addTeamMember(teamId: number, technicianId: number): Promise<TeamMember> {
-    const [member] = await db.insert(teamMembers).values({ teamId, technicianId }).returning();
+  async addTeamMember(teamId: number, userId: number): Promise<TeamMember> {
+    const [member] = await db.insert(teamMembers).values({ teamId, userId }).returning();
     return member;
   }
 
-  async removeTeamMember(teamId: number, technicianId: number): Promise<boolean> {
+  async removeTeamMember(teamId: number, userId: number): Promise<boolean> {
     const result = await db.delete(teamMembers)
-      .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.technicianId, technicianId)));
+      .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
     return result.rowCount! > 0;
   }
 

@@ -1474,17 +1474,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/teams/:id/members", requireAuth, async (req, res) => {
     try {
-      const { technicianId } = req.body;
-      const member = await storage.addTeamMember(parseInt(req.params.id), technicianId);
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ message: "userId is required" });
+      const member = await storage.addTeamMember(parseInt(req.params.id), userId);
       res.status(201).json(member);
     } catch (error) {
       res.status(400).json({ message: "Failed to add team member" });
     }
   });
 
-  app.delete("/api/teams/:id/members/:technicianId", requireAuth, async (req, res) => {
+  app.delete("/api/teams/:id/members/:userId", requireAuth, async (req, res) => {
     try {
-      const removed = await storage.removeTeamMember(parseInt(req.params.id), parseInt(req.params.technicianId));
+      const removed = await storage.removeTeamMember(parseInt(req.params.id), parseInt(req.params.userId));
       if (!removed) return res.status(404).json({ message: "Team member not found" });
       res.json({ message: "Member removed from team" });
     } catch (error) {
