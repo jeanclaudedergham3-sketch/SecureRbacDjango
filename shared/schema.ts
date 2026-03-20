@@ -150,6 +150,7 @@ export const workOrders = pgTable("work_orders", {
   safetyRequirements: text("safety_requirements"),
   // Assignment
   assignedUserIds: text("assigned_user_ids"), // JSON array as text
+  assignedTechnicianIds: text("assigned_technician_ids"), // JSON array of technician IDs
   clientWorkOrderNumber: varchar("client_work_order_number", { length: 255 }),
   isLocked: boolean("is_locked").notNull().default(false),
   isFastWorkOrder: boolean("is_fast_work_order").notNull().default(false),
@@ -504,4 +505,5 @@ export type TeamWithDetails = Team & {
 
 export type WorkOrderWithUsers = WorkOrder & {
   assignedUsers?: User[];
+  assignedTechnicians?: Technician[];
 };
