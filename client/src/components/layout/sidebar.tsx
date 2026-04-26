@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp, UsersRound, Search } from "lucide-react";
+import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -38,7 +38,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Operations",
       items: [
         { name: "Work Orders", href: "/work-orders", icon: ClipboardList, permission: "sidebar.operations" },
-        { name: "Job Inspections", href: "/job-inspections", icon: Search, permission: "sidebar.operations" },
         { name: "Parts Requests", href: "/parts-requests", icon: Package, permission: "sidebar.operations" },
         { name: "Proposals", href: "/proposals", icon: FileText, permission: "sidebar.operations" },
         { name: "Invoices", href: "/invoices", icon: FileText, permission: "sidebar.operations" },
@@ -49,7 +48,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       items: [
         { name: "Technician List", href: "/technicians", icon: Settings, permission: "sidebar.technicians" },
         { name: "Technician Map", href: "/technician-map", icon: Map, permission: "sidebar.technicians" },
-        { name: "Teams", href: "/teams", icon: UsersRound, permission: "sidebar.technicians" },
       ]
     },
     {
@@ -109,7 +107,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <h1 className={cn(
               "ml-4 text-xl font-bold text-white transition-all duration-500 bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent",
               isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
-            )}>Noviq</h1>
+            )}>UVG</h1>
           </div>
 
           {/* User Info */}

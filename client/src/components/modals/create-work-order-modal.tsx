@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Users } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import type { WorkOrderWithUsers } from "@shared/schema";
+import type { WorkOrderWithUsers, User } from "@shared/schema";
 
 interface CreateWorkOrderModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  // Form state - keeping all original fields
   const [formData, setFormData] = useState({
     clientName: "",
     clientPhone: "",
@@ -45,22 +47,18 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     specialInstructions: "",
     accessInstructions: "",
     safetyRequirements: "",
-    teamId: "",
-    totalPayment: "",
+    assignedUserIds: [] as number[],
     status: "active",
   });
 
-  const { data: teams = [] } = useQuery<any[]>({
-    queryKey: ["/api/teams"],
-  });
-
-  const { data: technicians = [] } = useQuery<any[]>({
-    queryKey: ["/api/technicians"],
+  // Fetch users for assignment dropdown
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
   });
 
   const createWorkOrderMutation = useMutation({
-    mutationFn: (data: any) =>
-      workOrder
+    mutationFn: (data: any) => 
+      workOrder 
         ? apiRequest("PUT", `/api/work-orders/${workOrder.id}`, data)
         : apiRequest("POST", "/api/work-orders", data),
     onSuccess: () => {
@@ -80,6 +78,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
     },
   });
 
+  // Reset form when modal opens/closes
   useEffect(() => {
     if (workOrder) {
       setFormData({
@@ -97,15 +96,14 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         problemDescription: workOrder.problemDescription || "",
         nte: workOrder.nte || "",
         tnte: workOrder.tnte || "",
-        totalPayment: (workOrder as any).totalPayment || "",
-        startDate: workOrder.startDate ? new Date(workOrder.startDate).toISOString().split('T')[0] :
+        startDate: workOrder.startDate ? new Date(workOrder.startDate).toISOString().split('T')[0] : 
                    (workOrder.scheduledDate ? new Date(workOrder.scheduledDate).toISOString().split('T')[0] : ""),
         endDate: workOrder.endDate ? new Date(workOrder.endDate).toISOString().split('T')[0] : "",
         estimatedHours: workOrder.estimatedHours ? workOrder.estimatedHours.toString() : "",
         specialInstructions: workOrder.specialInstructions || "",
         accessInstructions: workOrder.accessInstructions || "",
         safetyRequirements: workOrder.safetyRequirements || "",
-        teamId: (workOrder as any).teamId ? String((workOrder as any).teamId) : "",
+        assignedUserIds: workOrder.assignedTo ? [workOrder.assignedTo] : [],
         status: workOrder.status || "active",
       });
     } else {
@@ -124,44 +122,34 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         problemDescription: "",
         nte: "",
         tnte: "",
-        totalPayment: "",
         startDate: "",
         endDate: "",
         estimatedHours: "",
         specialInstructions: "",
         accessInstructions: "",
         safetyRequirements: "",
-        teamId: "",
+        assignedUserIds: [],
         status: "active",
       });
     }
   }, [workOrder, isOpen]);
 
-  const selectedTeam = (teams as any[]).find((t: any) => String(t.id) === formData.teamId);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.clientName.trim() || !formData.country.trim() || !formData.city.trim() ||
-        !formData.street.trim() || !formData.description.trim() ||
-        !formData.startDate || !formData.endDate) {
+    
+    // Basic validation
+    if (!formData.clientName.trim() || !formData.country.trim() || !formData.city.trim() || 
+        !formData.street.trim() || !formData.description.trim() || !formData.nte.trim() || !formData.tnte.trim() ||
+        !formData.startDate || !formData.endDate || formData.assignedUserIds.length === 0) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields and assign at least one user",
         variant: "destructive",
       });
       return;
     }
 
-    if (!formData.teamId) {
-      toast({
-        title: "Error",
-        description: "Please assign a team to this work order",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    // Validate dates
     const startDate = new Date(formData.startDate);
     const endDate = new Date(formData.endDate);
     if (endDate <= startDate) {
@@ -173,6 +161,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
       return;
     }
 
+    // Map all form data to API format with all fields
     const submitData = {
       title: formData.clientName,
       description: formData.description,
@@ -181,9 +170,9 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
       location: `${formData.street}, ${formData.city}, ${formData.country}`,
       estimatedHours: formData.estimatedHours || null,
       scheduledDate: formData.startDate || null,
+      assignedTo: formData.assignedUserIds[0] || null,
       status: formData.status,
       requestedBy: user?.id,
-      teamId: formData.teamId ? parseInt(formData.teamId) : null,
       // Client Information
       clientName: formData.clientName,
       clientPhone: formData.clientPhone,
@@ -199,14 +188,13 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
       problemDescription: formData.problemDescription,
       nte: formData.nte || null,
       tnte: formData.tnte || null,
-      totalPayment: formData.totalPayment || null,
       startDate: formData.startDate,
       endDate: formData.endDate,
       urgency: formData.urgency,
       // Instructions
       specialInstructions: formData.specialInstructions,
       accessInstructions: formData.accessInstructions,
-      safetyRequirements: formData.safetyRequirements,
+      safetyRequirements: formData.safetyRequirements
     };
 
     createWorkOrderMutation.mutate(submitData);
@@ -218,15 +206,15 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
         <DialogHeader>
           <DialogTitle>{workOrder ? "Edit Work Order" : "Create New Work Order"}</DialogTitle>
           <DialogDescription>
-            {workOrder ? "Update work order information and details." : "Enter complete work order details including client information, timeline, and team assignment."}
+            {workOrder ? "Update work order information and details." : "Enter complete work order details including client information, timeline, and assignments."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Client Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium border-b pb-2">Client Information</h3>
-
+            <h3 className="text-lg font-medium">Client Information</h3>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="clientName">Client Name *</Label>
@@ -316,8 +304,8 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
 
           {/* Work Details */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium border-b pb-2">Work Details</h3>
-
+            <h3 className="text-lg font-medium">Work Details</h3>
+            
             <div>
               <Label htmlFor="description">Work Description *</Label>
               <Textarea
@@ -382,10 +370,10 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
             </div>
           </div>
 
-          {/* Instructions */}
+          {/* Additional Instructions */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium border-b pb-2">Instructions & Requirements</h3>
-
+            <h3 className="text-lg font-medium">Instructions & Requirements</h3>
+            
             <div>
               <Label htmlFor="specialInstructions">Special Instructions</Label>
               <Textarea
@@ -422,11 +410,11 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
 
           {/* Financial Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium border-b pb-2">Financial Details <span className="text-sm text-gray-400 font-normal">(optional — can be filled later from the Overview)</span></h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h3 className="text-lg font-medium">Financial Details</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="nte">NTE (without tax)</Label>
+                <Label htmlFor="nte">NTE (without tax) *</Label>
                 <Input
                   id="nte"
                   type="number"
@@ -434,10 +422,11 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
                   value={formData.nte}
                   onChange={(e) => setFormData(prev => ({ ...prev, nte: e.target.value }))}
                   placeholder="0.00"
+                  required
                 />
               </div>
               <div>
-                <Label htmlFor="tnte">TNTE (including tax)</Label>
+                <Label htmlFor="tnte">TNTE (including tax) *</Label>
                 <Input
                   id="tnte"
                   type="number"
@@ -445,17 +434,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
                   value={formData.tnte}
                   onChange={(e) => setFormData(prev => ({ ...prev, tnte: e.target.value }))}
                   placeholder="0.00"
-                />
-              </div>
-              <div>
-                <Label htmlFor="totalPayment">Total Payment</Label>
-                <Input
-                  id="totalPayment"
-                  type="number"
-                  step="0.01"
-                  value={formData.totalPayment}
-                  onChange={(e) => setFormData(prev => ({ ...prev, totalPayment: e.target.value }))}
-                  placeholder="0.00"
+                  required
                 />
               </div>
             </div>
@@ -463,8 +442,8 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
 
           {/* Project Timeline */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium border-b pb-2">Project Timeline</h3>
-
+            <h3 className="text-lg font-medium">Project Timeline</h3>
+            
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="startDate">Start Date *</Label>
@@ -489,98 +468,104 @@ export function CreateWorkOrderModal({ isOpen, onClose, workOrder }: CreateWorkO
             </div>
           </div>
 
-          {/* Team Assignment */}
+          {/* Assignment */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium border-b pb-2">Team Assignment</h3>
-
-            <div>
-              <Label>Assign Team *</Label>
-              <Select
-                value={formData.teamId}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, teamId: value }))}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a team..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {(teams as any[]).length === 0 ? (
-                    <SelectItem value="none" disabled>No teams available — create a team first</SelectItem>
-                  ) : (
-                    (teams as any[]).map((team: any) => (
-                      <SelectItem key={team.id} value={String(team.id)}>
-                        {team.name}
-                        {team.members?.length ? ` (${team.members.length} member${team.members.length !== 1 ? "s" : ""})` : ""}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Show selected team details */}
-            {selectedTeam && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="h-4 w-4 text-blue-600" />
-                  <span className="font-medium text-blue-800">{selectedTeam.name}</span>
-                  {selectedTeam.leadTechnicianId && (
-                    <Badge className="bg-blue-100 text-blue-700 text-xs">
-                      Lead: {(() => {
-                        const lead = (technicians as any[]).find((t: any) => t.id === selectedTeam.leadTechnicianId);
-                        return lead ? `${lead.firstName} ${lead.lastName}` : `Tech #${selectedTeam.leadTechnicianId}`;
-                      })()}
-                    </Badge>
-                  )}
-                </div>
-                {selectedTeam.description && (
-                  <p className="text-sm text-blue-700 mb-2">{selectedTeam.description}</p>
-                )}
-                {selectedTeam.members && selectedTeam.members.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {selectedTeam.members.map((member: any) => {
-                      const tech = (technicians as any[]).find((t: any) => t.id === member.technicianId);
-                      return (
-                        <span key={member.id} className="text-xs bg-white border border-blue-200 text-blue-700 px-2 py-0.5 rounded-full">
-                          {tech ? `${tech.firstName} ${tech.lastName}` : `Tech #${member.technicianId}`}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-                {(!selectedTeam.members || selectedTeam.members.length === 0) && (
-                  <p className="text-xs text-blue-600 italic">This team has no members yet</p>
-                )}
+            <h3 className="text-lg font-medium">Assignment</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <Label>Assigned Users * (Select multiple users)</Label>
+                <Card className="mt-2">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">
+                      Selected Users ({formData.assignedUserIds.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {formData.assignedUserIds.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {formData.assignedUserIds.map((userId) => {
+                          const user = users.find(u => u.id === userId);
+                          return user ? (
+                            <div key={userId} className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm">
+                              <span>{user.firstName} {user.lastName}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    assignedUserIds: prev.assignedUserIds.filter(id => id !== userId)
+                                  }));
+                                }}
+                                className="ml-2 text-blue-600 hover:text-blue-800"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm">No users selected</p>
+                    )}
+                    
+                    <div className="border-t pt-3 space-y-2">
+                      <h4 className="text-sm font-medium">Available Users:</h4>
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {users.filter(user => !formData.assignedUserIds.includes(user.id)).map((user) => (
+                          <div key={user.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`user-${user.id}`}
+                              checked={false}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    assignedUserIds: [...prev.assignedUserIds, user.id]
+                                  }));
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`user-${user.id}`} className="text-sm cursor-pointer">
+                              {user.firstName} {user.lastName} ({user.username})
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            )}
-
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
+              
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t">
+          <div className="flex justify-end space-x-3 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              type="submit"
+            <Button 
+              type="submit" 
               disabled={createWorkOrderMutation.isPending}
             >
-              {createWorkOrderMutation.isPending
-                ? "Saving..."
+              {createWorkOrderMutation.isPending 
+                ? "Saving..." 
                 : workOrder ? "Update Work Order" : "Create Work Order"
               }
             </Button>

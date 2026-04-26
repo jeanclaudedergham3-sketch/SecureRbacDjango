@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { CreditCard, FileText, Upload, CheckCircle, Clock, X, AlertCircle } from "lucide-react";
+import { CreditCard } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Technician } from "@shared/schema";
@@ -48,34 +47,6 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
   });
 
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
-  const [w9File, setW9File] = useState<File | null>(null);
-  const [w9UploadError, setW9UploadError] = useState<string | null>(null);
-  const [w9Uploading, setW9Uploading] = useState(false);
-  const w9InputRef = useRef<HTMLInputElement>(null);
-
-  const uploadW9 = async (technicianId: number, file: File): Promise<boolean> => {
-    setW9Uploading(true);
-    setW9UploadError(null);
-    const formData = new FormData();
-    formData.append("w9", file);
-    try {
-      const res = await fetch(`/api/technicians/${technicianId}/w9`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: "Upload failed" }));
-        throw new Error(err.message || "W9 upload failed");
-      }
-      return true;
-    } catch (err: any) {
-      setW9UploadError(err.message || "Failed to upload W9. Please try again.");
-      return false;
-    } finally {
-      setW9Uploading(false);
-    }
-  };
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -134,8 +105,6 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
       });
       setSelectedPaymentMethods([]);
     }
-    setW9File(null);
-    setW9UploadError(null);
   }, [technician, isOpen]);
 
   const createTechnicianMutation = useMutation({
@@ -143,19 +112,13 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
       technician 
         ? apiRequest("PUT", `/api/technicians/${technician.id}`, data)
         : apiRequest("POST", "/api/technicians", data),
-    onSuccess: async (res: any) => {
-      const savedTechnician = await res.json();
-      const techId = savedTechnician?.id || technician?.id;
-      let w9Ok = true;
-      if (w9File && techId) {
-        w9Ok = await uploadW9(techId, w9File);
-      }
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });
       toast({
         title: "Success",
         description: technician ? "Technician updated successfully" : "Technician created successfully",
       });
-      if (w9Ok) onClose();
+      onClose();
     },
     onError: (error: any) => {
       toast({
@@ -527,95 +490,6 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
             </CardContent>
           </Card>
 
-          {/* W9 Document */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                W9 Tax Document
-              </CardTitle>
-              <DialogDescription>
-                Required for payments of $500 or more. Upload the technician's W9 form (PDF or image).
-              </DialogDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Current W9 status when editing */}
-              {technician && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
-                  {technician.w9Status === "submitted" ? (
-                    <>
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-green-700">W9 on file</p>
-                        {technician.w9FileName && (
-                          <p className="text-xs text-slate-500 truncate">{technician.w9FileName}</p>
-                        )}
-                      </div>
-                      <Badge className="bg-green-100 text-green-700 border-green-300">Submitted</Badge>
-                    </>
-                  ) : (
-                    <>
-                      <Clock className="h-5 w-5 text-amber-500 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-amber-700">No W9 on file</p>
-                        <p className="text-xs text-slate-500">Payments of $500+ will be blocked until a W9 is uploaded</p>
-                      </div>
-                      <Badge className="bg-amber-100 text-amber-700 border-amber-300">Not Submitted</Badge>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* File selector */}
-              <div>
-                <input
-                  ref={w9InputRef}
-                  type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    setW9File(file);
-                    setW9UploadError(null);
-                  }}
-                />
-                {w9File ? (
-                  <div className="flex items-center gap-3 p-3 border-2 border-blue-300 bg-blue-50 rounded-lg">
-                    <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-blue-800 truncate">{w9File.name}</p>
-                      <p className="text-xs text-blue-500">{(w9File.size / 1024).toFixed(1)} KB — will be uploaded on save</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setW9File(null); if (w9InputRef.current) w9InputRef.current.value = ""; }}
-                      className="text-red-400 hover:text-red-600"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => w9InputRef.current?.click()}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
-                  >
-                    <Upload className="h-4 w-4" />
-                    {technician?.w9Status === "submitted" ? "Replace W9 document" : "Upload W9 document"} (PDF or image)
-                  </button>
-                )}
-              </div>
-
-              {/* Upload error */}
-              {w9UploadError && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-300 rounded-lg">
-                  <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-600">{w9UploadError}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Submit Buttons */}
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
@@ -623,10 +497,10 @@ export function CreateTechnicianModal({ isOpen, onClose, technician }: CreateTec
             </Button>
             <Button 
               type="submit" 
-              disabled={createTechnicianMutation.isPending || w9Uploading}
+              disabled={createTechnicianMutation.isPending}
             >
-              {(createTechnicianMutation.isPending || w9Uploading)
-                ? (w9Uploading ? "Uploading W9..." : technician ? "Updating..." : "Creating...")
+              {createTechnicianMutation.isPending 
+                ? (technician ? "Updating..." : "Creating...") 
                 : (technician ? "Update Technician" : "Create Technician")
               }
             </Button>

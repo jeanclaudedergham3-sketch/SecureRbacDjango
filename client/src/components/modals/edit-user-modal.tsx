@@ -18,7 +18,6 @@ import type { Role, UserWithRole } from "@shared/schema";
 const updateUserSchema = insertUserSchema.partial().extend({
   id: z.number(),
   roleId: z.number().optional(),
-  teamId: z.number().nullable().optional(),
 });
 
 interface EditUserModalProps {
@@ -36,11 +35,6 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
     enabled: isOpen,
   });
 
-  const { data: teams = [] } = useQuery<any[]>({
-    queryKey: ["/api/teams"],
-    enabled: isOpen,
-  });
-
   const form = useForm<z.infer<typeof updateUserSchema>>({
     resolver: zodResolver(updateUserSchema),
     defaultValues: {
@@ -52,7 +46,6 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
       password: "",
       isActive: true,
       roleId: undefined,
-      teamId: null,
     },
   });
 
@@ -68,15 +61,13 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
         password: "", // Don't prefill password
         isActive: user.isActive,
         roleId: user.role?.id,
-        teamId: (user as any).teamId || null,
       });
     }
   }, [user, isOpen, form]);
 
   const updateUserMutation = useMutation({
     mutationFn: (data: any) => {
-      const { id, roleId, teamId, ...userData } = data;
-      userData.teamId = teamId ?? null;
+      const { id, roleId, ...userData } = data;
       // Remove password if empty
       if (!userData.password) {
         delete userData.password;
@@ -218,35 +209,6 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
                       {roles.map((role) => (
                         <SelectItem key={role.id} value={role.id.toString()}>
                           {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="teamId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Team (for proposal visibility)</FormLabel>
-                  <Select
-                    onValueChange={(value) => field.onChange(value === "none" ? null : parseInt(value))}
-                    value={field.value != null ? String(field.value) : "none"}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="No team assigned" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">— No team —</SelectItem>
-                      {(teams as any[]).map((team: any) => (
-                        <SelectItem key={team.id} value={String(team.id)}>
-                          {team.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

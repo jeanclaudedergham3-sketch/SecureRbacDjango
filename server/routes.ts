@@ -5,7 +5,7 @@ import session from "express-session";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
-import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, insertWorkOrderClientPaymentSchema, insertTeamSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, loginSchema } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import bcrypt from "bcrypt";
@@ -475,41 +475,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/work-orders/:id/reject", requireAuth, requirePermission("workorders.edit"), async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { reason } = req.body;
-      if (!reason || !reason.trim()) {
-        return res.status(400).json({ message: "Rejection reason is required" });
-      }
-      const workOrder = await storage.updateWorkOrder(id, {
-        status: "rejected",
-        isLocked: true,
-        rejectionReason: reason.trim(),
-        rejectedAt: new Date(),
-      } as any);
-      if (!workOrder) {
-        return res.status(404).json({ message: "Work order not found" });
-      }
-      res.json(workOrder);
-    } catch (error) {
-      console.error("Error rejecting work order:", error);
-      res.status(500).json({ message: "Failed to reject work order" });
-    }
-  });
-
-  app.post("/api/work-orders/:id/fast-track", requireAuth, requirePermission("workorders.edit"), async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const workOrder = await storage.updateWorkOrder(id, { isFastWorkOrder: true } as any);
-      if (!workOrder) return res.status(404).json({ message: "Work order not found" });
-      res.json(workOrder);
-    } catch (error) {
-      console.error("Error marking fast work order:", error);
-      res.status(500).json({ message: "Failed to update work order" });
-    }
-  });
-
   app.delete("/api/work-orders/:id", requireAuth, requirePermission("workorders.delete"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -653,19 +618,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all proposals with work order info
   app.get("/api/proposals", requireAuth, requirePermission("proposals.list.view"), async (req, res) => {
     try {
-      const userPermissions = await storage.getUserPermissions(req.user.id);
-      const isAdmin = userPermissions.some(p => p.name === 'system.admin' || p.name === 'proposals.approve');
-      const currentUser = await storage.getUser(req.user.id);
-      const userTeamId = (currentUser as any)?.teamId || null;
-
       const workOrders = await storage.getAllWorkOrders();
       const proposalsWithWorkOrders = [];
       
       for (const workOrder of workOrders) {
-        // Team-based visibility: admins/approvers see all; others only see their team's proposals
-        if (!isAdmin && userTeamId !== null && (workOrder as any).teamId !== null) {
-          if ((workOrder as any).teamId !== userTeamId) continue;
-        }
         const proposal = await storage.getWorkOrderProposal(workOrder.id);
         if (proposal) {
           proposalsWithWorkOrders.push({
@@ -684,19 +640,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get work orders without proposals for proposal creation
   app.get("/api/work-orders-without-proposals", requireAuth, requirePermission("proposals.list.view"), async (req, res) => {
     try {
-      const userPermissions = await storage.getUserPermissions(req.user.id);
-      const isAdmin = userPermissions.some(p => p.name === 'system.admin' || p.name === 'proposals.approve');
-      const currentUser = await storage.getUser(req.user.id);
-      const userTeamId = (currentUser as any)?.teamId || null;
-
       const workOrders = await storage.getAllWorkOrders();
       const workOrdersWithoutProposals = [];
       
       for (const workOrder of workOrders) {
-        // Team-based visibility: admins/approvers see all; others only see their team's work orders
-        if (!isAdmin && userTeamId !== null && (workOrder as any).teamId !== null) {
-          if ((workOrder as any).teamId !== userTeamId) continue;
-        }
         const proposal = await storage.getWorkOrderProposal(workOrder.id);
         if (!proposal) {
           workOrdersWithoutProposals.push(workOrder);
@@ -963,7 +910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Fetching all payments...");
       // Get all payments with work order and technician details
-      const allPayments = await storage.getAllTechnicianPayments();
+      const allPayments = await storage.getWorkOrderTechnicianPayments(0); // 0 = all
       console.log("Found payments:", allPayments);
       
       const workOrders = await storage.getAllWorkOrders();
@@ -993,7 +940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const technicianId = parseInt(req.params.technicianId);
       console.log(`Fetching payment history for technician ${technicianId}`);
       
-      const allPayments = await storage.getAllTechnicianPayments();
+      const allPayments = await storage.getWorkOrderTechnicianPayments(0);
       const workOrders = await storage.getAllWorkOrders();
       
       console.log(`Total payments found: ${allPayments.length}`);
@@ -1038,17 +985,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/work-orders/:id/payments", requireAuth, requirePermission("payments.create"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
-      const amount = parseFloat(req.body.amountRequested || "0");
-      if (amount >= 500 && req.body.technicianId) {
-        const tech = await storage.getTechnician(parseInt(req.body.technicianId));
-        if (!tech || tech.w9Status !== "submitted") {
-          return res.status(400).json({ message: "W9 required: payments of $500 or more require the technician to have a W9 on file before payment can be processed." });
-        }
-      }
       const paymentData = insertWorkOrderTechnicianPaymentSchema.parse({
         ...req.body,
         workOrderId
       });
+      
       const payment = await storage.createWorkOrderTechnicianPayment(paymentData);
       console.log(`Payment request created for work order ${workOrderId} by user ${req.session.userId}`);
       res.status(201).json(payment);
@@ -1064,13 +1005,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Direct payment creation endpoint (used by work order modal)
   app.post("/api/payments", requireAuth, async (req, res) => {
     try {
-      const amount = parseFloat(req.body.amountRequested || "0");
-      if (amount >= 500 && req.body.technicianId) {
-        const tech = await storage.getTechnician(parseInt(req.body.technicianId));
-        if (!tech || tech.w9Status !== "submitted") {
-          return res.status(400).json({ message: "W9 required: payments of $500 or more require the technician to have a W9 on file before payment can be processed." });
-        }
-      }
       console.log("Creating payment request:", req.body);
       const validatedData = insertWorkOrderTechnicianPaymentSchema.parse(req.body);
       const payment = await storage.createWorkOrderTechnicianPayment(validatedData);
@@ -1418,487 +1352,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "All notifications marked as read" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
-    }
-  });
-
-  // ===== TEAM ROUTES =====
-  app.get("/api/teams", requireAuth, async (req, res) => {
-    try {
-      const allTeams = await storage.getAllTeams();
-      res.json(allTeams);
-    } catch (error) {
-      console.error("Error fetching teams:", error);
-      res.status(500).json({ message: "Failed to fetch teams" });
-    }
-  });
-
-  app.get("/api/teams/:id", requireAuth, async (req, res) => {
-    try {
-      const team = await storage.getTeam(parseInt(req.params.id));
-      if (!team) return res.status(404).json({ message: "Team not found" });
-      res.json(team);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch team" });
-    }
-  });
-
-  app.post("/api/teams", requireAuth, async (req, res) => {
-    try {
-      const team = await storage.createTeam(req.body);
-      res.status(201).json(team);
-    } catch (error) {
-      console.error("Error creating team:", error);
-      res.status(400).json({ message: "Failed to create team" });
-    }
-  });
-
-  app.patch("/api/teams/:id", requireAuth, async (req, res) => {
-    try {
-      const team = await storage.updateTeam(parseInt(req.params.id), req.body);
-      if (!team) return res.status(404).json({ message: "Team not found" });
-      res.json(team);
-    } catch (error) {
-      res.status(400).json({ message: "Failed to update team" });
-    }
-  });
-
-  app.delete("/api/teams/:id", requireAuth, async (req, res) => {
-    try {
-      const deleted = await storage.deleteTeam(parseInt(req.params.id));
-      if (!deleted) return res.status(404).json({ message: "Team not found" });
-      res.json({ message: "Team deleted successfully" });
-    } catch (error) {
-      res.status(400).json({ message: "Failed to delete team" });
-    }
-  });
-
-  app.post("/api/teams/:id/members", requireAuth, async (req, res) => {
-    try {
-      const { userId } = req.body;
-      if (!userId) return res.status(400).json({ message: "userId is required" });
-      const member = await storage.addTeamMember(parseInt(req.params.id), userId);
-      res.status(201).json(member);
-    } catch (error) {
-      res.status(400).json({ message: "Failed to add team member" });
-    }
-  });
-
-  app.delete("/api/teams/:id/members/:userId", requireAuth, async (req, res) => {
-    try {
-      const removed = await storage.removeTeamMember(parseInt(req.params.id), parseInt(req.params.userId));
-      if (!removed) return res.status(404).json({ message: "Team member not found" });
-      res.json({ message: "Member removed from team" });
-    } catch (error) {
-      res.status(400).json({ message: "Failed to remove team member" });
-    }
-  });
-
-  // ===== CLIENT PAYMENT ROUTES =====
-  app.get("/api/work-orders/:id/client-payments", requireAuth, async (req, res) => {
-    try {
-      const payments = await storage.getWorkOrderClientPayments(parseInt(req.params.id));
-      res.json(payments);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch client payments" });
-    }
-  });
-
-  app.post("/api/work-orders/:id/client-payments", requireAuth, async (req, res) => {
-    try {
-      const payment = await storage.createWorkOrderClientPayment({
-        ...req.body,
-        workOrderId: parseInt(req.params.id),
-      });
-      res.status(201).json(payment);
-    } catch (error) {
-      console.error("Error creating client payment:", error);
-      res.status(400).json({ message: "Failed to create client payment" });
-    }
-  });
-
-  app.patch("/api/client-payments/:id", requireAuth, async (req, res) => {
-    try {
-      const body: any = { ...req.body };
-      if (body.receivedAt) body.receivedAt = new Date(body.receivedAt);
-      if (body.createdAt) body.createdAt = new Date(body.createdAt);
-      const payment = await storage.updateWorkOrderClientPayment(parseInt(req.params.id), body);
-      if (!payment) return res.status(404).json({ message: "Payment not found" });
-      res.json(payment);
-    } catch (error) {
-      console.error("Error updating client payment:", error);
-      res.status(400).json({ message: "Failed to update client payment" });
-    }
-  });
-
-  app.delete("/api/client-payments/:id", requireAuth, async (req, res) => {
-    try {
-      const deleted = await storage.deleteWorkOrderClientPayment(parseInt(req.params.id));
-      if (!deleted) return res.status(404).json({ message: "Payment not found" });
-      res.json({ message: "Payment deleted successfully" });
-    } catch (error) {
-      res.status(400).json({ message: "Failed to delete client payment" });
-    }
-  });
-
-  // ===== W9 UPLOAD ROUTE =====
-  const w9Storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      const uploadPath = path.join(process.cwd(), 'uploads', 'w9');
-      if (!fs.existsSync(uploadPath)) {
-        fs.mkdirSync(uploadPath, { recursive: true });
-      }
-      cb(null, uploadPath);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      cb(null, `w9-${req.params.id}-${uniqueSuffix}${path.extname(file.originalname)}`);
-    }
-  });
-  const w9Upload = multer({ storage: w9Storage, limits: { fileSize: 10 * 1024 * 1024 } });
-
-  app.post("/api/technicians/:id/w9", requireAuth, w9Upload.single('w9'), async (req, res) => {
-    try {
-      const technicianId = parseInt(req.params.id);
-      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-      const updatedTechnician = await storage.updateTechnician(technicianId, {
-        w9Status: "submitted",
-        w9FilePath: req.file.path,
-        w9FileName: req.file.originalname,
-        w9SubmittedAt: new Date(),
-      } as any);
-      if (!updatedTechnician) return res.status(404).json({ message: "Technician not found" });
-      res.json({ message: "W9 uploaded successfully", technician: updatedTechnician });
-    } catch (error) {
-      console.error("Error uploading W9:", error);
-      res.status(500).json({ message: "Failed to upload W9" });
-    }
-  });
-
-  app.patch("/api/technicians/:id/w9-status", requireAuth, async (req, res) => {
-    try {
-      const technicianId = parseInt(req.params.id);
-      const { status } = req.body;
-      const updatedTechnician = await storage.updateTechnician(technicianId, {
-        w9Status: status,
-      } as any);
-      if (!updatedTechnician) return res.status(404).json({ message: "Technician not found" });
-      res.json(updatedTechnician);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update W9 status" });
-    }
-  });
-
-  // ===== FINANCIAL STATUS ROUTE =====
-  app.patch("/api/work-orders/:id/financial-status", requireAuth, async (req, res) => {
-    try {
-      const { financialStatus } = req.body;
-      const workOrder = await storage.updateWorkOrder(parseInt(req.params.id), { financialStatus } as any);
-      if (!workOrder) return res.status(404).json({ message: "Work order not found" });
-      res.json(workOrder);
-    } catch (error) {
-      res.status(400).json({ message: "Failed to update financial status" });
-    }
-  });
-
-  // ===== SETUP NEW ROLES (Logistics & Finance Officer) =====
-  app.post("/api/setup/roles", requireAuth, async (req, res) => {
-    try {
-      const existingRoles = await storage.getAllRoles();
-      const roleNames = existingRoles.map(r => r.name);
-      const created = [];
-
-      if (!roleNames.includes("logistics")) {
-        const role = await storage.createRole({ name: "logistics", description: "Logistics management - handles parts, dispatch, and supply chain operations" });
-        created.push(role.name);
-        // Assign key permissions
-        const allPerms = await storage.getAllPermissions();
-        const logisticsPerms = allPerms.filter(p => 
-          ["sidebar.overview","sidebar.operations","sidebar.technicians","dashboard.view","dashboard.stats",
-           "workorders.page.view","workorders.list.view","workorders.details.view","workorders.tab.overview",
-           "workorders.tab.parts","workorders.tab.files","workorders.search","workorders.filter",
-           "parts.page.view","parts.list.view","parts.modal.create","parts.create","parts.approve","parts.order",
-           "technicians.page.view","technicians.list.view","technicians.map.view","technicians.map",
-           "files.view","files.upload","files.download","buttons.create","buttons.search","buttons.filter",
-           "notifications.view","notifications.mark_read"].includes(p.name)
-        );
-        for (const perm of logisticsPerms) {
-          await storage.assignRolePermission(role.id, perm.id);
-        }
-      }
-
-      if (!roleNames.includes("finance_officer")) {
-        const role = await storage.createRole({ name: "finance_officer", description: "Finance Officer - manages payments, invoices, and financial reporting" });
-        created.push(role.name);
-        const allPerms = await storage.getAllPermissions();
-        const financePerms = allPerms.filter(p =>
-          ["sidebar.overview","sidebar.operations","sidebar.payments","dashboard.view","dashboard.stats",
-           "analytics.view","analytics.financial","workorders.page.view","workorders.list.view","workorders.details.view",
-           "workorders.tab.overview","workorders.tab.invoice","workorders.tab.payments","workorders.search",
-           "payments.page.view","payments.list.view","payments.modal.create","payments.create","payments.approve",
-           "payments.process","payments.history","payments.technician.view","payments.technician","payments.search",
-           "invoices.page.view","invoices.list.view","invoices.modal.create","invoices.create","invoices.edit",
-           "invoices.send","invoices.export","invoices.search","financial.page.view","financial.view",
-           "financial.reports","financial.export","financial.charts","financial.comparison",
-           "buttons.create","buttons.approve","buttons.export","buttons.search","buttons.filter",
-           "notifications.view","notifications.mark_read"].includes(p.name)
-        );
-        for (const perm of financePerms) {
-          await storage.assignRolePermission(role.id, perm.id);
-        }
-      }
-
-      res.json({ message: created.length > 0 ? `Created roles: ${created.join(", ")}` : "Roles already exist" });
-    } catch (error) {
-      console.error("Error setting up roles:", error);
-      res.status(500).json({ message: "Failed to setup roles" });
-    }
-  });
-
-  // ─── Job Inspection Routes ────────────────────────────────────────
-  app.get("/api/job-inspections", requireAuth, async (req, res) => {
-    try {
-      const inspections = await storage.getAllJobInspections();
-      const allWorkOrders = await storage.getAllWorkOrders();
-      const result = inspections.map((insp: any) => ({
-        ...insp,
-        workOrder: allWorkOrders.find((wo: any) => wo.id === insp.workOrderId) || null,
-      }));
-      res.json(result);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  app.get("/api/work-orders/:id/job-inspection", requireAuth, async (req, res) => {
-    try {
-      const inspection = await storage.getJobInspectionByWorkOrder(parseInt(req.params.id));
-      if (!inspection) return res.status(404).json({ message: "Not found" });
-      res.json(inspection);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  app.post("/api/work-orders/:id/job-inspection", requireAuth, async (req, res) => {
-    try {
-      const workOrderId = parseInt(req.params.id);
-      const existing = await storage.getJobInspectionByWorkOrder(workOrderId);
-      const user = req.session.userId;
-      const data = {
-        ...req.body,
-        workOrderId,
-        submittedBy: user,
-        submittedAt: req.body.overviewStatus === "needs_proposal" ? new Date() : null,
-        submissionStatus: req.body.overviewStatus === "needs_proposal" ? "sent" : "not_started",
-      };
-      let inspection;
-      if (existing) {
-        inspection = await storage.updateJobInspection(existing.id, data);
-      } else {
-        inspection = await storage.createJobInspection(data);
-      }
-      res.json(inspection);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  app.put("/api/job-inspections/:id", requireAuth, async (req, res) => {
-    try {
-      const inspection = await storage.updateJobInspection(parseInt(req.params.id), req.body);
-      if (!inspection) return res.status(404).json({ message: "Not found" });
-      res.json(inspection);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  app.patch("/api/job-inspections/:id/status", requireAuth, async (req, res) => {
-    try {
-      const { submissionStatus, adminNotes } = req.body;
-      const inspection = await storage.updateJobInspection(parseInt(req.params.id), { submissionStatus, adminNotes });
-      if (!inspection) return res.status(404).json({ message: "Not found" });
-      res.json(inspection);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  // Photo upload for job inspections
-  const inspectionUpload = multer({
-    storage: multer.diskStorage({
-      destination: (req, file, cb) => {
-        const uploadPath = path.join(process.cwd(), "uploads", "inspections", req.params.id);
-        if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
-        cb(null, uploadPath);
-      },
-      filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`);
-      },
-    }),
-    fileFilter: (req, file, cb) => {
-      if (file.mimetype.startsWith("image/")) cb(null, true);
-      else cb(new Error("Only images are allowed"));
-    },
-    limits: { fileSize: 10 * 1024 * 1024 },
-  });
-
-  app.post("/api/job-inspections/:id/photos", requireAuth, inspectionUpload.array("photos", 10), async (req, res) => {
-    try {
-      const inspection = await storage.getJobInspectionById(parseInt(req.params.id));
-      if (!inspection) return res.status(404).json({ message: "Inspection not found" });
-      const files = req.files as Express.Multer.File[];
-      if (!files || files.length === 0) return res.status(400).json({ message: "No images uploaded" });
-      const existing = JSON.parse(inspection.photos || "[]");
-      const newPaths = files.map(f => `/uploads/inspections/${req.params.id}/${f.filename}`);
-      const updated = await storage.updateJobInspection(inspection.id, { photos: JSON.stringify([...existing, ...newPaths]) });
-      res.json({ photos: JSON.parse(updated!.photos || "[]") });
-    } catch (e: any) {
-      res.status(500).json({ message: e.message || "Photo upload failed" });
-    }
-  });
-
-  app.delete("/api/job-inspections/:id/photos", requireAuth, async (req, res) => {
-    try {
-      const { photoPath } = req.body;
-      const inspection = await storage.getJobInspectionById(parseInt(req.params.id));
-      if (!inspection) return res.status(404).json({ message: "Not found" });
-      const existing = JSON.parse(inspection.photos || "[]");
-      const updated = existing.filter((p: string) => p !== photoPath);
-      await storage.updateJobInspection(inspection.id, { photos: JSON.stringify(updated) });
-      res.json({ photos: updated });
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  // Analytics endpoint - computes stats from real data
-  app.get("/api/analytics", requireAuth, async (req, res) => {
-    try {
-      const { range = "last30days" } = req.query;
-      const allWorkOrders = await storage.getAllWorkOrders();
-      const allInvoices = await storage.getAllInvoices();
-      const allUsers = await storage.getAllUsers();
-      const allTechnicians = await storage.getAllTechnicians();
-
-      const now = new Date();
-      let cutoff: Date | null = null;
-      if (range === "last30days") cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      else if (range === "last90days") cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      else if (range === "thisYear") cutoff = new Date(now.getFullYear(), 0, 1);
-
-      const filteredWO = cutoff
-        ? allWorkOrders.filter((wo: any) => wo.createdAt && new Date(wo.createdAt) >= cutoff!)
-        : allWorkOrders;
-
-      const total = filteredWO.length;
-      const completed = filteredWO.filter((wo: any) => wo.status === "completed").length;
-      const cancelled = filteredWO.filter((wo: any) => wo.status === "cancelled").length;
-      const inProgress = filteredWO.filter((wo: any) => wo.status === "in_progress").length;
-      const pending = total - completed - cancelled - inProgress;
-      const urgentCount = filteredWO.filter((wo: any) => wo.priority === "urgent").length;
-
-      const paidInvoices = allInvoices.filter((i: any) => i.status === "paid");
-      const outstandingInvoices = allInvoices.filter((i: any) => i.status !== "paid" && i.status !== "cancelled");
-      const totalRevenue = paidInvoices.reduce((s: number, i: any) => s + parseFloat(i.totalAmount || "0"), 0);
-      const avgProjectValue = paidInvoices.length > 0 ? totalRevenue / paidInvoices.length : 0;
-
-      // Monthly data for last 6 months
-      const monthlyData = [];
-      for (let m = 5; m >= 0; m--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
-        const label = d.toLocaleString("default", { month: "short", year: "2-digit" });
-        const monthWOs = allWorkOrders.filter((wo: any) => {
-          if (!wo.createdAt) return false;
-          const c = new Date(wo.createdAt);
-          return c.getFullYear() === d.getFullYear() && c.getMonth() === d.getMonth();
-        });
-        const monthInvoices = allInvoices.filter((i: any) => {
-          if (!i.createdAt) return false;
-          const c = new Date(i.createdAt);
-          return c.getFullYear() === d.getFullYear() && c.getMonth() === d.getMonth() && i.status === "paid";
-        });
-        const revenue = monthInvoices.reduce((s: number, i: any) => s + parseFloat(i.totalAmount || "0"), 0);
-        monthlyData.push({ month: label, workOrders: monthWOs.length, revenue, costs: revenue * 0.65, profit: revenue * 0.35 });
-      }
-
-      // Priority distribution
-      const priorityCounts: Record<string, number> = {};
-      for (const wo of filteredWO) {
-        const p = (wo as any).priority || "medium";
-        priorityCounts[p] = (priorityCounts[p] || 0) + 1;
-      }
-      const priorityData = Object.entries(priorityCounts).map(([priority, count]) => ({
-        priority, count, percentage: total > 0 ? Math.round((count / total) * 100) : 0
-      }));
-
-      // Status distribution
-      const statusColors: Record<string, string> = {
-        completed: "#22c55e", in_progress: "#3b82f6", pending: "#f59e0b",
-        cancelled: "#ef4444", active: "#8b5cf6"
-      };
-      const statusCounts: Record<string, number> = {};
-      for (const wo of filteredWO) {
-        const s = (wo as any).status || "active";
-        statusCounts[s] = (statusCounts[s] || 0) + 1;
-      }
-      const statusData = Object.entries(statusCounts).map(([status, count]) => ({
-        status, count, color: statusColors[status] || "#6b7280"
-      }));
-
-      // Equipment type category data
-      const categoryCounts: Record<string, { count: number; revenue: number }> = {};
-      for (const wo of filteredWO) {
-        const cat = (wo as any).equipmentType || "General";
-        if (!categoryCounts[cat]) categoryCounts[cat] = { count: 0, revenue: 0 };
-        categoryCounts[cat].count++;
-        const inv = allInvoices.find((i: any) => i.workOrderId === (wo as any).id && i.status === "paid");
-        if (inv) categoryCounts[cat].revenue += parseFloat(inv.totalAmount || "0");
-      }
-      const categoryData = Object.entries(categoryCounts).slice(0, 8).map(([category, data]) => ({
-        category, count: data.count, revenue: data.revenue, avgTime: 0
-      }));
-
-      // User role distribution
-      const roleCounts: Record<string, number> = {};
-      for (const u of allUsers) {
-        const r = (u as any).role || "user";
-        roleCounts[r] = (roleCounts[r] || 0) + 1;
-      }
-      const roleDistribution = Object.entries(roleCounts).map(([role, count]) => ({ role, count }));
-
-      // Recent activity from work orders
-      const recentActivity = [...allWorkOrders]
-        .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-        .slice(0, 10)
-        .map((wo: any) => ({
-          id: wo.id,
-          type: "work_order",
-          description: `Work order ${wo.workOrderNumber} for ${wo.clientName}`,
-          timestamp: wo.createdAt || new Date().toISOString(),
-          user: wo.createdBy || "System"
-        }));
-
-      res.json({
-        workOrderStats: { total, completed, pending, inProgress, cancelled, avgCompletionTime: 0, urgentCount },
-        financialStats: {
-          totalRevenue, totalCosts: totalRevenue * 0.65, profit: totalRevenue * 0.35,
-          avgProjectValue, outstandingInvoices: outstandingInvoices.length, paidInvoices: paidInvoices.length
-        },
-        technicianStats: {
-          totalTechnicians: allTechnicians.length,
-          activeTechnicians: allTechnicians.filter((t: any) => t.status === "active").length,
-          avgRating: 0, totalRatings: 0,
-          topPerformers: allTechnicians.slice(0, 5).map((t: any) => ({
-            id: t.id, name: `${t.firstName} ${t.lastName}`, rating: 4.5, completedJobs: 0
-          }))
-        },
-        userStats: { totalUsers: allUsers.length, activeUsers: allUsers.filter((u: any) => u.isActive).length, roleDistribution },
-        monthlyData, categoryData, priorityData, statusData, recentActivity
-      });
-    } catch (error) {
-      console.error("Analytics error:", error);
-      res.status(500).json({ message: "Failed to compute analytics" });
     }
   });
 

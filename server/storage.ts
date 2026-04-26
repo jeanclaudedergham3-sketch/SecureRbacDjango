@@ -1,19 +1,15 @@
 import { db } from "./db";
 import { 
   users, roles, permissions, userRoles, rolePermissions, technicians, technicianRatings,
-  teams, teamMembers,
   workOrders, workOrderProposals, workOrderPartsRequests, workOrderFiles, workOrderChats, 
-  workOrderTechnicianPayments, workOrderClientPayments, workOrderInvoices, notifications, jobInspections,
+  workOrderTechnicianPayments, workOrderInvoices, notifications,
   type User, type Role, type Permission, type Technician, type TechnicianRating,
-  type Team, type TeamMember, type TeamWithDetails,
   type WorkOrder, type WorkOrderProposal, type WorkOrderPartsRequest, type WorkOrderFile, 
-  type WorkOrderChat, type WorkOrderTechnicianPayment, type WorkOrderClientPayment, type WorkOrderInvoice, type Notification,
-  type JobInspection, type InsertJobInspection,
+  type WorkOrderChat, type WorkOrderTechnicianPayment, type WorkOrderInvoice, type Notification,
   type InsertUser, type InsertRole, type InsertPermission, 
-  type InsertTechnician, type InsertRating, type InsertTeam, type InsertTeamMember,
-  type InsertWorkOrder, type InsertWorkOrderProposal,
+  type InsertTechnician, type InsertRating, type InsertWorkOrder, type InsertWorkOrderProposal,
   type InsertWorkOrderPartsRequest, type InsertWorkOrderFile, type InsertWorkOrderChat,
-  type InsertWorkOrderTechnicianPayment, type InsertWorkOrderClientPayment, type InsertWorkOrderInvoice, type InsertNotification,
+  type InsertWorkOrderTechnicianPayment, type InsertWorkOrderInvoice, type InsertNotification,
   type UserWithRole, type RoleWithPermissions, type WorkOrderWithUsers
 } from "@shared/schema";
 import { eq, sql, and, desc, asc, or } from "drizzle-orm";
@@ -99,7 +95,6 @@ export interface IStorage {
   
   // Work Order Technician Payment operations
   getWorkOrderTechnicianPayments(workOrderId: number): Promise<WorkOrderTechnicianPayment[]>;
-  getAllTechnicianPayments(): Promise<WorkOrderTechnicianPayment[]>;
   createWorkOrderTechnicianPayment(payment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment>;
   updateWorkOrderTechnicianPayment(id: number, payment: Partial<InsertWorkOrderTechnicianPayment>): Promise<WorkOrderTechnicianPayment | undefined>;
   
@@ -115,33 +110,11 @@ export interface IStorage {
   // Proposal operations for financial analysis
   getAllProposals(): Promise<WorkOrderProposal[]>;
   
-  // Team operations
-  getAllTeams(): Promise<TeamWithDetails[]>;
-  getTeam(id: number): Promise<TeamWithDetails | undefined>;
-  createTeam(team: InsertTeam): Promise<Team>;
-  updateTeam(id: number, team: Partial<InsertTeam>): Promise<Team | undefined>;
-  deleteTeam(id: number): Promise<boolean>;
-  addTeamMember(teamId: number, userId: number): Promise<TeamMember>;
-  removeTeamMember(teamId: number, userId: number): Promise<boolean>;
-  
-  // Work Order Client Payment operations
-  getWorkOrderClientPayments(workOrderId: number): Promise<WorkOrderClientPayment[]>;
-  createWorkOrderClientPayment(payment: InsertWorkOrderClientPayment): Promise<WorkOrderClientPayment>;
-  updateWorkOrderClientPayment(id: number, payment: Partial<InsertWorkOrderClientPayment>): Promise<WorkOrderClientPayment | undefined>;
-  deleteWorkOrderClientPayment(id: number): Promise<boolean>;
-  
   // Notification operations
   getNotifications(userId?: number): Promise<Notification[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationAsRead(id: number): Promise<boolean>;
   markAllNotificationsAsRead(userId: number): Promise<boolean>;
-
-  // Job Inspection operations
-  getAllJobInspections(): Promise<JobInspection[]>;
-  getJobInspectionByWorkOrder(workOrderId: number): Promise<JobInspection | undefined>;
-  getJobInspectionById(id: number): Promise<JobInspection | undefined>;
-  createJobInspection(data: InsertJobInspection): Promise<JobInspection>;
-  updateJobInspection(id: number, data: Partial<InsertJobInspection>): Promise<JobInspection | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -188,11 +161,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async verifyPassword(username: string, password: string): Promise<User | null> {
-    // Try by username first, then by email so both work
-    let user = await this.getUserByUsername(username);
-    if (!user) {
-      user = await this.getUserByEmail(username);
-    }
+    const user = await this.getUserByUsername(username);
     if (!user) return null;
     
     const isValid = await bcrypt.compare(password, user.password);
@@ -486,10 +455,6 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(workOrderTechnicianPayments).where(eq(workOrderTechnicianPayments.workOrderId, workOrderId));
   }
 
-  async getAllTechnicianPayments(): Promise<WorkOrderTechnicianPayment[]> {
-    return await db.select().from(workOrderTechnicianPayments).orderBy(workOrderTechnicianPayments.requestedAt);
-  }
-
   async createWorkOrderTechnicianPayment(insertPayment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment> {
     const [payment] = await db.insert(workOrderTechnicianPayments).values(insertPayment).returning();
     return payment;
@@ -546,112 +511,6 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(workOrderProposals);
   }
 
-  async getAllTeams(): Promise<TeamWithDetails[]> {
-    const teamsData = await db.select().from(teams);
-    const result: TeamWithDetails[] = [];
-    for (const team of teamsData) {
-      const members = await db.select().from(teamMembers).where(eq(teamMembers.teamId, team.id));
-      const membersResolved: (TeamMember & { technician?: Technician; user?: User })[] = [];
-      for (const member of members) {
-        if (member.userId) {
-          const [u] = await db.select().from(users).where(eq(users.id, member.userId));
-          membersResolved.push({ ...member, user: u });
-        } else if (member.technicianId) {
-          const [tech] = await db.select().from(technicians).where(eq(technicians.id, member.technicianId));
-          membersResolved.push({ ...member, technician: tech });
-        } else {
-          membersResolved.push(member);
-        }
-      }
-      let teamLead: Technician | undefined;
-      let leadUser: User | undefined;
-      if (team.leadUserId) {
-        const [u] = await db.select().from(users).where(eq(users.id, team.leadUserId));
-        leadUser = u;
-      } else if (team.teamLeadId) {
-        const [lead] = await db.select().from(technicians).where(eq(technicians.id, team.teamLeadId));
-        teamLead = lead;
-      }
-      result.push({ ...team, teamLead, leadUser, members: membersResolved });
-    }
-    return result;
-  }
-
-  async getTeam(id: number): Promise<TeamWithDetails | undefined> {
-    const [team] = await db.select().from(teams).where(eq(teams.id, id));
-    if (!team) return undefined;
-    const members = await db.select().from(teamMembers).where(eq(teamMembers.teamId, id));
-    const membersResolved: (TeamMember & { technician?: Technician; user?: User })[] = [];
-    for (const member of members) {
-      if (member.userId) {
-        const [u] = await db.select().from(users).where(eq(users.id, member.userId));
-        membersResolved.push({ ...member, user: u });
-      } else if (member.technicianId) {
-        const [tech] = await db.select().from(technicians).where(eq(technicians.id, member.technicianId));
-        membersResolved.push({ ...member, technician: tech });
-      } else {
-        membersResolved.push(member);
-      }
-    }
-    let teamLead: Technician | undefined;
-    let leadUser: User | undefined;
-    if (team.leadUserId) {
-      const [u] = await db.select().from(users).where(eq(users.id, team.leadUserId));
-      leadUser = u;
-    } else if (team.teamLeadId) {
-      const [lead] = await db.select().from(technicians).where(eq(technicians.id, team.teamLeadId));
-      teamLead = lead;
-    }
-    return { ...team, teamLead, leadUser, members: membersResolved };
-  }
-
-  async createTeam(insertTeam: InsertTeam): Promise<Team> {
-    const [team] = await db.insert(teams).values(insertTeam).returning();
-    return team;
-  }
-
-  async updateTeam(id: number, updateData: Partial<InsertTeam>): Promise<Team | undefined> {
-    const [team] = await db.update(teams).set(updateData).where(eq(teams.id, id)).returning();
-    return team || undefined;
-  }
-
-  async deleteTeam(id: number): Promise<boolean> {
-    const result = await db.delete(teams).where(eq(teams.id, id));
-    return result.rowCount! > 0;
-  }
-
-  async addTeamMember(teamId: number, userId: number): Promise<TeamMember> {
-    const [member] = await db.insert(teamMembers).values({ teamId, userId }).returning();
-    return member;
-  }
-
-  async removeTeamMember(teamId: number, userId: number): Promise<boolean> {
-    const result = await db.delete(teamMembers)
-      .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
-    return result.rowCount! > 0;
-  }
-
-  async getWorkOrderClientPayments(workOrderId: number): Promise<WorkOrderClientPayment[]> {
-    return await db.select().from(workOrderClientPayments)
-      .where(eq(workOrderClientPayments.workOrderId, workOrderId))
-      .orderBy(desc(workOrderClientPayments.createdAt));
-  }
-
-  async createWorkOrderClientPayment(payment: InsertWorkOrderClientPayment): Promise<WorkOrderClientPayment> {
-    const [created] = await db.insert(workOrderClientPayments).values(payment).returning();
-    return created;
-  }
-
-  async updateWorkOrderClientPayment(id: number, payment: Partial<InsertWorkOrderClientPayment>): Promise<WorkOrderClientPayment | undefined> {
-    const [updated] = await db.update(workOrderClientPayments).set(payment).where(eq(workOrderClientPayments.id, id)).returning();
-    return updated || undefined;
-  }
-
-  async deleteWorkOrderClientPayment(id: number): Promise<boolean> {
-    const result = await db.delete(workOrderClientPayments).where(eq(workOrderClientPayments.id, id));
-    return result.rowCount! > 0;
-  }
-
   async getNotifications(userId?: number): Promise<Notification[]> {
     try {
       if (userId) {
@@ -687,30 +546,6 @@ export class DatabaseStorage implements IStorage {
       .set({ isRead: true, readAt: new Date() })
       .where(eq(notifications.userId, userId));
     return result.rowCount! > 0;
-  }
-
-  async getAllJobInspections(): Promise<JobInspection[]> {
-    return db.select().from(jobInspections).orderBy(desc(jobInspections.createdAt));
-  }
-
-  async getJobInspectionByWorkOrder(workOrderId: number): Promise<JobInspection | undefined> {
-    const [inspection] = await db.select().from(jobInspections).where(eq(jobInspections.workOrderId, workOrderId));
-    return inspection || undefined;
-  }
-
-  async getJobInspectionById(id: number): Promise<JobInspection | undefined> {
-    const [inspection] = await db.select().from(jobInspections).where(eq(jobInspections.id, id));
-    return inspection || undefined;
-  }
-
-  async createJobInspection(data: InsertJobInspection): Promise<JobInspection> {
-    const [inspection] = await db.insert(jobInspections).values(data).returning();
-    return inspection;
-  }
-
-  async updateJobInspection(id: number, data: Partial<InsertJobInspection>): Promise<JobInspection | undefined> {
-    const [updated] = await db.update(jobInspections).set({ ...data, updatedAt: new Date() }).where(eq(jobInspections.id, id)).returning();
-    return updated || undefined;
   }
 }
 

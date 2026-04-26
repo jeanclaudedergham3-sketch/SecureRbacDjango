@@ -1,8 +1,0 @@
-uploads = []
-generated = []
-
-[[outputs]]
-id = "6cFMKBlpWCddwFAV5G70e"
-uri = "file://PLATFORM_OVERVIEW.md"
-type = "text"
-title = "Noviq — Full Platform Overview"
