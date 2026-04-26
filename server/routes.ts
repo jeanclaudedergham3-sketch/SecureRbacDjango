@@ -1277,6 +1277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/work-orders/:id/invoice", requireAuth, requirePermission("workorders.tab.invoice"), async (req, res) => {
     try {
       const workOrderId = parseInt(req.params.id);
+      const requestingUser = (req as any).user;
       console.log(`API: Creating/updating invoice for work order ${workOrderId} with data:`, req.body);
       
       // Check if invoice already exists
@@ -1284,25 +1285,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let savedInvoice;
       if (existingInvoice) {
-        // Update existing invoice
-        savedInvoice = await storage.updateWorkOrderInvoice(workOrderId, req.body);
+        // Update existing invoice (re-request after rejection resets to pending_approval)
+        savedInvoice = await storage.updateWorkOrderInvoice(workOrderId, {
+          ...req.body,
+          status: "pending_approval",
+          requestedBy: requestingUser?.id,
+          rejectionReason: null,
+        });
         console.log(`API: Updated invoice:`, savedInvoice);
       } else {
-        // Create new invoice with generated invoice number and calculated subtotal
         const workOrder = await storage.getWorkOrder(workOrderId);
         const invoiceNumber = `INV-${workOrder?.workOrderNumber || workOrderId}-${Date.now()}`;
-        
-        // Calculate subtotal if not provided
         const laborCost = parseFloat(req.body.laborCost || '0');
         const materialCost = parseFloat(req.body.materialCost || '0');
         const additionalCosts = parseFloat(req.body.additionalCosts || '0');
         const subtotal = laborCost + materialCost + additionalCosts;
-        
         savedInvoice = await storage.createWorkOrderInvoice({
           ...req.body,
           workOrderId,
           invoiceNumber,
-          subtotal: subtotal.toString()
+          subtotal: subtotal.toString(),
+          status: "pending_approval",
+          requestedBy: requestingUser?.id,
         });
         console.log(`API: Created invoice:`, savedInvoice);
       }
@@ -1314,26 +1318,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Approve an invoice request — locks the work order
+  app.post("/api/invoices/:id/approve", requireAuth, requirePermission("invoices.edit"), async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      const approvingUser = (req as any).user;
+      const invoice = await storage.getInvoiceById(invoiceId);
+      if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+
+      const updated = await storage.updateWorkOrderInvoice(invoice.workOrderId, {
+        status: "approved",
+        approvedBy: approvingUser?.id,
+        approvedAt: new Date(),
+      } as any);
+
+      // Lock the work order
+      await storage.lockWorkOrder(invoice.workOrderId);
+      console.log(`Invoice ${invoiceId} approved — work order ${invoice.workOrderId} locked`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error approving invoice:", error);
+      res.status(500).json({ message: "Failed to approve invoice" });
+    }
+  });
+
+  // Reject an invoice request — notifies the requester
+  app.post("/api/invoices/:id/reject", requireAuth, requirePermission("invoices.edit"), async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      const { reason } = req.body;
+      const invoice = await storage.getInvoiceById(invoiceId);
+      if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+
+      const updated = await storage.updateWorkOrderInvoice(invoice.workOrderId, {
+        status: "rejected",
+        rejectionReason: reason || "No reason provided",
+      } as any);
+
+      // Notify the user who requested the invoice
+      if (invoice.requestedBy) {
+        const workOrder = await storage.getWorkOrder(invoice.workOrderId);
+        await storage.createNotification({
+          userId: invoice.requestedBy,
+          type: "invoice_rejected",
+          title: "Invoice Request Rejected",
+          message: `Your invoice request for work order ${workOrder?.workOrderNumber || invoice.workOrderId} was rejected. Reason: ${reason || "No reason provided"}. You can submit a new request.`,
+          relatedEntity: "invoice",
+          relatedId: invoiceId,
+          isRead: false,
+        });
+      }
+
+      console.log(`Invoice ${invoiceId} rejected`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error rejecting invoice:", error);
+      res.status(500).json({ message: "Failed to reject invoice" });
+    }
+  });
+
   // Global invoice management routes
   app.get("/api/invoices/all", requireAuth, requirePermission("invoices.list.view"), async (req, res) => {
     try {
-      console.log("Fetching all invoices with work order details...");
+      const currentUser = (req as any).user;
+      const currentUserPermissions: string[] = (req as any).permissions || [];
+      const isAdmin = currentUserPermissions.includes("system.admin");
+
       const allInvoices = await storage.getAllInvoices();
-      const workOrders = await storage.getAllWorkOrders();
+      const allWorkOrders = await storage.getAllWorkOrders();
       
-      const invoicesWithDetails = allInvoices.map(invoice => {
-        const workOrder = workOrders.find(wo => wo.id === invoice.workOrderId);
-        const isLocked = invoice.status === "paid" || workOrder?.isLocked || false;
-        
-        return {
-          ...invoice,
-          workOrderNumber: workOrder?.workOrderNumber || "Unknown",
-          clientName: workOrder?.clientName || "Unknown",
-          isLocked
-        };
-      });
+      const invoicesWithDetails = allInvoices
+        .map(invoice => {
+          const workOrder = allWorkOrders.find(wo => wo.id === invoice.workOrderId);
+          const isLocked = invoice.status === "paid" || invoice.status === "approved" || workOrder?.isLocked || false;
+          
+          // Parse assigned user IDs from the work order
+          let assignedUserIds: number[] = [];
+          try {
+            if (workOrder?.assignedUserIds) {
+              assignedUserIds = JSON.parse(workOrder.assignedUserIds);
+            }
+            if (workOrder?.assignedTo) assignedUserIds.push(workOrder.assignedTo);
+          } catch {}
+
+          return {
+            ...invoice,
+            workOrderNumber: workOrder?.workOrderNumber || "Unknown",
+            clientName: workOrder?.clientName || "Unknown",
+            assignedUserIds,
+            isLocked
+          };
+        })
+        // Filter: only show invoices where the current user is assigned (unless admin)
+        .filter(inv => {
+          if (isAdmin) return true;
+          return inv.assignedUserIds.includes(currentUser?.id);
+        });
       
-      console.log("Invoices with details:", invoicesWithDetails);
       res.json(invoicesWithDetails);
     } catch (error) {
       console.error("Error fetching all invoices:", error);

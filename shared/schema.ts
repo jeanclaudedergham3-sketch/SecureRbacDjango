@@ -219,8 +219,13 @@ export const workOrderInvoices = pgTable("work_order_invoices", {
   taxRate: decimal("tax_rate", { precision: 6, scale: 4 }).notNull().default("0.1"),
   taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull(),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  // status: draft | pending_approval | approved | rejected | sent | paid
   status: varchar("status", { length: 50 }).notNull().default("draft"),
   notes: text("notes"),
+  requestedBy: integer("requested_by").references(() => users.id),
+  rejectionReason: text("rejection_reason"),
+  approvedBy: integer("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   sentAt: timestamp("sent_at"),
   paidAt: timestamp("paid_at"),
