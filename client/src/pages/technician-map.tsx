@@ -313,7 +313,7 @@ const MapComponent = ({ technicians, onMarkerClick, searchTerm }: {
   }, []);
 
   return (
-    <div className="h-full relative rounded-lg overflow-hidden border">
+    <div className="h-full relative rounded-lg overflow-hidden border" style={{ zIndex: 0, isolation: 'isolate' }}>
       <div ref={mapRef} className="h-full w-full min-h-[600px]" style={{ height: '100%' }} />
       
       {/* Geographic Search Component */}

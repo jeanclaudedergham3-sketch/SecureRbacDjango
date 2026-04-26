@@ -67,14 +67,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {/* Mobile sidebar overlay */}
       {isOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className="fixed inset-0 z-[1500] lg:hidden">
           <div className="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity" onClick={onClose} />
         </div>
       )}
       {/* Sidebar */}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl border-r border-slate-600/30 transform transition-all duration-500 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
+          "fixed inset-y-0 left-0 z-[2000] bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl border-r border-slate-600/30 transform transition-all duration-500 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
           "lg:w-16 lg:hover:w-64",
           isHovered ? "w-64" : "w-64 lg:w-16"
