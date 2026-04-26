@@ -450,9 +450,9 @@ export default function TechnicianMapPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b px-4 py-4">
+      <div className="bg-white border-b px-4 py-4 -mx-4 -mt-4 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-8 mb-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
@@ -477,7 +477,7 @@ export default function TechnicianMapPage() {
       </div>
 
       {/* Map Container */}
-      <div className="flex-1 p-4">
+      <div className="w-full" style={{ height: 'calc(100vh - 14rem)' }}>
         <div className="h-full max-w-7xl mx-auto">
           {isLoading ? (
             <div className="h-full flex items-center justify-center">
