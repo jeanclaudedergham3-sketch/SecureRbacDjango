@@ -84,23 +84,30 @@ export default function Roles() {
               </div>
               <CardContent className="px-6 py-4">
                 <h4 className="text-sm font-medium text-gray-900 mb-3">Permissions</h4>
-                <div className="space-y-2">
-                  {allPermissions.map((permission) => {
-                    const hasAccess = hasPermission(role, permission.name);
-                    return (
-                      <div key={permission.id} className="flex items-center">
-                        {hasAccess ? (
-                          <Check className="h-4 w-4 text-green-500 mr-2" />
-                        ) : (
-                          <X className="h-4 w-4 text-red-500 mr-2" />
-                        )}
-                        <span className={`text-sm ${hasAccess ? 'text-gray-700' : 'text-gray-400'}`}>
-                          {permission.name}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                {role.name === "admin" ? (
+                  <div className="flex items-center space-x-2 py-2 px-3 bg-blue-50 rounded-md">
+                    <Check className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                    <span className="text-sm font-medium text-blue-800">Full Access — all permissions granted</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {allPermissions.map((permission) => {
+                      const hasAccess = hasPermission(role, permission.name);
+                      return (
+                        <div key={permission.id} className="flex items-center">
+                          {hasAccess ? (
+                            <Check className="h-4 w-4 text-green-500 mr-2" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500 mr-2" />
+                          )}
+                          <span className={`text-sm ${hasAccess ? 'text-gray-700' : 'text-gray-400'}`}>
+                            {permission.name}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
               <div className="px-6 py-3 bg-gray-50 border-t">
                 <AdvancedPermissionGuard permission="permissions.assign">
@@ -150,7 +157,9 @@ export default function Roles() {
                         </td>
                         {roles.map((role) => (
                           <td key={role.id} className="px-6 py-4 whitespace-nowrap text-center">
-                            {hasPermission(role, permission.name) ? (
+                            {role.name === "admin" ? (
+                              <Check className="h-4 w-4 text-blue-500 mx-auto" />
+                            ) : hasPermission(role, permission.name) ? (
                               <Check className="h-4 w-4 text-green-500 mx-auto" />
                             ) : (
                               <X className="h-4 w-4 text-red-500 mx-auto" />

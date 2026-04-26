@@ -93,7 +93,7 @@ export function AssignRoleModal({ isOpen, onClose, user }: AssignRoleModalProps)
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                {roles.map((role) => (
+                {roles.filter((role) => role.name !== "admin").map((role) => (
                   <SelectItem key={role.id} value={role.id.toString()}>
                     <div>
                       <div className="font-medium">{role.name}</div>
