@@ -68,6 +68,11 @@ export const technicians = pgTable("technicians", {
   cashappHandle: varchar("cashapp_handle", { length: 255 }),
   zelleInfo: text("zelle_info"),
   mailingAddress: text("mailing_address"),
+  // W9 Document
+  w9Status: varchar("w9_status", { length: 50 }),
+  w9FilePath: varchar("w9_file_path", { length: 500 }),
+  w9FileName: varchar("w9_file_name", { length: 255 }),
+  w9SubmittedAt: timestamp("w9_submitted_at"),
   averageRating: decimal("average_rating", { precision: 3, scale: 2 }).default("0"),
   totalRatings: integer("total_ratings").default(0),
   isActive: boolean("is_active").notNull().default(true),

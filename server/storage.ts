@@ -94,6 +94,7 @@ export interface IStorage {
   createWorkOrderChat(chat: InsertWorkOrderChat): Promise<WorkOrderChat>;
   
   // Work Order Technician Payment operations
+  getWorkOrderTechnicianPayment(id: number): Promise<WorkOrderTechnicianPayment | undefined>;
   getWorkOrderTechnicianPayments(workOrderId: number): Promise<WorkOrderTechnicianPayment[]>;
   createWorkOrderTechnicianPayment(payment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment>;
   updateWorkOrderTechnicianPayment(id: number, payment: Partial<InsertWorkOrderTechnicianPayment>): Promise<WorkOrderTechnicianPayment | undefined>;
@@ -449,6 +450,11 @@ export class DatabaseStorage implements IStorage {
   async createWorkOrderChat(insertChat: InsertWorkOrderChat): Promise<WorkOrderChat> {
     const [chat] = await db.insert(workOrderChats).values(insertChat).returning();
     return chat;
+  }
+
+  async getWorkOrderTechnicianPayment(id: number): Promise<WorkOrderTechnicianPayment | undefined> {
+    const [payment] = await db.select().from(workOrderTechnicianPayments).where(eq(workOrderTechnicianPayments.id, id));
+    return payment || undefined;
   }
 
   async getWorkOrderTechnicianPayments(workOrderId: number): Promise<WorkOrderTechnicianPayment[]> {

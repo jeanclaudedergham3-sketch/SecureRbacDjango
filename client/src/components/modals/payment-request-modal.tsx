@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DollarSign, CreditCard, Building, Smartphone, QrCode, ArrowLeftRight, User, Mail, Phone, MapPin, Star, Clock, Briefcase, Award } from "lucide-react";
+import { DollarSign, CreditCard, Building, Smartphone, QrCode, ArrowLeftRight, User, Mail, Phone, MapPin, Star, Clock, Briefcase, Award, AlertTriangle, FileText, CheckCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AdvancedPermissionGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
@@ -107,6 +107,8 @@ const paymentMethodsInfo = {
     details: ["Mailing Address", "Check Amount"]
   }
 };
+
+const W9_PAYMENT_LIMIT = 500;
 
 export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentRequestModalProps) {
   const { toast } = useToast();
@@ -301,10 +303,19 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                             {selectedTechnician.firstName?.[0]}{selectedTechnician.lastName?.[0]}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
+                        <div className="flex-1">
                           <div className="text-lg">{selectedTechnician.firstName} {selectedTechnician.lastName}</div>
                           <div className="text-sm text-gray-600 font-normal">{selectedTechnician.specialization}</div>
                         </div>
+                        {selectedTechnician.w9FilePath ? (
+                          <Badge className="bg-green-100 text-green-700 border-green-300 shrink-0">
+                            <CheckCircle className="h-3 w-3 mr-1" /> W9 on File
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-amber-600 border-amber-400 bg-amber-50 shrink-0">
+                            <AlertTriangle className="h-3 w-3 mr-1" /> No W9
+                          </Badge>
+                        )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -326,6 +337,14 @@ export function PaymentRequestModal({ isOpen, onClose, workOrder }: PaymentReque
                           <span>{selectedTechnician.averageRating || "0"}/5 ({selectedTechnician.totalRatings || 0} reviews)</span>
                         </div>
                       </div>
+                      {!selectedTechnician.w9FilePath && (
+                        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                          <span>
+                            This technician does not have a W9 on file. Payments over <strong>${W9_PAYMENT_LIMIT}</strong> will be rejected. Upload a W9 in the technician profile to allow larger payments.
+                          </span>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}

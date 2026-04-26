@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,7 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Phone, Mail, MapPin, Star, CreditCard } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { User, Phone, Mail, MapPin, Star, CreditCard, FileText, Upload, Trash2, CheckCircle, AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Technician } from "@shared/schema";
 
 const technicianSchema = z.object({
@@ -75,8 +78,14 @@ export function TechnicianModal({
   initialData,
   mode,
 }: TechnicianModalProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
   const [paymentDetails, setPaymentDetails] = useState<{[key: string]: string}>({});
+  const [w9Uploading, setW9Uploading] = useState(false);
+  const [w9Deleting, setW9Deleting] = useState(false);
+  const [w9Info, setW9Info] = useState<{ fileName: string | null; filePath: string | null; submittedAt: string | null } | null>(null);
+  const w9FileRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<TechnicianFormData>({
     resolver: zodResolver(technicianSchema),
@@ -144,6 +153,12 @@ export function TechnicianModal({
           mailingAddress: initialData.mailingAddress || "",
         });
         setSelectedPaymentMethods(paymentMethods);
+        // Set W9 info
+        setW9Info({
+          fileName: (initialData as any).w9FileName || null,
+          filePath: (initialData as any).w9FilePath || null,
+          submittedAt: (initialData as any).w9SubmittedAt || null,
+        });
       } else {
         form.reset({
           firstName: "",
@@ -165,9 +180,64 @@ export function TechnicianModal({
           mailingAddress: "",
         });
         setSelectedPaymentMethods([]);
+        setW9Info(null);
       }
     }
   }, [isOpen, mode, initialData, form]);
+
+  const handleW9Upload = async (file: File) => {
+    if (!initialData?.id) return;
+    setW9Uploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('w9', file);
+      const response = await fetch(`/api/technicians/${initialData.id}/w9`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'Upload failed');
+      }
+      const result = await response.json();
+      const tech = result.technician;
+      setW9Info({
+        fileName: tech.w9FileName,
+        filePath: tech.w9FilePath,
+        submittedAt: tech.w9SubmittedAt,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/technicians'] });
+      toast({ title: "W9 Uploaded", description: "W9 document uploaded successfully." });
+    } catch (error: any) {
+      toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setW9Uploading(false);
+      if (w9FileRef.current) w9FileRef.current.value = '';
+    }
+  };
+
+  const handleW9Delete = async () => {
+    if (!initialData?.id) return;
+    setW9Deleting(true);
+    try {
+      const response = await fetch(`/api/technicians/${initialData.id}/w9`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'Delete failed');
+      }
+      setW9Info(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/technicians'] });
+      toast({ title: "W9 Removed", description: "W9 document removed successfully." });
+    } catch (error: any) {
+      toast({ title: "Remove Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setW9Deleting(false);
+    }
+  };
 
   const handlePaymentMethodChange = (methodId: string, checked: boolean) => {
     const newMethods = checked
@@ -528,6 +598,96 @@ export function TechnicianModal({
                 )}
               </CardContent>
             </Card>
+
+            {/* W9 Document — only shown when editing an existing technician */}
+            {mode === "edit" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    W9 Tax Document
+                    {w9Info?.filePath ? (
+                      <Badge className="bg-green-100 text-green-700 border-green-300">
+                        <CheckCircle className="h-3 w-3 mr-1" /> On File
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-amber-600 border-amber-400 bg-amber-50">
+                        <AlertCircle className="h-3 w-3 mr-1" /> Not on File
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {w9Info?.filePath ? (
+                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-5 w-5 text-green-600" />
+                        <div>
+                          <p className="text-sm font-medium text-green-800">{w9Info.fileName || "W9 Document"}</p>
+                          {w9Info.submittedAt && (
+                            <p className="text-xs text-green-600">
+                              Uploaded {new Date(w9Info.submittedAt).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(w9Info.filePath!, '_blank')}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                          onClick={handleW9Delete}
+                          disabled={w9Deleting}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          {w9Deleting ? "Removing..." : "Remove"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <AlertCircle className="h-4 w-4 inline mr-1" />
+                        No W9 on file. Payments over $500 will be blocked until a W9 is uploaded.
+                      </p>
+                      <div
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                        onClick={() => w9FileRef.current?.click()}
+                      >
+                        <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm font-medium text-gray-700">Click to upload W9</p>
+                        <p className="text-xs text-gray-500 mt-1">PDF, JPG, PNG, DOC, DOCX — max 10MB</p>
+                      </div>
+                    </div>
+                  )}
+                  {/* Hidden file input */}
+                  <input
+                    ref={w9FileRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleW9Upload(file);
+                    }}
+                  />
+                  {w9Uploading && (
+                    <p className="text-sm text-blue-600 flex items-center gap-2">
+                      <Upload className="h-4 w-4 animate-bounce" /> Uploading W9…
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Action Buttons */}
             <div className="flex justify-end space-x-2">

@@ -50,6 +50,36 @@ const upload = multer({
   }
 });
 
+// W9 file upload middleware (stores under uploads/w9/{technicianId}/)
+const w9Storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const technicianId = req.params.id;
+    const uploadPath = path.join(process.cwd(), 'uploads', 'w9', technicianId);
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'w9-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadW9 = multer({
+  storage: w9Storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF, image, and Word documents are allowed for W9'));
+    }
+  }
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session configuration
   app.use(session({
@@ -384,6 +414,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Technician deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete technician" });
+    }
+  });
+
+  // W9 upload endpoint
+  app.post("/api/technicians/:id/w9", requireAuth, requirePermission("technicians.edit"), uploadW9.single('w9'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (!req.file) {
+        return res.status(400).json({ message: "No W9 file uploaded" });
+      }
+      const technician = await storage.getTechnician(id);
+      if (!technician) {
+        return res.status(404).json({ message: "Technician not found" });
+      }
+      // Remove old W9 file if it exists
+      if (technician.w9FilePath) {
+        const oldPath = path.join(process.cwd(), technician.w9FilePath.replace(/^\//, ''));
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath);
+        }
+      }
+      const filePath = `/uploads/w9/${id}/${req.file.filename}`;
+      const updated = await storage.updateTechnician(id, {
+        w9FilePath: filePath,
+        w9FileName: req.file.originalname,
+        w9SubmittedAt: new Date(),
+        w9Status: 'submitted',
+      } as any);
+      res.json({ message: "W9 uploaded successfully", technician: updated });
+    } catch (error) {
+      console.error("Error uploading W9:", error);
+      res.status(500).json({ message: "Failed to upload W9", error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  // W9 delete endpoint
+  app.delete("/api/technicians/:id/w9", requireAuth, requirePermission("technicians.edit"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const technician = await storage.getTechnician(id);
+      if (!technician) {
+        return res.status(404).json({ message: "Technician not found" });
+      }
+      if (technician.w9FilePath) {
+        const oldPath = path.join(process.cwd(), technician.w9FilePath.replace(/^\//, ''));
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath);
+        }
+      }
+      const updated = await storage.updateTechnician(id, {
+        w9FilePath: null,
+        w9FileName: null,
+        w9SubmittedAt: null,
+        w9Status: null,
+      } as any);
+      res.json({ message: "W9 removed successfully", technician: updated });
+    } catch (error) {
+      console.error("Error deleting W9:", error);
+      res.status(500).json({ message: "Failed to delete W9" });
     }
   });
 
@@ -969,6 +1058,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const paymentId = parseInt(req.params.id);
       const updates = req.body;
+
+      // When approving/paying, enforce $500 limit for technicians without W9
+      const isApprovalAction = updates.status === 'approved' || updates.status === 'partially_paid' || updates.status === 'paid';
+      if (isApprovalAction) {
+        const existingPayment = await storage.getWorkOrderTechnicianPayment(paymentId);
+        if (existingPayment) {
+          const W9_LIMIT = 500;
+          const amountToCheck = parseFloat(updates.amountApproved || updates.amountPaid || existingPayment.amountRequested as string);
+          if (!isNaN(amountToCheck) && amountToCheck > W9_LIMIT) {
+            const technician = await storage.getTechnician(existingPayment.technicianId);
+            if (!technician || !technician.w9FilePath) {
+              return res.status(400).json({
+                message: `Cannot approve payment over $${W9_LIMIT}. A W9 form must be on file for this technician.`,
+                code: "W9_REQUIRED"
+              });
+            }
+          }
+        }
+      }
       
       const payment = await storage.updateWorkOrderTechnicianPayment(paymentId, updates);
       if (!payment) {
@@ -989,6 +1097,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         workOrderId
       });
+
+      // Enforce $500 limit for technicians without a W9 on file
+      const W9_LIMIT = 500;
+      const amountRequested = parseFloat(paymentData.amountRequested as string);
+      if (!isNaN(amountRequested) && amountRequested > W9_LIMIT) {
+        const technician = await storage.getTechnician(paymentData.technicianId);
+        if (!technician || !technician.w9FilePath) {
+          return res.status(400).json({
+            message: `Payment amount exceeds $${W9_LIMIT}. A W9 form must be on file for this technician before payments over $${W9_LIMIT} can be requested.`,
+            code: "W9_REQUIRED"
+          });
+        }
+      }
       
       const payment = await storage.createWorkOrderTechnicianPayment(paymentData);
       console.log(`Payment request created for work order ${workOrderId} by user ${req.session.userId}`);
