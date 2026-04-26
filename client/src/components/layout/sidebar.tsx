@@ -179,23 +179,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           {/* Navigation */}
           <nav className="flex-1 px-3 py-2 space-y-3 overflow-y-auto scrollbar-thin">
             {navigationSections.map((section) => {
-              // Check if user has permission for any item in this section
               const hasAnyPermission = section.items.some(item => 
                 !item.permission || hasPermission(item.permission)
               );
-              
-              // Debug logging for manager role
-              if (user?.username === 'qqq') {
-                console.log(`Section: ${section.title}`, {
-                  hasAnyPermission,
-                  userPermissions: permissions,
-                  items: section.items.map(item => ({
-                    name: item.name,
-                    permission: item.permission,
-                    hasPermission: item.permission ? hasPermission(item.permission) : true
-                  }))
-                });
-              }
               
               if (!hasAnyPermission) return null;
               
@@ -213,11 +199,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   
                   {/* Section Items */}
                   <div className="space-y-0.5">
-                    {section.items.map((item) => {
-                      const isActive = location === item.href;
-                      const Icon = item.icon;
-                      
-                      if (item.permission && hasPermission(item.permission)) {
+                    {section.items
+                      .filter((item) => !item.permission || hasPermission(item.permission))
+                      .map((item) => {
+                        const isActive = location === item.href;
+                        const Icon = item.icon;
                         return (
                           <Link key={item.name} href={item.href}>
                             <button
@@ -245,36 +231,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             </button>
                           </Link>
                         );
-                      }
-
-                      return (
-                        <Link key={item.name} href={item.href}>
-                          <button
-                            className={cn(
-                              "w-full group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-300 text-left relative transform hover:scale-105 active:scale-95",
-                              isActive
-                                ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 border border-blue-400/30"
-                                : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
-                            )}
-                            onClick={onClose}
-                          >
-                            <Icon className="h-4 w-4 flex-shrink-0" />
-                            <span className={cn(
-                              "ml-3 transition-all duration-500 whitespace-nowrap font-medium",
-                              isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
-                            )}>
-                              {item.name}
-                            </span>
-                            {!isHovered && (
-                              <div className="absolute left-full ml-3 px-3 py-2 bg-slate-900/95 backdrop-blur-sm text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 whitespace-nowrap shadow-xl border border-slate-600/50">
-                                {item.name}
-                                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900/95 rotate-45 border-l border-b border-slate-600/50"></div>
-                              </div>
-                            )}
-                          </button>
-                        </Link>
-                      );
-                    })}
+                      })}
                   </div>
                 </div>
               );
