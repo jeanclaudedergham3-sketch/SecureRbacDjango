@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus } from "lucide-react";
+import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, CheckCircle2, Clock, XCircle, AlertCircle, ChevronRight } from "lucide-react";
 import { AdvancedPermissionGuard, TabGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
@@ -94,6 +94,11 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
 
   const { data: existingPayments = [] } = useQuery({
     queryKey: [`/api/work-orders/${workOrder?.id}/payments`],
+    enabled: !!workOrder?.id,
+  });
+
+  const { data: invoiceData } = useQuery({
+    queryKey: [`/api/work-orders/${workOrder?.id}/invoice`],
     enabled: !!workOrder?.id,
   });
 
@@ -299,6 +304,155 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
             </p>
           </div>
         )}
+
+        {/* ── Work Order Stage Pipeline ── */}
+        {(() => {
+          const proposalStatus: string = !proposalData
+            ? "none"
+            : proposalData.status === "approved"
+            ? "approved"
+            : proposalData.status === "rejected"
+            ? "rejected"
+            : "pending";
+
+          const partsArr = Array.isArray(partsRequests) ? partsRequests : [];
+          const partsStatus: string =
+            partsArr.length === 0
+              ? "none"
+              : partsArr.every((r: any) => r.status === "received" || r.status === "approved")
+              ? "done"
+              : partsArr.some((r: any) => r.status === "ordered" || r.status === "approved")
+              ? "ordered"
+              : "pending";
+
+          const paymentsArr = Array.isArray(existingPayments) ? existingPayments : [];
+          const paymentStatus: string =
+            paymentsArr.length === 0
+              ? "none"
+              : paymentsArr.every((p: any) => p.status === "paid")
+              ? "paid"
+              : paymentsArr.some((p: any) => p.status === "approved" || p.status === "partially_paid")
+              ? "approved"
+              : "pending";
+
+          const invoiceStatus: string = !(invoiceData as any)
+            ? "none"
+            : (invoiceData as any).status === "paid"
+            ? "paid"
+            : (invoiceData as any).status === "sent"
+            ? "sent"
+            : "created";
+
+          type StageState = "none" | "pending" | "approved" | "rejected" | "done" | "ordered" | "paid" | "sent" | "created";
+
+          const stages: { label: string; icon: any; state: StageState; detail: string }[] = [
+            {
+              label: "Proposal",
+              icon: FileText,
+              state: proposalStatus as StageState,
+              detail:
+                proposalStatus === "none" ? "Not created"
+                : proposalStatus === "pending" ? "Under review"
+                : proposalStatus === "approved" ? "Approved"
+                : "Rejected",
+            },
+            {
+              label: "Parts",
+              icon: Hammer,
+              state: partsStatus as StageState,
+              detail:
+                partsStatus === "none" ? "Not requested"
+                : partsStatus === "pending" ? `${partsArr.length} request${partsArr.length > 1 ? "s" : ""} pending`
+                : partsStatus === "ordered" ? "Ordered / In progress"
+                : `${partsArr.length} request${partsArr.length > 1 ? "s" : ""} fulfilled`,
+            },
+            {
+              label: "Invoice",
+              icon: Receipt,
+              state: invoiceStatus as StageState,
+              detail:
+                invoiceStatus === "none" ? "Not created"
+                : invoiceStatus === "created" ? "Draft created"
+                : invoiceStatus === "sent" ? "Sent to client"
+                : "Paid",
+            },
+            {
+              label: "Payment",
+              icon: CreditCard,
+              state: paymentStatus as StageState,
+              detail:
+                paymentStatus === "none" ? "Not requested"
+                : paymentStatus === "pending" ? `${paymentsArr.length} request${paymentsArr.length > 1 ? "s" : ""} pending`
+                : paymentStatus === "approved" ? "Approved"
+                : `${paymentsArr.length} payment${paymentsArr.length > 1 ? "s" : ""} paid`,
+            },
+          ];
+
+          const getStageColor = (state: StageState) => {
+            switch (state) {
+              case "approved":
+              case "done":
+              case "paid":
+                return { bg: "bg-green-100", border: "border-green-400", icon: "text-green-600", label: "text-green-700", dot: "bg-green-500" };
+              case "pending":
+              case "ordered":
+              case "sent":
+              case "created":
+                return { bg: "bg-blue-100", border: "border-blue-400", icon: "text-blue-600", label: "text-blue-700", dot: "bg-blue-500" };
+              case "rejected":
+                return { bg: "bg-red-100", border: "border-red-400", icon: "text-red-600", label: "text-red-700", dot: "bg-red-500" };
+              default:
+                return { bg: "bg-gray-100", border: "border-gray-300", icon: "text-gray-400", label: "text-gray-500", dot: "bg-gray-300" };
+            }
+          };
+
+          const getStageIcon = (state: StageState) => {
+            switch (state) {
+              case "approved":
+              case "done":
+              case "paid":
+                return <CheckCircle2 className="h-5 w-5 text-green-600" />;
+              case "rejected":
+                return <XCircle className="h-5 w-5 text-red-600" />;
+              case "pending":
+              case "ordered":
+              case "sent":
+              case "created":
+                return <Clock className="h-5 w-5 text-blue-600" />;
+              default:
+                return <AlertCircle className="h-5 w-5 text-gray-400" />;
+            }
+          };
+
+          return (
+            <div className="mb-6 p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Work Order Progress</h3>
+              <div className="flex items-stretch gap-0">
+                {stages.map((stage, idx) => {
+                  const colors = getStageColor(stage.state);
+                  const Icon = stage.icon;
+                  return (
+                    <div key={stage.label} className="flex items-center flex-1 min-w-0">
+                      <div className={`flex-1 rounded-lg border-2 p-3 ${colors.bg} ${colors.border} flex flex-col items-center text-center gap-1`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Icon className={`h-4 w-4 ${colors.icon}`} />
+                          <span className="text-xs font-bold text-gray-700">{stage.label}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {getStageIcon(stage.state)}
+                        </div>
+                        <p className={`text-xs font-medium ${colors.label} leading-tight`}>{stage.detail}</p>
+                      </div>
+                      {idx < stages.length - 1 && (
+                        <ChevronRight className="h-5 w-5 text-gray-300 flex-shrink-0 mx-1" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Action Buttons - Disabled when locked */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
