@@ -997,30 +997,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Global payment manager routes
   app.get("/api/payments/all", requireAuth, requirePermission("payments.list.view"), async (req, res) => {
     try {
-      console.log("Fetching all payments...");
-      // Get all payments with work order and technician details
+      const currentUser = (req as any).user;
+      const currentUserPermissions: string[] = (req as any).permissions || [];
+      const isAdmin = currentUserPermissions.includes("system.admin");
+
       const allPayments = await storage.getWorkOrderTechnicianPayments(0); // 0 = all
-      console.log("Found payments:", allPayments);
-      
-      const workOrders = await storage.getAllWorkOrders();
+      const allWorkOrders = await storage.getAllWorkOrders();
       const technicians = await storage.getAllTechnicians();
       
-      const paymentsWithDetails = allPayments.map(payment => {
-        const workOrder = workOrders.find(wo => wo.id === payment.workOrderId);
-        const technician = technicians.find(t => t.id === payment.technicianId);
-        
-        return {
-          ...payment,
-          workOrderNumber: workOrder?.workOrderNumber || "Unknown",
-          technicianName: technician ? `${technician.firstName} ${technician.lastName}` : "Unknown"
-        };
-      });
+      const paymentsWithDetails = allPayments
+        .map(payment => {
+          const workOrder = allWorkOrders.find(wo => wo.id === payment.workOrderId);
+          const technician = technicians.find(t => t.id === payment.technicianId);
+          
+          let assignedUserIds: number[] = [];
+          try {
+            if (workOrder?.assignedUserIds) assignedUserIds = JSON.parse(workOrder.assignedUserIds);
+            if (workOrder?.assignedTo) assignedUserIds.push(workOrder.assignedTo);
+          } catch {}
+
+          return {
+            ...payment,
+            workOrderNumber: workOrder?.workOrderNumber || "Unknown",
+            clientName: workOrder?.clientName || "Unknown",
+            technicianName: technician ? `${technician.firstName} ${technician.lastName}` : "Unknown",
+            technicianPaymentMethods: technician?.paymentMethods || "[]",
+            assignedUserIds,
+          };
+        })
+        .filter(p => {
+          if (isAdmin) return true;
+          return p.assignedUserIds.includes(currentUser?.id);
+        });
       
-      console.log("Payments with details:", paymentsWithDetails);
       res.json(paymentsWithDetails);
     } catch (error) {
       console.error("Error fetching all payments:", error);
       res.status(500).json({ message: "Failed to get payments" });
+    }
+  });
+
+  // Approve a payment request
+  app.post("/api/payments/:id/approve", requireAuth, requirePermission("payments.approve"), async (req, res) => {
+    try {
+      const paymentId = parseInt(req.params.id);
+      const { amountApproved } = req.body;
+
+      const existing = await storage.getWorkOrderTechnicianPayment(paymentId);
+      if (!existing) return res.status(404).json({ message: "Payment not found" });
+
+      const approved = parseFloat(amountApproved || existing.amountRequested as string);
+
+      // W9 check
+      if (approved > 500) {
+        const technician = await storage.getTechnician(existing.technicianId);
+        if (!technician?.w9FilePath) {
+          return res.status(400).json({
+            message: `Cannot approve payment over $500. A W9 form must be on file.`,
+            code: "W9_REQUIRED"
+          });
+        }
+      }
+
+      const updated = await storage.updateWorkOrderTechnicianPayment(paymentId, {
+        status: "approved",
+        amountApproved: amountApproved || existing.amountRequested,
+        approvedAt: new Date(),
+      } as any);
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error approving payment:", error);
+      res.status(500).json({ message: "Failed to approve payment" });
+    }
+  });
+
+  // Reject a payment request
+  app.post("/api/payments/:id/reject", requireAuth, requirePermission("payments.approve"), async (req, res) => {
+    try {
+      const paymentId = parseInt(req.params.id);
+      const { reason } = req.body;
+
+      const existing = await storage.getWorkOrderTechnicianPayment(paymentId);
+      if (!existing) return res.status(404).json({ message: "Payment not found" });
+
+      const updated = await storage.updateWorkOrderTechnicianPayment(paymentId, {
+        status: "rejected",
+        rejectionReason: reason || "No reason provided",
+      } as any);
+
+      // Notify if there's a linked work order with an assignedTo user
+      const workOrder = await storage.getWorkOrder(existing.workOrderId);
+      if (workOrder?.assignedTo) {
+        await storage.createNotification({
+          userId: workOrder.assignedTo,
+          type: "payment_rejected",
+          title: "Payment Request Rejected",
+          message: `Payment request for work order ${workOrder.workOrderNumber} was rejected. Reason: ${reason || "No reason provided"}.`,
+          relatedEntity: "payment",
+          relatedId: paymentId,
+          isRead: false,
+        });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error rejecting payment:", error);
+      res.status(500).json({ message: "Failed to reject payment" });
+    }
+  });
+
+  // Record a payment (partial or full) for an approved request
+  app.post("/api/payments/:id/pay", requireAuth, requirePermission("payments.approve"), async (req, res) => {
+    try {
+      const paymentId = parseInt(req.params.id);
+      const { amountPaid } = req.body;
+
+      const existing = await storage.getWorkOrderTechnicianPayment(paymentId);
+      if (!existing) return res.status(404).json({ message: "Payment not found" });
+      if (existing.status !== "approved" && existing.status !== "partially_paid") {
+        return res.status(400).json({ message: "Payment must be approved before recording payment" });
+      }
+
+      const previouslyPaid = parseFloat(existing.amountPaid as string || "0");
+      const newPaid = parseFloat(amountPaid || "0");
+      const totalPaid = previouslyPaid + newPaid;
+      const approved = parseFloat(existing.amountApproved as string || existing.amountRequested as string || "0");
+      const remaining = approved - totalPaid;
+
+      const newStatus = remaining <= 0.001 ? "paid" : "partially_paid";
+
+      const updated = await storage.updateWorkOrderTechnicianPayment(paymentId, {
+        amountPaid: totalPaid.toFixed(2),
+        status: newStatus,
+        paidAt: newStatus === "paid" ? new Date() : existing.paidAt,
+      } as any);
+
+      res.json({ ...updated, remaining: Math.max(0, remaining).toFixed(2) });
+    } catch (error: any) {
+      console.error("Error recording payment:", error);
+      res.status(500).json({ message: "Failed to record payment" });
     }
   });
 
