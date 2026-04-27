@@ -1001,7 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentUserPermissions: string[] = (req as any).permissions || [];
       const isAdmin = currentUserPermissions.includes("system.admin");
 
-      const allPayments = await storage.getWorkOrderTechnicianPayments(0); // 0 = all
+      const allPayments = await storage.getAllTechnicianPayments();
       const allWorkOrders = await storage.getAllWorkOrders();
       const technicians = await storage.getAllTechnicians();
       
@@ -1145,11 +1145,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const technicianId = parseInt(req.params.technicianId);
       console.log(`Fetching payment history for technician ${technicianId}`);
       
-      const allPayments = await storage.getWorkOrderTechnicianPayments(0);
+      const allPayments = await storage.getAllTechnicianPayments();
       const workOrders = await storage.getAllWorkOrders();
-      
-      console.log(`Total payments found: ${allPayments.length}`);
-      console.log("All payments:", allPayments);
       
       const technicianPayments = allPayments
         .filter(payment => payment.technicianId === technicianId)

@@ -96,6 +96,7 @@ export interface IStorage {
   // Work Order Technician Payment operations
   getWorkOrderTechnicianPayment(id: number): Promise<WorkOrderTechnicianPayment | undefined>;
   getWorkOrderTechnicianPayments(workOrderId: number): Promise<WorkOrderTechnicianPayment[]>;
+  getAllTechnicianPayments(): Promise<WorkOrderTechnicianPayment[]>;
   createWorkOrderTechnicianPayment(payment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment>;
   updateWorkOrderTechnicianPayment(id: number, payment: Partial<InsertWorkOrderTechnicianPayment>): Promise<WorkOrderTechnicianPayment | undefined>;
   
@@ -459,6 +460,10 @@ export class DatabaseStorage implements IStorage {
 
   async getWorkOrderTechnicianPayments(workOrderId: number): Promise<WorkOrderTechnicianPayment[]> {
     return await db.select().from(workOrderTechnicianPayments).where(eq(workOrderTechnicianPayments.workOrderId, workOrderId));
+  }
+
+  async getAllTechnicianPayments(): Promise<WorkOrderTechnicianPayment[]> {
+    return await db.select().from(workOrderTechnicianPayments).orderBy(workOrderTechnicianPayments.requestedAt);
   }
 
   async createWorkOrderTechnicianPayment(insertPayment: InsertWorkOrderTechnicianPayment): Promise<WorkOrderTechnicianPayment> {
