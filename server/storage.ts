@@ -83,6 +83,7 @@ export interface IStorage {
   getWorkOrderPartsRequests(workOrderId: number): Promise<WorkOrderPartsRequest[]>;
   createWorkOrderPartsRequest(partsRequest: InsertWorkOrderPartsRequest): Promise<WorkOrderPartsRequest>;
   updateWorkOrderPartsRequestStatus(id: number, status: string): Promise<boolean>;
+  updateWorkOrderPartsRequest(id: number, data: Partial<any>): Promise<WorkOrderPartsRequest | undefined>;
   
   // Work Order File operations
   getWorkOrderFiles(workOrderId: number, category?: string): Promise<WorkOrderFile[]>;
@@ -424,6 +425,14 @@ export class DatabaseStorage implements IStorage {
       .set({ status })
       .where(eq(workOrderPartsRequests.id, id));
     return result.rowCount! > 0;
+  }
+
+  async updateWorkOrderPartsRequest(id: number, data: Partial<any>): Promise<WorkOrderPartsRequest | undefined> {
+    const [updated] = await db.update(workOrderPartsRequests)
+      .set(data)
+      .where(eq(workOrderPartsRequests.id, id))
+      .returning();
+    return updated || undefined;
   }
 
   async getWorkOrderFiles(workOrderId: number, category?: string): Promise<WorkOrderFile[]> {

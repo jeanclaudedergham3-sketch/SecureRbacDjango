@@ -162,8 +162,10 @@ export const workOrderPartsRequests = pgTable("work_order_parts_requests", {
   estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
   supplier: varchar("supplier", { length: 255 }),
   urgency: varchar("urgency", { length: 50 }).notNull().default("normal"),
+  // status: pending | approved | rejected | ordered | received | cancelled
   status: varchar("status", { length: 50 }).notNull().default("pending"),
   notes: text("notes"),
+  rejectionReason: text("rejection_reason"),
   requestedBy: integer("requested_by").notNull().references(() => users.id),
   approvedBy: integer("approved_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),

@@ -775,36 +775,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Legacy status update (kept for compatibility)
   app.put("/api/parts-requests/:id/status", requireAuth, requirePermission("parts.approve"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
-      
-      if (!["pending", "approved", "cancelled"].includes(status)) {
+      const validStatuses = ["pending", "approved", "rejected", "ordered", "received", "cancelled"];
+      if (!validStatuses.includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-
       const success = await storage.updateWorkOrderPartsRequestStatus(id, status);
-      if (!success) {
-        return res.status(404).json({ message: "Parts request not found" });
-      }
-      
-      console.log(`Parts request ${id} status updated to ${status} by user ${req.session.userId}`);
+      if (!success) return res.status(404).json({ message: "Parts request not found" });
       res.json({ message: "Status updated successfully" });
     } catch (error) {
-      console.error("Error updating parts request status:", error);
       res.status(400).json({ message: "Failed to update parts request status" });
     }
   });
 
-  // Get all parts requests with work order and user info
+  // Approve a parts request
+  app.post("/api/parts-requests/:id/approve", requireAuth, requirePermission("parts.approve"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const approvingUser = (req as any).user;
+      const updated = await storage.updateWorkOrderPartsRequest(id, {
+        status: "approved",
+        approvedBy: approvingUser?.id,
+        approvedAt: new Date(),
+        rejectionReason: null,
+      });
+      if (!updated) return res.status(404).json({ message: "Parts request not found" });
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error approving parts request:", error);
+      res.status(500).json({ message: "Failed to approve parts request" });
+    }
+  });
+
+  // Reject a parts request — notify the requester
+  app.post("/api/parts-requests/:id/reject", requireAuth, requirePermission("parts.approve"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { reason } = req.body;
+
+      const updated = await storage.updateWorkOrderPartsRequest(id, {
+        status: "rejected",
+        rejectionReason: reason || "No reason provided",
+      });
+      if (!updated) return res.status(404).json({ message: "Parts request not found" });
+
+      // Notify the requester
+      const workOrder = await storage.getWorkOrder(updated.workOrderId);
+      if (updated.requestedBy) {
+        await storage.createNotification({
+          userId: updated.requestedBy,
+          type: "parts_rejected",
+          title: "Parts Request Rejected",
+          message: `Your parts request for "${updated.partName}" (Work Order: ${workOrder?.workOrderNumber || updated.workOrderId}) was rejected. Reason: ${reason || "No reason provided"}. You can submit a new request.`,
+          relatedEntity: "parts_request",
+          relatedId: id,
+          isRead: false,
+        });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error rejecting parts request:", error);
+      res.status(500).json({ message: "Failed to reject parts request" });
+    }
+  });
+
+  // Mark a parts request as ordered
+  app.post("/api/parts-requests/:id/order", requireAuth, requirePermission("parts.approve"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updated = await storage.updateWorkOrderPartsRequest(id, { status: "ordered" });
+      if (!updated) return res.status(404).json({ message: "Parts request not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to mark as ordered" });
+    }
+  });
+
+  // Mark a parts request as received
+  app.post("/api/parts-requests/:id/receive", requireAuth, requirePermission("parts.approve"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updated = await storage.updateWorkOrderPartsRequest(id, { status: "received" });
+      if (!updated) return res.status(404).json({ message: "Parts request not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to mark as received" });
+    }
+  });
+
+  // Get all parts requests with work order and user info — filtered by assignment
   app.get("/api/parts-requests", requireAuth, requirePermission("parts.list.view"), async (req, res) => {
     try {
+      const currentUser = (req as any).user;
+      const currentUserPermissions: string[] = (req as any).permissions || [];
+      const isAdmin = currentUserPermissions.includes("system.admin");
+
       const workOrders = await storage.getAllWorkOrders();
       const users = await storage.getAllUsers();
       const partsRequestsWithInfo = [];
       
       for (const workOrder of workOrders) {
+        // Assignment check
+        let assignedUserIds: number[] = [];
+        try {
+          if (workOrder.assignedUserIds) assignedUserIds = JSON.parse(workOrder.assignedUserIds);
+          if (workOrder.assignedTo) assignedUserIds.push(workOrder.assignedTo);
+        } catch {}
+        
+        if (!isAdmin && !assignedUserIds.includes(currentUser?.id)) continue;
+
         const partsRequests = await storage.getWorkOrderPartsRequests(workOrder.id);
         for (const request of partsRequests) {
           const requestedByUser = users.find(u => u.id === request.requestedBy);
@@ -814,23 +898,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
               workOrderNumber: workOrder.workOrderNumber,
               clientName: workOrder.clientName,
               street: workOrder.street,
-              city: workOrder.city
+              city: workOrder.city,
             },
             requestedByUser: requestedByUser ? {
               firstName: requestedByUser.firstName,
               lastName: requestedByUser.lastName,
-              email: requestedByUser.email
-            } : {
-              firstName: "Unknown",
-              lastName: "User",
-              email: "unknown@example.com"
-            }
+              email: requestedByUser.email,
+            } : { firstName: "Unknown", lastName: "User", email: "" },
           });
         }
       }
       
       res.json(partsRequestsWithInfo);
     } catch (error) {
+      console.error("Error fetching parts requests:", error);
       res.status(500).json({ message: "Failed to get parts requests" });
     }
   });
