@@ -1720,6 +1720,244 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Analytics ──────────────────────────────────────────────────────────────
+  app.get("/api/analytics", requireAuth, requirePermission("analytics.view"), async (req, res) => {
+    try {
+      const [workOrders, invoices, payments, technicians, users, proposals] = await Promise.all([
+        storage.getAllWorkOrders(),
+        storage.getAllInvoices(),
+        storage.getAllTechnicianPayments(),
+        storage.getAllTechnicians(),
+        storage.getAllUsers(),
+        storage.getAllProposals(),
+      ]);
+
+      // ── Work order stats ──────────────────────────────────────
+      const woStats = {
+        total: workOrders.length,
+        completed: workOrders.filter(w => w.status === "completed").length,
+        pending: workOrders.filter(w => w.status === "pending").length,
+        inProgress: workOrders.filter(w => w.status === "in_progress" || w.status === "in-progress").length,
+        cancelled: workOrders.filter(w => w.status === "cancelled").length,
+        urgentCount: workOrders.filter(w => w.urgency === "urgent" || w.priority === "urgent").length,
+        avgCompletionTime: 8, // placeholder hours
+      };
+
+      // ── Financial stats ───────────────────────────────────────
+      const approvedInvoices = invoices.filter(i => i.status === "approved" || i.status === "paid");
+      const totalRevenue = approvedInvoices.reduce((s, i) => s + parseFloat(i.totalAmount || "0"), 0);
+      const totalPayments = payments
+        .filter(p => ["approved", "paid", "partially_paid"].includes(p.status))
+        .reduce((s, p) => s + parseFloat(p.amountApproved || p.amountRequested || "0"), 0);
+
+      const financialStats = {
+        totalRevenue: Math.round(totalRevenue),
+        totalCosts: Math.round(totalPayments),
+        profit: Math.round(totalRevenue - totalPayments),
+        avgProjectValue: approvedInvoices.length > 0 ? Math.round(totalRevenue / approvedInvoices.length) : 0,
+        outstandingInvoices: invoices.filter(i => i.status === "pending_approval" || i.status === "draft").length,
+        paidInvoices: invoices.filter(i => i.status === "paid").length,
+        approvedInvoices: invoices.filter(i => i.status === "approved").length,
+        totalLaborCost: Math.round(approvedInvoices.reduce((s, i) => s + parseFloat(i.laborCost || "0"), 0)),
+        totalMaterialCost: Math.round(approvedInvoices.reduce((s, i) => s + parseFloat(i.materialCost || "0"), 0)),
+      };
+
+      // ── Technician stats ──────────────────────────────────────
+      const ratingsData = technicians.filter(t => t.rating !== null);
+      const avgRating = ratingsData.length > 0
+        ? ratingsData.reduce((s, t) => s + parseFloat(t.rating || "0"), 0) / ratingsData.length
+        : 0;
+
+      const topPerformers = technicians
+        .sort((a, b) => parseFloat(b.rating || "0") - parseFloat(a.rating || "0"))
+        .slice(0, 8)
+        .map(t => ({
+          id: t.id,
+          name: `${t.firstName} ${t.lastName}`,
+          rating: parseFloat(t.rating || "0"),
+          completedJobs: workOrders.filter(w => w.technicianId === t.id && w.status === "completed").length,
+        }));
+
+      const technicianStats = {
+        totalTechnicians: technicians.length,
+        activeTechnicians: technicians.filter(t => t.status === "active").length,
+        avgRating: parseFloat(avgRating.toFixed(1)),
+        totalRatings: technicians.filter(t => t.rating !== null).length,
+        topPerformers,
+      };
+
+      // ── User stats ────────────────────────────────────────────
+      const roleMap: Record<string, number> = {};
+      for (const u of users) {
+        const role = u.role?.name || "unknown";
+        roleMap[role] = (roleMap[role] || 0) + 1;
+      }
+      const userStats = {
+        totalUsers: users.length,
+        activeUsers: users.filter(u => u.isActive !== false).length,
+        roleDistribution: Object.entries(roleMap).map(([role, count]) => ({ role, count })),
+      };
+
+      // ── Monthly data (last 12 months) ─────────────────────────
+      const now = new Date();
+      const monthlyData = Array.from({ length: 12 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+        const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        const label = d.toLocaleString("en-US", { month: "short", year: "2-digit" });
+        const monthWOs = workOrders.filter(w => {
+          const cd = new Date(w.createdAt);
+          return cd >= d && cd < next;
+        });
+        const monthInvoices = approvedInvoices.filter(iv => {
+          const cd = new Date(iv.createdAt);
+          return cd >= d && cd < next;
+        });
+        const monthPayments = payments.filter(p => {
+          const cd = new Date(p.createdAt);
+          return cd >= d && cd < next && ["approved","paid","partially_paid"].includes(p.status);
+        });
+        const rev = monthInvoices.reduce((s, iv) => s + parseFloat(iv.totalAmount || "0"), 0);
+        const costs = monthPayments.reduce((s, p) => s + parseFloat(p.amountApproved || p.amountRequested || "0"), 0);
+        return {
+          month: label,
+          workOrders: monthWOs.length,
+          revenue: Math.round(rev),
+          costs: Math.round(costs),
+          profit: Math.round(rev - costs),
+        };
+      });
+
+      // ── Category data ─────────────────────────────────────────
+      const catMap: Record<string, number[]> = {};
+      for (const w of workOrders) {
+        const cat = w.category || "Other";
+        if (!catMap[cat]) catMap[cat] = [];
+        catMap[cat].push(parseFloat(w.actualHours as any || "0"));
+      }
+      const categoryData = Object.entries(catMap)
+        .sort((a, b) => b[1].length - a[1].length)
+        .slice(0, 8)
+        .map(([category, hours]) => ({
+          category,
+          count: hours.length,
+          avgTime: hours.length > 0 ? parseFloat((hours.reduce((s, h) => s + h, 0) / hours.length).toFixed(1)) : 0,
+          revenue: Math.round(
+            approvedInvoices
+              .filter(iv => workOrders.find(w => w.id === iv.workOrderId)?.category === category)
+              .reduce((s, iv) => s + parseFloat(iv.totalAmount || "0"), 0)
+          ),
+        }));
+
+      // ── Priority / urgency data ───────────────────────────────
+      const urgencies = ["urgent", "high", "normal", "low"];
+      const priorityData = urgencies.map(u => {
+        const count = workOrders.filter(w => w.urgency === u || w.priority === u).length;
+        return { priority: u, count, percentage: workOrders.length > 0 ? Math.round((count / workOrders.length) * 100) : 0 };
+      }).filter(p => p.count > 0);
+
+      // ── Status data ───────────────────────────────────────────
+      const statusColors: Record<string, string> = {
+        pending: "#FFBB28", in_progress: "#0088FE", "in-progress": "#0088FE",
+        completed: "#00C49F", cancelled: "#FF8042",
+      };
+      const statusMap: Record<string, number> = {};
+      for (const w of workOrders) {
+        const s = w.status || "unknown";
+        statusMap[s] = (statusMap[s] || 0) + 1;
+      }
+      const statusData = Object.entries(statusMap).map(([status, count]) => ({
+        status,
+        count,
+        color: statusColors[status] || "#8884D8",
+        percentage: workOrders.length > 0 ? Math.round((count / workOrders.length) * 100) : 0,
+      }));
+
+      // ── All payments list ─────────────────────────────────────
+      const allPaymentsList = payments.map(p => {
+        const wo = workOrders.find(w => w.id === p.workOrderId);
+        return {
+          id: p.id,
+          workOrderNumber: wo?.workOrderNumber || `WO-${p.workOrderId}`,
+          clientName: wo?.clientName || "—",
+          amountRequested: parseFloat(p.amountRequested || "0"),
+          amountApproved: parseFloat(p.amountApproved || "0"),
+          status: p.status,
+          createdAt: p.createdAt,
+        };
+      });
+
+      // ── Proposal vs Invoice comparison ────────────────────────
+      const proposalVsInvoice = workOrders
+        .map(wo => {
+          const proposal = proposals.find(p => p.workOrderId === wo.id);
+          const invoice = invoices.find(i => i.workOrderId === wo.id);
+          if (!proposal && !invoice) return null;
+          const proposalTotal = parseFloat(proposal?.totalCost || "0");
+          const invoiceTotal = parseFloat(invoice?.totalAmount || "0");
+          const diff = proposalTotal - invoiceTotal;
+          return {
+            workOrderId: wo.id,
+            workOrderNumber: wo.workOrderNumber,
+            clientName: wo.clientName || "—",
+            status: wo.status,
+            proposalTotal,
+            invoiceTotal,
+            diff: Math.abs(diff),
+            // diff > 0: proposal was higher → invoice cost less → we saved (under budget)
+            // diff < 0: invoice was higher → went over proposal → over budget
+            result: diff > 0.01 ? "under_budget" : diff < -0.01 ? "over_budget" : "exact",
+            hasProposal: !!proposal,
+            hasInvoice: !!invoice,
+            invoiceStatus: invoice?.status || null,
+          };
+        })
+        .filter(Boolean);
+
+      const underBudgetItems = proposalVsInvoice.filter(i => i!.result === "under_budget");
+      const overBudgetItems  = proposalVsInvoice.filter(i => i!.result === "over_budget");
+      const totalSaved  = underBudgetItems.reduce((s, i) => s + i!.diff, 0);
+      const totalOverspent = overBudgetItems.reduce((s, i) => s + i!.diff, 0);
+
+      // ── Recent activity ───────────────────────────────────────
+      const recentActivity = workOrders
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10)
+        .map(w => ({
+          id: w.id,
+          type: "work_order",
+          description: `Work order ${w.workOrderNumber} — ${w.title || w.description || w.category}`,
+          timestamp: new Date(w.createdAt).toLocaleDateString(),
+          user: w.clientName || "—",
+        }));
+
+      res.json({
+        workOrderStats: woStats,
+        financialStats,
+        technicianStats,
+        userStats,
+        monthlyData,
+        categoryData,
+        priorityData,
+        statusData,
+        allPaymentsList,
+        proposalVsInvoice,
+        proposalVsSummary: {
+          totalCompared: proposalVsInvoice.length,
+          underBudgetCount: underBudgetItems.length,
+          overBudgetCount: overBudgetItems.length,
+          exactCount: proposalVsInvoice.filter(i => i!.result === "exact").length,
+          totalSaved: Math.round(totalSaved),
+          totalOverspent: Math.round(totalOverspent),
+          netResult: Math.round(totalSaved - totalOverspent),
+        },
+        recentActivity,
+      });
+    } catch (error: any) {
+      console.error("Analytics error:", error);
+      res.status(500).json({ message: "Failed to generate analytics", error: error.message });
+    }
+  });
+
   // Get all proposals for financial analysis
   app.get("/api/proposals", requireAuth, async (req, res) => {
     try {
