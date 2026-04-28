@@ -1720,6 +1720,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Global Search ──────────────────────────────────────────────────────────
+  app.get("/api/search", requireAuth, async (req, res) => {
+    try {
+      const q = ((req.query.q as string) || "").toLowerCase().trim();
+      if (!q || q.length < 2) return res.json([]);
+
+      const [workOrders, users, technicians, invoices, payments] = await Promise.all([
+        storage.getAllWorkOrders(),
+        storage.getAllUsers(),
+        storage.getAllTechnicians(),
+        storage.getAllInvoices(),
+        storage.getAllTechnicianPayments(),
+      ]);
+
+      const results: Array<{
+        id: string; type: string; title: string; subtitle: string; href: string; badge?: string;
+      }> = [];
+
+      // Work orders
+      for (const wo of workOrders) {
+        if (
+          wo.workOrderNumber?.toLowerCase().includes(q) ||
+          wo.clientName?.toLowerCase().includes(q) ||
+          wo.title?.toLowerCase().includes(q) ||
+          wo.description?.toLowerCase().includes(q) ||
+          wo.street?.toLowerCase().includes(q) ||
+          wo.city?.toLowerCase().includes(q)
+        ) {
+          results.push({
+            id: `wo-${wo.id}`, type: "Work Order",
+            title: wo.workOrderNumber,
+            subtitle: `${wo.clientName || "—"} · ${wo.city || wo.street || ""}`,
+            href: "/work-orders",
+            badge: wo.status,
+          });
+        }
+      }
+
+      // Users
+      for (const u of users) {
+        if (
+          u.firstName?.toLowerCase().includes(q) ||
+          u.lastName?.toLowerCase().includes(q) ||
+          u.email?.toLowerCase().includes(q) ||
+          u.username?.toLowerCase().includes(q)
+        ) {
+          results.push({
+            id: `usr-${u.id}`, type: "User",
+            title: `${u.firstName} ${u.lastName}`,
+            subtitle: u.email,
+            href: "/users",
+            badge: u.role?.name,
+          });
+        }
+      }
+
+      // Technicians
+      for (const t of technicians) {
+        if (
+          t.firstName?.toLowerCase().includes(q) ||
+          t.lastName?.toLowerCase().includes(q) ||
+          t.email?.toLowerCase().includes(q) ||
+          t.specialty?.toLowerCase().includes(q)
+        ) {
+          results.push({
+            id: `tech-${t.id}`, type: "Technician",
+            title: `${t.firstName} ${t.lastName}`,
+            subtitle: t.specialty || t.email || "",
+            href: "/technicians",
+            badge: t.status,
+          });
+        }
+      }
+
+      // Invoices
+      for (const inv of invoices) {
+        const wo = workOrders.find(w => w.id === inv.workOrderId);
+        if (
+          inv.invoiceNumber?.toLowerCase().includes(q) ||
+          wo?.workOrderNumber?.toLowerCase().includes(q) ||
+          wo?.clientName?.toLowerCase().includes(q)
+        ) {
+          results.push({
+            id: `inv-${inv.id}`, type: "Invoice",
+            title: inv.invoiceNumber,
+            subtitle: `${wo?.workOrderNumber || ""} · ${wo?.clientName || ""}`,
+            href: "/payment-manager",
+            badge: inv.status,
+          });
+        }
+      }
+
+      // Payments
+      for (const p of payments) {
+        const wo = workOrders.find(w => w.id === p.workOrderId);
+        if (wo?.workOrderNumber?.toLowerCase().includes(q) || wo?.clientName?.toLowerCase().includes(q)) {
+          results.push({
+            id: `pay-${p.id}`, type: "Payment",
+            title: `Payment #${p.id}`,
+            subtitle: `${wo?.workOrderNumber || ""} · ${wo?.clientName || ""}`,
+            href: "/technician-payments",
+            badge: p.status,
+          });
+        }
+      }
+
+      res.json(results.slice(0, 20));
+    } catch (error: any) {
+      console.error("Search error:", error);
+      res.status(500).json({ message: "Search failed" });
+    }
+  });
+
   // ── Analytics ──────────────────────────────────────────────────────────────
   app.get("/api/analytics", requireAuth, requirePermission("analytics.view"), async (req, res) => {
     try {

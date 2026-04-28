@@ -1,6 +1,7 @@
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown";
+import { GlobalSearch } from "./global-search";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -17,9 +18,10 @@ export function Header({ onMenuClick }: HeaderProps) {
       >
         <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
       </Button>
-      
-      <div className="flex-1 px-3 sm:px-4 md:px-6 flex justify-end">
-        <div className="flex items-center">
+
+      <div className="flex-1 px-3 sm:px-4 md:px-6 flex items-center gap-3">
+        <GlobalSearch />
+        <div className="flex items-center ml-auto">
           <NotificationDropdown />
         </div>
       </div>
