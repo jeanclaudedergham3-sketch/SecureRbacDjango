@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, CheckCircle2, Clock, XCircle, AlertCircle, ChevronRight } from "lucide-react";
+import { Calendar, MapPin, User, FileText, MessageSquare, CreditCard, Receipt, Upload, Hammer, DollarSign, Plus, CheckCircle2, Clock, XCircle, AlertCircle, ChevronRight, Pencil, Phone, Mail, Building2, AlertTriangle, Wrench, ClipboardList, Save, X as XIcon } from "lucide-react";
 import { AdvancedPermissionGuard, TabGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
 import { WorkOrderProposalModal } from "@/components/modals/work-order-proposal-modal";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
@@ -65,6 +65,26 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
   const [isViewFilesModalOpen, setIsViewFilesModalOpen] = useState(false);
   const [isViewChatModalOpen, setIsViewChatModalOpen] = useState(false);
   const [isViewPaymentModalOpen, setIsViewPaymentModalOpen] = useState(false);
+
+  // NTE / TNTE inline edit state
+  const [editingNte, setEditingNte] = useState(false);
+  const [editingTnte, setEditingTnte] = useState(false);
+  const [nteValue, setNteValue] = useState(workOrder?.nte || "");
+  const [tnteValue, setTnteValue] = useState(workOrder?.tnte || "");
+
+  const updateFinancialMutation = useMutation({
+    mutationFn: (data: { nte?: string; tnte?: string }) =>
+      apiRequest("PUT", `/api/work-orders/${workOrder.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+      toast({ title: "Saved", description: "Financial details updated." });
+      setEditingNte(false);
+      setEditingTnte(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update", variant: "destructive" });
+    },
+  });
 
   const { data: technicians = [] } = useQuery<Technician[]>({
     queryKey: ["/api/technicians"],
@@ -549,97 +569,309 @@ export function WorkOrderDetailsModal({ isOpen, onClose, workOrder }: WorkOrderD
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
               {/* Client Information */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <MapPin className="h-5 w-5 mr-2" />
-                    Location Details
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center text-sm font-semibold text-gray-700">
+                    <User className="h-4 w-4 mr-2 text-blue-500" />
+                    Client Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div>
-                    <span className="font-medium">Address:</span>
-                    <p className="text-gray-600">
-                      {workOrder.street}<br />
-                      {workOrder.city}, {workOrder.country}
-                    </p>
-                  </div>
+                <CardContent className="space-y-2 text-sm">
+                  {workOrder.clientName && (
+                    <div className="flex items-start gap-2">
+                      <Building2 className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium">Client Name</p>
+                        <p className="text-gray-800 font-semibold">{workOrder.clientName}</p>
+                      </div>
+                    </div>
+                  )}
+                  {workOrder.clientWorkOrderNumber && (
+                    <div className="flex items-start gap-2">
+                      <ClipboardList className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium">Client WO #</p>
+                        <p className="text-gray-800">{workOrder.clientWorkOrderNumber}</p>
+                      </div>
+                    </div>
+                  )}
+                  {workOrder.clientPhone && (
+                    <div className="flex items-start gap-2">
+                      <Phone className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium">Phone</p>
+                        <p className="text-gray-800">{workOrder.clientPhone}</p>
+                      </div>
+                    </div>
+                  )}
+                  {workOrder.clientEmail && (
+                    <div className="flex items-start gap-2">
+                      <Mail className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium">Email</p>
+                        <p className="text-gray-800">{workOrder.clientEmail}</p>
+                      </div>
+                    </div>
+                  )}
+                  {!workOrder.clientName && !workOrder.clientPhone && !workOrder.clientEmail && (
+                    <p className="text-gray-400 text-xs italic">No client info provided</p>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Assignment Information */}
+              {/* Location Details */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <User className="h-5 w-5 mr-2" />
-                    Assignment
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center text-sm font-semibold text-gray-700">
+                    <MapPin className="h-4 w-4 mr-2 text-orange-500" />
+                    Location
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div>
-                    <span className="font-medium">Assigned to:</span>
-                    {workOrder.assignedUsers && workOrder.assignedUsers.length > 0 ? (
-                      <div className="space-y-1">
-                        {workOrder.assignedUsers.map((user) => (
-                          <div key={user.id}>
-                            <p className="text-gray-600">
-                              {user.firstName} {user.lastName}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              ({user.email})
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-400">No users assigned</p>
-                    )}
+                <CardContent className="space-y-1 text-sm">
+                  {workOrder.street && <p className="text-gray-800">{workOrder.street}</p>}
+                  {(workOrder.city || workOrder.zipCode) && (
+                    <p className="text-gray-800">
+                      {[workOrder.city, workOrder.zipCode].filter(Boolean).join(", ")}
+                    </p>
+                  )}
+                  {workOrder.country && <p className="text-gray-800">{workOrder.country}</p>}
+                  {!workOrder.street && !workOrder.city && !workOrder.country && (
+                    <p className="text-gray-400 text-xs italic">No location provided</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Work Details */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center text-sm font-semibold text-gray-700">
+                    <Wrench className="h-4 w-4 mr-2 text-purple-500" />
+                    Work Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  {workOrder.equipmentType && (
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Equipment Type</p>
+                      <p className="text-gray-800">{workOrder.equipmentType}</p>
+                    </div>
+                  )}
+                  {workOrder.urgency && (
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Urgency / Priority</p>
+                      <Badge className={
+                        workOrder.urgency === "critical" ? "bg-red-100 text-red-800 border-0" :
+                        workOrder.urgency === "high" ? "bg-orange-100 text-orange-800 border-0" :
+                        workOrder.urgency === "medium" ? "bg-yellow-100 text-yellow-800 border-0" :
+                        "bg-green-100 text-green-800 border-0"
+                      }>
+                        {workOrder.urgency.charAt(0).toUpperCase() + workOrder.urgency.slice(1)}
+                      </Badge>
+                    </div>
+                  )}
+                  {workOrder.estimatedHours && (
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Estimated Hours</p>
+                      <p className="text-gray-800">{workOrder.estimatedHours}h</p>
+                    </div>
+                  )}
+                  {workOrder.description && (
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Description</p>
+                      <p className="text-gray-700 whitespace-pre-wrap">{workOrder.description}</p>
+                    </div>
+                  )}
+                  {workOrder.problemDescription && (
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Problem Description</p>
+                      <p className="text-gray-700 whitespace-pre-wrap">{workOrder.problemDescription}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Financial Details — NTE / TNTE with inline editing */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center text-sm font-semibold text-gray-700">
+                    <DollarSign className="h-4 w-4 mr-2 text-green-500" />
+                    Financial Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  {/* NTE */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500 font-medium mb-1">NTE — Not to Exceed (excl. tax)</p>
+                      {editingNte ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-500">$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={nteValue}
+                            onChange={e => setNteValue(e.target.value)}
+                            className="h-7 text-sm w-32"
+                            autoFocus
+                          />
+                          <Button size="sm" className="h-7 px-2" onClick={() => updateFinancialMutation.mutate({ nte: nteValue, tnte: workOrder.tnte || undefined })} disabled={updateFinancialMutation.isPending}>
+                            <Save className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => { setEditingNte(false); setNteValue(workOrder.nte || ""); }}>
+                            <XIcon className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <p className="text-gray-800 font-semibold text-base">
+                            {workOrder.nte ? formatCurrency(workOrder.nte) : <span className="text-gray-400 text-sm font-normal italic">Not set</span>}
+                          </p>
+                          {!workOrder.isLocked && (
+                            <button onClick={() => { setNteValue(workOrder.nte || ""); setEditingNte(true); }} className="text-gray-400 hover:text-blue-500 transition-colors">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-100" />
+
+                  {/* TNTE */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500 font-medium mb-1">TNTE — Total NTE (incl. tax)</p>
+                      {editingTnte ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-500">$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={tnteValue}
+                            onChange={e => setTnteValue(e.target.value)}
+                            className="h-7 text-sm w-32"
+                            autoFocus
+                          />
+                          <Button size="sm" className="h-7 px-2" onClick={() => updateFinancialMutation.mutate({ tnte: tnteValue, nte: workOrder.nte || undefined })} disabled={updateFinancialMutation.isPending}>
+                            <Save className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => { setEditingTnte(false); setTnteValue(workOrder.tnte || ""); }}>
+                            <XIcon className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <p className="text-green-700 font-bold text-lg">
+                            {workOrder.tnte ? formatCurrency(workOrder.tnte) : <span className="text-gray-400 text-sm font-normal italic">Not set</span>}
+                          </p>
+                          {!workOrder.isLocked && (
+                            <button onClick={() => { setTnteValue(workOrder.tnte || ""); setEditingTnte(true); }} className="text-gray-400 hover:text-blue-500 transition-colors">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Timeline */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Calendar className="h-5 w-5 mr-2" />
-                    Project Timeline
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center text-sm font-semibold text-gray-700">
+                    <Calendar className="h-4 w-4 mr-2 text-blue-500" />
+                    Timeline
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Start Date:</span>
-                    <p className="text-gray-600">{formatDate(workOrder.startDate)}</p>
+                    <p className="text-xs text-gray-500 font-medium">Start Date</p>
+                    <p className="text-gray-800">{workOrder.startDate ? formatDate(workOrder.startDate) : <span className="text-gray-400 italic text-xs">Not set</span>}</p>
                   </div>
                   <div>
-                    <span className="font-medium">End Date:</span>
-                    <p className="text-gray-600">{formatDate(workOrder.endDate)}</p>
+                    <p className="text-xs text-gray-500 font-medium">End Date</p>
+                    <p className="text-gray-800">{workOrder.endDate ? formatDate(workOrder.endDate) : <span className="text-gray-400 italic text-xs">Not set</span>}</p>
                   </div>
+                  {workOrder.scheduledDate && (
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Scheduled Date</p>
+                      <p className="text-gray-800">{formatDate(workOrder.scheduledDate)}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Financial Details */}
+              {/* Assignment */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <DollarSign className="h-5 w-5 mr-2" />
-                    Financial Details
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center text-sm font-semibold text-gray-700">
+                    <User className="h-4 w-4 mr-2 text-indigo-500" />
+                    Assigned Users
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div>
-                    <span className="font-medium">NTE (without tax):</span>
-                    <p className="text-gray-600">{formatCurrency(workOrder.nte)}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">TNTE (including tax):</span>
-                    <p className="text-lg font-semibold text-green-600">{formatCurrency(workOrder.tnte)}</p>
-                  </div>
+                <CardContent className="text-sm">
+                  {workOrder.assignedUsers && workOrder.assignedUsers.length > 0 ? (
+                    <div className="space-y-2">
+                      {workOrder.assignedUsers.map((u) => (
+                        <div key={u.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                          <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-indigo-700 text-xs font-bold">
+                              {u.firstName?.charAt(0)}{u.lastName?.charAt(0)}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-gray-800 font-medium text-xs">{u.firstName} {u.lastName}</p>
+                            <p className="text-gray-500 text-xs">{u.email}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 text-xs italic">No users assigned</p>
+                  )}
                 </CardContent>
               </Card>
+
+              {/* Instructions — full width */}
+              {(workOrder.specialInstructions || workOrder.accessInstructions || workOrder.safetyRequirements) && (
+                <Card className="md:col-span-2">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center text-sm font-semibold text-gray-700">
+                      <AlertTriangle className="h-4 w-4 mr-2 text-yellow-500" />
+                      Instructions & Requirements
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    {workOrder.specialInstructions && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1">Special Instructions</p>
+                        <p className="text-gray-700 whitespace-pre-wrap text-xs bg-yellow-50 rounded p-2">{workOrder.specialInstructions}</p>
+                      </div>
+                    )}
+                    {workOrder.accessInstructions && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1">Access Instructions</p>
+                        <p className="text-gray-700 whitespace-pre-wrap text-xs bg-blue-50 rounded p-2">{workOrder.accessInstructions}</p>
+                      </div>
+                    )}
+                    {workOrder.safetyRequirements && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1">Safety Requirements</p>
+                        <p className="text-gray-700 whitespace-pre-wrap text-xs bg-red-50 rounded p-2">{workOrder.safetyRequirements}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
             </div>
           </TabsContent>
 
