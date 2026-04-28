@@ -1,7 +1,8 @@
 import { useState } from "react";
 import {
   Search, Package, CheckCircle, XCircle, Clock, Filter,
-  ShoppingCart, Inbox, AlertTriangle, ChevronRight, Eye
+  ShoppingCart, Inbox, AlertTriangle, ChevronRight, Eye,
+  DollarSign, Receipt, BarChart3
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,6 +132,27 @@ export default function PartsRequests() {
     rejected: allRequests.filter(r => r.status === "rejected").length,
   };
 
+  // Build work order cost summary — approved/ordered/received parts grouped by WO
+  const woCostSummary = Object.values(
+    allRequests.reduce((acc, r) => {
+      const key = r.workOrder.workOrderNumber;
+      if (!acc[key]) {
+        acc[key] = {
+          workOrderNumber: r.workOrder.workOrderNumber,
+          clientName: r.workOrder.clientName,
+          parts: [] as typeof allRequests,
+        };
+      }
+      acc[key].parts.push(r);
+      return acc;
+    }, {} as Record<string, { workOrderNumber: string; clientName: string; parts: typeof allRequests }>)
+  ).map(wo => {
+    const approved = wo.parts.filter(r => ["approved", "ordered", "received"].includes(r.status));
+    const pending  = wo.parts.filter(r => r.status === "pending").length;
+    const total    = approved.reduce((s, r) => s + parseFloat(r.estimatedCost || "0") * (r.quantity || 1), 0);
+    return { ...wo, approvedCount: approved.length, pendingCount: pending, approvedTotal: total };
+  }).filter(wo => wo.approvedTotal > 0 || wo.pendingCount > 0);
+
   const openDetail = (r: PartsRequestWithDetails) => { setSelectedRequest(r); setIsDetailOpen(true); };
   const openReject = (r: PartsRequestWithDetails) => { setSelectedRequest(r); setRejectReason(""); setIsRejectOpen(true); };
 
@@ -161,6 +183,65 @@ export default function PartsRequests() {
             </Card>
           ))}
         </div>
+
+        {/* Work Order Approved Parts Cost Summary */}
+        {woCostSummary.length > 0 && (
+          <Card className="border-blue-200 bg-blue-50/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2 text-blue-800">
+                <BarChart3 className="h-5 w-5" />
+                Approved Parts Cost by Work Order
+                <span className="text-sm font-normal text-blue-600 ml-1">
+                  (automatically included in invoice when requested)
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {woCostSummary.map(wo => (
+                  <div key={wo.workOrderNumber}
+                    className="bg-white rounded-lg border border-blue-200 p-4 space-y-2">
+                    <div>
+                      <p className="font-bold text-gray-900 text-sm">{wo.workOrderNumber}</p>
+                      <p className="text-xs text-gray-500">{wo.clientName}</p>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-green-700">
+                          {formatCurrency(wo.approvedTotal)}
+                        </p>
+                        <p className="text-xs text-gray-500">Approved Total</p>
+                      </div>
+                      <div className="flex gap-3 text-center">
+                        <div>
+                          <p className="font-semibold text-blue-700">{wo.approvedCount}</p>
+                          <p className="text-xs text-gray-500">Approved</p>
+                        </div>
+                        {wo.pendingCount > 0 && (
+                          <div>
+                            <p className="font-semibold text-yellow-600">{wo.pendingCount}</p>
+                            <p className="text-xs text-gray-500">Pending</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 rounded px-2 py-1">
+                      <Receipt className="h-3 w-3" />
+                      Will appear in invoice as Materials cost
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Grand total across all WOs */}
+              <div className="mt-3 pt-3 border-t border-blue-200 flex justify-between items-center">
+                <span className="text-sm font-medium text-blue-800">Total Approved Parts (all work orders)</span>
+                <span className="text-lg font-bold text-green-700">
+                  {formatCurrency(woCostSummary.reduce((s, wo) => s + wo.approvedTotal, 0))}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">

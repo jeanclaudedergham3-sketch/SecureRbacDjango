@@ -792,6 +792,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper: recalculate approved parts cost for a work order and sync the proposal
+  async function syncWorkOrderPartsCost(workOrderId: number) {
+    try {
+      const allParts = await storage.getWorkOrderPartsRequests(workOrderId);
+      const approvedParts = allParts.filter((r: any) =>
+        ["approved", "ordered", "received"].includes(r.status)
+      );
+      const approvedPartsCost = approvedParts.reduce((sum: number, r: any) => {
+        return sum + parseFloat(r.estimatedCost || "0") * (parseInt(r.quantity as any || "1"));
+      }, 0);
+      // Update the proposal's materialCost so the invoice and work order both reflect it
+      await storage.updateWorkOrderProposal(workOrderId, {
+        materialCost: approvedPartsCost.toFixed(2),
+      });
+    } catch (e) {
+      console.error("syncWorkOrderPartsCost error:", e);
+    }
+  }
+
   // Approve a parts request
   app.post("/api/parts-requests/:id/approve", requireAuth, requirePermission("parts.approve"), async (req, res) => {
     try {
@@ -804,6 +823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rejectionReason: null,
       });
       if (!updated) return res.status(404).json({ message: "Parts request not found" });
+      await syncWorkOrderPartsCost(updated.workOrderId);
       res.json(updated);
     } catch (error: any) {
       console.error("Error approving parts request:", error);
@@ -822,6 +842,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rejectionReason: reason || "No reason provided",
       });
       if (!updated) return res.status(404).json({ message: "Parts request not found" });
+
+      await syncWorkOrderPartsCost(updated.workOrderId);
 
       // Notify the requester
       const workOrder = await storage.getWorkOrder(updated.workOrderId);
@@ -850,6 +872,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const updated = await storage.updateWorkOrderPartsRequest(id, { status: "ordered" });
       if (!updated) return res.status(404).json({ message: "Parts request not found" });
+      await syncWorkOrderPartsCost(updated.workOrderId);
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ message: "Failed to mark as ordered" });
@@ -862,6 +885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const updated = await storage.updateWorkOrderPartsRequest(id, { status: "received" });
       if (!updated) return res.status(404).json({ message: "Parts request not found" });
+      await syncWorkOrderPartsCost(updated.workOrderId);
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ message: "Failed to mark as received" });
