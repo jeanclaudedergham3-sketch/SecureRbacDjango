@@ -39,14 +39,21 @@ const storage_multer = multer.diskStorage({
   }
 });
 
+const ALLOWED_UPLOAD_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.zip'];
+const ALLOWED_UPLOAD_MIME = ['image/jpeg','image/png','image/gif','image/webp','application/pdf','text/plain','text/csv','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/zip'];
+
 const upload = multer({ 
   storage: storage_multer,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    // Allow all file types but validate size
-    cb(null, true);
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_UPLOAD_EXTENSIONS.includes(ext) && ALLOWED_UPLOAD_MIME.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type not allowed. Allowed types: ${ALLOWED_UPLOAD_EXTENSIONS.join(', ')}`));
+    }
   }
 });
 
@@ -82,13 +89,19 @@ const uploadW9 = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session configuration
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (!sessionSecret && process.env.NODE_ENV === 'production') {
+    console.error('FATAL: SESSION_SECRET environment variable is not set in production. Refusing to start.');
+    process.exit(1);
+  }
   app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    secret: sessionSecret || 'dev-only-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // Set to true in production with HTTPS
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
   }));
@@ -237,11 +250,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/users/:id", requireAuth, requirePermission("users.edit"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const userData = { ...req.body };
+      // Whitelist allowed fields to prevent mass assignment
+      const { firstName, lastName, email, username, password, roleId, isActive, phone, department } = req.body;
+      const userData: Record<string, any> = {};
+      if (firstName !== undefined) userData.firstName = firstName;
+      if (lastName !== undefined) userData.lastName = lastName;
+      if (email !== undefined) userData.email = email;
+      if (username !== undefined) userData.username = username;
+      if (roleId !== undefined) userData.roleId = parseInt(roleId);
+      if (isActive !== undefined) userData.isActive = isActive;
+      if (phone !== undefined) userData.phone = phone;
+      if (department !== undefined) userData.department = department;
       
       // Hash password if provided
-      if (userData.password) {
-        userData.password = await bcrypt.hash(userData.password, 10);
+      if (password) {
+        userData.password = await bcrypt.hash(password, 10);
       }
       
       const user = await storage.updateUser(id, userData);
@@ -999,8 +1022,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve uploaded files
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  // Serve uploaded files — requires authentication; W9 documents require admin/manager permission
+  app.use('/uploads', requireAuth, (req: any, res, next) => {
+    const filePath = req.path || '';
+    if (filePath.startsWith('/w9/')) {
+      const userPermissions: string[] = req.permissions || [];
+      const canViewW9 = userPermissions.includes('system.admin') || userPermissions.includes('technicians.view') || userPermissions.includes('payments.list.view');
+      if (!canViewW9) {
+        return res.status(403).json({ message: 'Access denied: insufficient permissions to view W9 documents' });
+      }
+    }
+    next();
+  }, express.static(path.join(process.cwd(), 'uploads')));
 
   // Work Order Chat routes
   app.get("/api/work-orders/:id/chats", requireAuth, requirePermission("workorders.tab.chat"), async (req, res) => {
@@ -1062,12 +1095,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
       
-      const { messageType, userId, message } = req.body;
+      const { messageType, message } = req.body;
       
       const chatData = insertWorkOrderChatSchema.parse({
         workOrderId,
-        userId: userId ? parseInt(userId) : req.user!.id,
-        senderId: userId ? parseInt(userId) : req.user!.id,
+        userId: req.user!.id,
+        senderId: req.user!.id,
         message: message || req.file.originalname,
         messageType: messageType || 'file',
         fileUrl: `/uploads/${workOrderId}/${req.file.filename}`
@@ -1426,55 +1459,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard stats
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {
-      console.log("Dashboard stats requested by user:", req.user.id);
-      
-      // Get counts safely with fallbacks
-      let totalUsers = 0;
-      let activeRoles = 0;
-      let technicians = 0;
-      let workOrders = 0;
-      
-      try {
-        const users = await storage.getAllUsers();
-        totalUsers = users.length;
-      } catch (err) {
-        console.error("Error fetching users:", err);
-      }
-      
-      try {
-        const roles = await storage.getAllRoles();
-        activeRoles = roles.length;
-      } catch (err) {
-        console.error("Error fetching roles:", err);
-      }
-      
-      try {
-        const techList = await storage.getAllTechnicians();
-        technicians = techList.length;
-      } catch (err) {
-        console.error("Error fetching technicians:", err);
-      }
-      
-      try {
-        const orders = await storage.getAllWorkOrders();
-        workOrders = orders.length;
-      } catch (err) {
-        console.error("Error fetching work orders:", err);
-      }
-      
-      const stats = {
-        totalUsers,
-        activeRoles,
-        technicians,
-        workOrders,
+      const [users, roles, techList, orders, invoices, payments] = await Promise.all([
+        storage.getAllUsers().catch(() => []),
+        storage.getAllRoles().catch(() => []),
+        storage.getAllTechnicians().catch(() => []),
+        storage.getAllWorkOrders().catch(() => []),
+        storage.getAllInvoices().catch(() => []),
+        storage.getAllTechnicianPayments().catch(() => []),
+      ]);
+
+      const workOrdersCompleted = orders.filter((o: any) => o.status === 'completed').length;
+      const workOrdersPending = orders.filter((o: any) => o.status === 'pending' || o.status === 'active').length;
+      const pendingPayments = payments.filter((p: any) => p.status === 'pending').length;
+      const pendingInvoices = invoices.filter((i: any) => i.status === 'pending' || i.status === 'draft').length;
+      const totalRevenue = invoices.filter((i: any) => i.status === 'paid').reduce((sum: number, i: any) => sum + parseFloat(i.totalAmount || '0'), 0);
+
+      res.json({
+        totalUsers: users.length,
+        activeRoles: roles.length,
+        techniciansCount: techList.length,
+        workOrdersCount: orders.length,
+        workOrdersCompleted,
+        workOrdersPending,
+        pendingPayments,
+        pendingInvoices,
+        totalRevenue,
         securityEvents: 0,
-      };
-      
-      console.log("Dashboard stats:", stats);
-      res.json(stats);
+      });
     } catch (error: any) {
-      console.error("Dashboard stats error:", error);
-      res.status(500).json({ message: "Failed to get dashboard stats", error: error?.message || String(error) });
+      res.status(500).json({ message: "Failed to get dashboard stats" });
+    }
+  });
+
+  app.get("/api/dashboard/activity", requireAuth, async (req, res) => {
+    try {
+      const [orders, users, payments, invoices] = await Promise.all([
+        storage.getAllWorkOrders().catch(() => []),
+        storage.getAllUsers().catch(() => []),
+        storage.getAllTechnicianPayments().catch(() => []),
+        storage.getAllInvoices().catch(() => []),
+      ]);
+
+      const events: Array<{ id: string; type: string; description: string; time: Date; category: string }> = [];
+
+      // Recent work orders (last 30)
+      const recentOrders = [...orders]
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10);
+      for (const wo of recentOrders) {
+        events.push({
+          id: `wo-${wo.id}`,
+          type: 'work_order',
+          description: `Work order ${wo.workOrderNumber} created${wo.clientName ? ` for ${wo.clientName}` : ''}`,
+          time: new Date(wo.createdAt),
+          category: wo.status,
+        });
+      }
+
+      // Recent user registrations
+      const recentUsers = [...users]
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+      for (const u of recentUsers) {
+        events.push({
+          id: `usr-${u.id}`,
+          type: 'user',
+          description: `User ${u.firstName} ${u.lastName} (${u.email}) added`,
+          time: new Date(u.createdAt),
+          category: 'user',
+        });
+      }
+
+      // Recent payments
+      const recentPayments = [...payments]
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+      for (const p of recentPayments) {
+        const wo = orders.find((o: any) => o.id === p.workOrderId);
+        events.push({
+          id: `pay-${p.id}`,
+          type: 'payment',
+          description: `Payment request $${parseFloat(p.amountRequested || '0').toFixed(2)} for ${wo?.workOrderNumber || 'work order'} — ${p.status}`,
+          time: new Date(p.createdAt),
+          category: p.status,
+        });
+      }
+
+      // Recent invoices
+      const recentInvoices = [...invoices]
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+      for (const inv of recentInvoices) {
+        const wo = orders.find((o: any) => o.id === inv.workOrderId);
+        events.push({
+          id: `inv-${inv.id}`,
+          type: 'invoice',
+          description: `Invoice ${inv.invoiceNumber} ${inv.status} for ${wo?.workOrderNumber || 'work order'}`,
+          time: new Date(inv.createdAt),
+          category: inv.status,
+        });
+      }
+
+      // Sort all events by time desc, take top 20
+      const sorted = events.sort((a, b) => b.time.getTime() - a.time.getTime()).slice(0, 20);
+      res.json(sorted);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to get activity feed" });
     }
   });
 
