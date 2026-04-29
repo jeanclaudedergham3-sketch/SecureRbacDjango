@@ -499,6 +499,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // W9 verify endpoint — marks the submitted W9 as verified
+  app.post("/api/technicians/:id/w9/verify", requireAuth, requirePermission("technicians.edit"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const technician = await storage.getTechnician(id);
+      if (!technician) return res.status(404).json({ message: "Technician not found" });
+      if (!technician.w9FilePath) return res.status(400).json({ message: "No W9 on file to verify" });
+      const updated = await storage.updateTechnician(id, { w9Status: "verified" } as any);
+      res.json({ message: "W9 verified successfully", technician: updated });
+    } catch (error) {
+      console.error("Error verifying W9:", error);
+      res.status(500).json({ message: "Failed to verify W9" });
+    }
+  });
+
   // Rating routes
   app.post("/api/technician-ratings", requireAuth, requirePermission("technicians.rate"), async (req, res) => {
     try {

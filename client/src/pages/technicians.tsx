@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, MapPin, Phone, Mail, Star, Edit, Trash2, CreditCard } from "lucide-react";
+import { Search, Plus, MapPin, Phone, Mail, Star, Edit, Trash2, CreditCard, FileText, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -272,6 +272,28 @@ export default function TechniciansPage() {
                 <div className="text-sm font-medium text-green-600">
                   ${technician.hourlyRate}/hr
                 </div>
+              </div>
+
+              {/* W9 Status */}
+              <div className="flex items-center gap-2">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground">W9:</span>
+                {!technician.w9Status || !technician.w9FileName ? (
+                  <Badge variant="outline" className="text-xs text-red-600 border-red-200 bg-red-50 dark:bg-red-950/20">
+                    <AlertCircle className="h-2.5 w-2.5 mr-1" />
+                    Not on File
+                  </Badge>
+                ) : technician.w9Status === "verified" ? (
+                  <Badge variant="outline" className="text-xs text-green-700 border-green-200 bg-green-50 dark:bg-green-950/20">
+                    <CheckCircle className="h-2.5 w-2.5 mr-1" />
+                    Verified
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20">
+                    <Clock className="h-2.5 w-2.5 mr-1" />
+                    Pending Review
+                  </Badge>
+                )}
               </div>
 
               {/* Payment Methods */}
