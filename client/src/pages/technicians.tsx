@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AdvancedPermissionGuard, useAdvancedPermissions, PageGuard } from "@/components/rbac/advanced-permission-guard";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { TechnicianModal } from "@/components/modals/technician-modal";
+import { CreateTechnicianModal } from "@/components/modals/create-technician-modal";
 import type { Technician } from "@shared/schema";
 
 export default function TechniciansPage() {
@@ -17,53 +17,12 @@ export default function TechniciansPage() {
   const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: technicians, isLoading } = useQuery<Technician[]>({
     queryKey: ["/api/technicians"],
-  });
-
-  const createTechnicianMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/technicians", data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });
-      toast({ title: "Success", description: "Technician added successfully" });
-      setIsModalOpen(false);
-      setSelectedTechnician(null);
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Error", 
-        description: error.message || "Failed to add technician",
-        variant: "destructive"
-      });
-    },
-  });
-
-  const updateTechnicianMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const response = await apiRequest("PUT", `/api/technicians/${id}`, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });
-      toast({ title: "Success", description: "Technician updated successfully" });
-      setIsModalOpen(false);
-      setSelectedTechnician(null);
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Error", 
-        description: error.message || "Failed to update technician",
-        variant: "destructive"
-      });
-    },
   });
 
   const deleteTechnicianMutation = useMutation({
@@ -123,13 +82,11 @@ export default function TechniciansPage() {
   };
 
   const handleAdd = () => {
-    setModalMode("create");
     setSelectedTechnician(null);
     setIsModalOpen(true);
   };
 
   const handleEdit = (technician: Technician) => {
-    setModalMode("edit");
     setSelectedTechnician(technician);
     setIsModalOpen(true);
   };
@@ -137,14 +94,6 @@ export default function TechniciansPage() {
   const handleDelete = (technician: Technician) => {
     setSelectedTechnician(technician);
     setShowDeleteDialog(true);
-  };
-
-  const handleModalSubmit = (data: any) => {
-    if (modalMode === "edit" && selectedTechnician) {
-      updateTechnicianMutation.mutate({ id: selectedTechnician.id, data });
-    } else {
-      createTechnicianMutation.mutate(data);
-    }
   };
 
   const handleModalClose = () => {
@@ -404,13 +353,10 @@ export default function TechniciansPage() {
       )}
 
       {/* Add/Edit Technician Modal */}
-      <TechnicianModal
+      <CreateTechnicianModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
-        onSubmit={handleModalSubmit}
-        isLoading={createTechnicianMutation.isPending || updateTechnicianMutation.isPending}
-        initialData={selectedTechnician}
-        mode={modalMode}
+        technician={selectedTechnician}
       />
 
       {/* Delete Confirmation Dialog */}
