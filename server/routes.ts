@@ -2285,6 +2285,518 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ─── Data Import Routes ───────────────────────────────────────────────────
+
+  // Heuristic AI field mapping: accepts column names, returns best NOVIQ field matches
+  app.post("/api/import/analyze-columns", requireAuth, async (req, res) => {
+    try {
+      const { columns, dataType } = req.body as { columns: string[]; dataType: "technicians" | "work-orders" };
+
+      // NOVIQ canonical field definitions with aliases and metadata
+      const technicianFields: Record<string, { aliases: string[]; required: boolean; label: string; transform?: string }> = {
+        firstName:        { aliases: ["first_name","firstname","fname","first","given_name","name_first","forename"], required: true, label: "First Name", transform: "split_name_first" },
+        lastName:         { aliases: ["last_name","lastname","lname","last","family_name","surname","name_last","name"], required: true, label: "Last Name", transform: "split_name_last" },
+        email:            { aliases: ["email","email_address","e_mail","mail","contact_email","tech_email"], required: true, label: "Email" },
+        phone:            { aliases: ["phone","phone_number","tel","telephone","mobile","cell","contact_phone","ph"], required: true, label: "Phone", transform: "normalize_phone" },
+        specialization:   { aliases: ["specialization","specialty","trade","skill","expertise","area","discipline","field","profession"], required: true, label: "Specialization" },
+        experience:       { aliases: ["experience","years_experience","exp","years","yrs","years_of_experience","experience_years"], required: true, label: "Experience (years)" },
+        hourlyRate:       { aliases: ["hourly_rate","rate","pay_rate","wage","hourly","hour_rate","billing_rate","cost_per_hour","price"], required: true, label: "Hourly Rate" },
+        availability:     { aliases: ["availability","available","status","availability_status","avail"], required: false, label: "Availability" },
+        location:         { aliases: ["location","address","city","area","region","base","city_state","home_base"], required: true, label: "Location" },
+        paymentMethods:   { aliases: ["payment_methods","payment_method","payment","pay_method","payment_type","pay_type"], required: true, label: "Payment Methods" },
+        bankAccount:      { aliases: ["bank_account","account_number","acct","bank_acct"], required: false, label: "Bank Account" },
+        routingNumber:    { aliases: ["routing_number","routing","aba","routing_no"], required: false, label: "Routing Number" },
+        bankName:         { aliases: ["bank_name","bank","financial_institution"], required: false, label: "Bank Name" },
+        paypalEmail:      { aliases: ["paypal_email","paypal","pp_email"], required: false, label: "PayPal Email" },
+        venmoHandle:      { aliases: ["venmo_handle","venmo","venmo_username"], required: false, label: "Venmo Handle" },
+        cashappHandle:    { aliases: ["cashapp_handle","cashapp","cash_app","$cashtag"], required: false, label: "CashApp Handle" },
+        zelleInfo:        { aliases: ["zelle_info","zelle","zelle_phone","zelle_email"], required: false, label: "Zelle Info" },
+        mailingAddress:   { aliases: ["mailing_address","mailing","postal_address","home_address","address"], required: false, label: "Mailing Address" },
+        latitude:         { aliases: ["latitude","lat"], required: false, label: "Latitude" },
+        longitude:        { aliases: ["longitude","lng","lon","long"], required: false, label: "Longitude" },
+      };
+
+      const workOrderFields: Record<string, { aliases: string[]; required: boolean; label: string; transform?: string }> = {
+        title:                  { aliases: ["title","name","work_order_title","job_title","subject","description_short","summary"], required: true, label: "Title" },
+        description:            { aliases: ["description","desc","details","notes","full_description","narrative"], required: true, label: "Description" },
+        status:                 { aliases: ["status","order_status","job_status","state","wo_status"], required: false, label: "Status", transform: "normalize_status" },
+        priority:               { aliases: ["priority","urgency","importance","level","priority_level"], required: false, label: "Priority", transform: "normalize_priority" },
+        category:               { aliases: ["category","type","work_type","job_type","trade","service_type"], required: true, label: "Category" },
+        location:               { aliases: ["location","address","site","place","job_location","service_address","site_address"], required: true, label: "Location" },
+        clientName:             { aliases: ["client_name","customer_name","customer","client","contact_name","account_name"], required: false, label: "Client Name" },
+        clientPhone:            { aliases: ["client_phone","customer_phone","contact_phone","client_tel","cust_phone"], required: false, label: "Client Phone", transform: "normalize_phone" },
+        clientEmail:            { aliases: ["client_email","customer_email","contact_email","cust_email"], required: false, label: "Client Email" },
+        country:                { aliases: ["country","nation","country_code"], required: false, label: "Country" },
+        city:                   { aliases: ["city","town","municipality"], required: false, label: "City" },
+        street:                 { aliases: ["street","street_address","street1","address_line1"], required: false, label: "Street" },
+        zipCode:                { aliases: ["zip_code","zip","postal_code","postcode"], required: false, label: "Zip Code" },
+        nte:                    { aliases: ["nte","not_to_exceed","budget","max_amount","authorized_amount","cap"], required: false, label: "NTE ($)" },
+        estimatedHours:         { aliases: ["estimated_hours","est_hours","hours","duration"], required: false, label: "Estimated Hours" },
+        scheduledDate:          { aliases: ["scheduled_date","schedule_date","date","job_date","service_date","appointment_date"], required: false, label: "Scheduled Date", transform: "normalize_date" },
+        startDate:              { aliases: ["start_date","start","begin_date","commenced"], required: false, label: "Start Date", transform: "normalize_date" },
+        endDate:                { aliases: ["end_date","end","finish_date","completion_date","close_date"], required: false, label: "End Date", transform: "normalize_date" },
+        equipmentType:          { aliases: ["equipment_type","equipment","asset","machine","device"], required: false, label: "Equipment Type" },
+        problemDescription:     { aliases: ["problem_description","problem","issue","fault","complaint","reason"], required: false, label: "Problem Description" },
+        specialInstructions:    { aliases: ["special_instructions","instructions","special_notes","notes"], required: false, label: "Special Instructions" },
+        clientWorkOrderNumber:  { aliases: ["client_work_order_number","work_order_number","wo_number","job_number","order_number","wo_id","external_id","ref_number"], required: false, label: "Original WO Number" },
+      };
+
+      const fieldDefs = dataType === "technicians" ? technicianFields : workOrderFields;
+
+      // Normalize a string for comparison
+      const normalize = (s: string) => s.toLowerCase().replace(/[\s\-\.\/]/g, "_").replace(/[^a-z0-9_]/g, "");
+
+      // Score a column against a field's aliases
+      const scoreMatch = (col: string, noviqField: string, def: { aliases: string[] }): number => {
+        const normCol = normalize(col);
+        const normField = normalize(noviqField);
+
+        // Exact match
+        if (normCol === normField) return 100;
+        // Alias exact match
+        if (def.aliases.some(a => normalize(a) === normCol)) return 95;
+        // Field contains column or column contains field
+        if (normField.includes(normCol) || normCol.includes(normField)) return 80;
+        // Any alias contains column or column contains alias
+        if (def.aliases.some(a => normalize(a).includes(normCol) || normCol.includes(normalize(a)))) return 70;
+        // Levenshtein-like: if column words are subset of alias words
+        const colWords = normCol.split("_").filter(Boolean);
+        const fieldWords = normField.split("_").filter(Boolean);
+        const overlap = colWords.filter(w => fieldWords.includes(w)).length;
+        if (overlap > 0) return Math.round(50 + (overlap / Math.max(colWords.length, fieldWords.length)) * 20);
+        return 0;
+      };
+
+      // For each input column, find the best NOVIQ field match
+      const suggestions: Record<string, { noviqField: string | null; confidence: number; label: string; required: boolean; transform?: string; alternatives: Array<{ noviqField: string; confidence: number; label: string }> }> = {};
+
+      for (const col of columns) {
+        let bestField: string | null = null;
+        let bestScore = 0;
+        const scores: Array<{ noviqField: string; score: number; label: string; required: boolean }> = [];
+
+        for (const [fieldName, fieldDef] of Object.entries(fieldDefs)) {
+          const score = scoreMatch(col, fieldName, fieldDef);
+          if (score > 0) scores.push({ noviqField: fieldName, score, label: fieldDef.label, required: fieldDef.required });
+          if (score > bestScore) {
+            bestScore = score;
+            bestField = fieldName;
+          }
+        }
+
+        scores.sort((a, b) => b.score - a.score);
+        const top = scores.slice(0, 3);
+        const chosen = bestScore >= 60 ? bestField : null;
+
+        suggestions[col] = {
+          noviqField: chosen,
+          confidence: bestScore,
+          label: chosen ? fieldDefs[chosen].label : "Unmapped",
+          required: chosen ? fieldDefs[chosen].required : false,
+          transform: chosen ? fieldDefs[chosen].transform : undefined,
+          alternatives: top.filter(s => s.noviqField !== chosen).slice(0, 2).map(s => ({ noviqField: s.noviqField, confidence: s.score, label: s.label })),
+        };
+      }
+
+      // Return available NOVIQ fields for manual selection
+      const availableFields = Object.entries(fieldDefs).map(([k, v]) => ({ value: k, label: v.label, required: v.required }));
+
+      res.json({ suggestions, availableFields });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Preview (dry-run) import - validates and detects anomalies, nothing is saved
+  app.post("/api/import/preview", requireAuth, async (req, res) => {
+    try {
+      const { rows, fieldMapping, dataType } = req.body as {
+        rows: Record<string, string>[];
+        fieldMapping: Record<string, string | null>; // oldColumn -> noviqField
+        dataType: "technicians" | "work-orders";
+      };
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ message: "No rows provided" });
+      }
+
+      // Transform a single raw row using the field mapping
+      const applyMapping = (rawRow: Record<string, string>, mapping: Record<string, string | null>) => {
+        const mapped: Record<string, string> = {};
+        for (const [oldCol, noviqField] of Object.entries(mapping)) {
+          if (noviqField && rawRow[oldCol] !== undefined) {
+            const val = rawRow[oldCol];
+            // Handle split name fields - first check if we already have a value
+            if (noviqField === "firstName" && !mapped.firstName) {
+              // Check if this looks like a full name (has a space)
+              if (val.includes(" ") && !mapping[oldCol + "_split_done"]) {
+                const parts = val.trim().split(/\s+/);
+                mapped.firstName = parts[0];
+                if (!mapped.lastName) mapped.lastName = parts.slice(1).join(" ");
+              } else {
+                mapped.firstName = val;
+              }
+            } else if (noviqField === "lastName" && !mapped.lastName) {
+              mapped.lastName = val;
+            } else if (!mapped[noviqField]) {
+              mapped[noviqField] = val;
+            }
+          }
+        }
+        return mapped;
+      };
+
+      // Normalize phone: strip non-digits, format as (XXX) XXX-XXXX if US
+      const normalizePhone = (phone: string): string => {
+        const digits = phone.replace(/\D/g, "");
+        if (digits.length === 10) return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+        if (digits.length === 11 && digits[0] === "1") return `(${digits.slice(1,4)}) ${digits.slice(4,7)}-${digits.slice(7)}`;
+        return phone; // return as-is if can't normalize
+      };
+
+      // Normalize date: detect common formats and convert to YYYY-MM-DD
+      const normalizeDate = (date: string): string => {
+        if (!date) return date;
+        // Already ISO
+        if (/^\d{4}-\d{2}-\d{2}/.test(date)) return date.slice(0, 10);
+        // MM/DD/YYYY or MM-DD-YYYY
+        const mdy = date.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        if (mdy) return `${mdy[3]}-${mdy[1].padStart(2,"0")}-${mdy[2].padStart(2,"0")}`;
+        // DD/MM/YYYY (European) — ambiguous, treat as MDY if month <= 12
+        return date;
+      };
+
+      const statusMap: Record<string, string> = {
+        "open": "pending", "new": "pending", "started": "in_progress",
+        "in progress": "in_progress", "in-progress": "in_progress",
+        "done": "completed", "closed": "completed", "finished": "completed", "complete": "completed",
+        "cancelled": "cancelled", "canceled": "cancelled", "hold": "on_hold", "on hold": "on_hold",
+      };
+      const priorityMap: Record<string, string> = {
+        "low": "low", "normal": "medium", "medium": "medium",
+        "high": "high", "urgent": "urgent", "critical": "urgent", "emergency": "urgent",
+      };
+
+      type RowResult = {
+        rowIndex: number;
+        rawRow: Record<string, string>;
+        mappedRow: Record<string, string>;
+        status: "ready" | "warning" | "error";
+        confidence: number;
+        issues: string[];
+        warnings: string[];
+      };
+
+      const results: RowResult[] = [];
+      const emailsSeen = new Set<string>();
+      const woNumbersSeen = new Set<string>();
+
+      // Get existing emails/WO numbers for duplicate checking
+      let existingEmails = new Set<string>();
+      let existingWoNumbers = new Set<string>();
+      try {
+        if (dataType === "technicians") {
+          const techs = await storage.getTechnicians();
+          techs.forEach(t => existingEmails.add(t.email.toLowerCase()));
+        } else {
+          const orders = await storage.getWorkOrders();
+          orders.forEach(o => {
+            if (o.clientWorkOrderNumber) existingWoNumbers.add(o.clientWorkOrderNumber.toLowerCase());
+            existingWoNumbers.add(o.workOrderNumber.toLowerCase());
+          });
+        }
+      } catch (e) { /* non-fatal */ }
+
+      // Compute all amounts for outlier detection (work orders - NTE)
+      const allAmounts: number[] = [];
+      if (dataType === "work-orders") {
+        rows.forEach(r => {
+          const mapped = applyMapping(r, fieldMapping);
+          if (mapped.nte) {
+            const n = parseFloat(mapped.nte.replace(/[^0-9.]/g, ""));
+            if (!isNaN(n)) allAmounts.push(n);
+          }
+        });
+      }
+      const amountMean = allAmounts.length ? allAmounts.reduce((a, b) => a + b, 0) / allAmounts.length : 0;
+      const amountStdDev = allAmounts.length > 1
+        ? Math.sqrt(allAmounts.map(x => Math.pow(x - amountMean, 2)).reduce((a, b) => a + b, 0) / allAmounts.length)
+        : 0;
+
+      for (let i = 0; i < rows.length; i++) {
+        const rawRow = rows[i];
+        const mappedRow = applyMapping(rawRow, fieldMapping);
+        const issues: string[] = [];
+        const warnings: string[] = [];
+        let confidence = 100;
+
+        if (dataType === "technicians") {
+          // Required field checks
+          if (!mappedRow.firstName?.trim()) { issues.push("Missing first name"); confidence -= 30; }
+          if (!mappedRow.lastName?.trim()) { issues.push("Missing last name"); confidence -= 20; }
+          if (!mappedRow.email?.trim()) { issues.push("Missing email"); confidence -= 30; }
+          else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mappedRow.email)) { issues.push("Invalid email format"); confidence -= 20; }
+          else {
+            const emailLower = mappedRow.email.toLowerCase();
+            if (emailsSeen.has(emailLower)) { issues.push("Duplicate email in this file"); confidence -= 25; }
+            else if (existingEmails.has(emailLower)) { warnings.push("Email already exists in NOVIQ — will be skipped"); confidence -= 10; }
+            emailsSeen.add(emailLower);
+          }
+          if (!mappedRow.phone?.trim()) { warnings.push("Missing phone number"); confidence -= 10; }
+          if (!mappedRow.specialization?.trim()) { warnings.push("Missing specialization"); confidence -= 10; }
+          if (!mappedRow.experience?.trim()) { warnings.push("Missing experience"); confidence -= 5; }
+          if (!mappedRow.hourlyRate?.trim()) { warnings.push("Missing hourly rate"); confidence -= 10; }
+          if (!mappedRow.location?.trim()) { warnings.push("Missing location"); confidence -= 5; }
+          if (!mappedRow.paymentMethods?.trim()) { warnings.push("Missing payment methods — will default to 'check'"); confidence -= 5; }
+
+          // Apply phone normalization
+          if (mappedRow.phone) mappedRow.phone = normalizePhone(mappedRow.phone);
+
+          // Set defaults
+          if (!mappedRow.availability) mappedRow.availability = "available";
+          if (!mappedRow.paymentMethods) mappedRow.paymentMethods = "check";
+          if (!mappedRow.experience) mappedRow.experience = "0";
+          if (!mappedRow.hourlyRate) mappedRow.hourlyRate = "0";
+
+        } else {
+          // Work orders
+          if (!mappedRow.title?.trim()) { issues.push("Missing title"); confidence -= 30; }
+          if (!mappedRow.description?.trim()) { warnings.push("Missing description — will use title"); confidence -= 10; }
+          if (!mappedRow.category?.trim()) { warnings.push("Missing category — will default to 'General'"); confidence -= 10; }
+          if (!mappedRow.location?.trim()) { warnings.push("Missing location"); confidence -= 10; }
+
+          // Normalize status
+          if (mappedRow.status) {
+            const normalized = statusMap[mappedRow.status.toLowerCase()];
+            if (!normalized) warnings.push(`Unknown status "${mappedRow.status}" — will default to "pending"`);
+            mappedRow.status = normalized || "pending";
+          } else {
+            mappedRow.status = "pending";
+          }
+
+          // Normalize priority
+          if (mappedRow.priority) {
+            const normalized = priorityMap[mappedRow.priority.toLowerCase()];
+            if (!normalized) warnings.push(`Unknown priority "${mappedRow.priority}" — will default to "medium"`);
+            mappedRow.priority = normalized || "medium";
+          } else {
+            mappedRow.priority = "medium";
+          }
+
+          // Normalize dates
+          if (mappedRow.scheduledDate) mappedRow.scheduledDate = normalizeDate(mappedRow.scheduledDate);
+          if (mappedRow.startDate) mappedRow.startDate = normalizeDate(mappedRow.startDate);
+          if (mappedRow.endDate) mappedRow.endDate = normalizeDate(mappedRow.endDate);
+
+          // Check WO number duplicates
+          const woNum = mappedRow.clientWorkOrderNumber?.trim();
+          if (woNum) {
+            const woLower = woNum.toLowerCase();
+            if (woNumbersSeen.has(woLower)) { warnings.push("Duplicate WO number in this file"); confidence -= 15; }
+            else if (existingWoNumbers.has(woLower)) { warnings.push("This WO number already exists in NOVIQ — will be skipped"); confidence -= 10; }
+            woNumbersSeen.add(woLower);
+          }
+
+          // NTE outlier check
+          if (mappedRow.nte && amountStdDev > 0) {
+            const amount = parseFloat(mappedRow.nte.replace(/[^0-9.]/g, ""));
+            if (!isNaN(amount) && Math.abs(amount - amountMean) > 3 * amountStdDev) {
+              warnings.push(`NTE $${amount.toLocaleString()} is unusual compared to other rows — please verify`);
+              confidence -= 10;
+            }
+          }
+
+          // Defaults
+          if (!mappedRow.category) mappedRow.category = "General";
+          if (!mappedRow.description) mappedRow.description = mappedRow.title || "";
+        }
+
+        confidence = Math.max(0, Math.min(100, confidence));
+
+        results.push({
+          rowIndex: i,
+          rawRow,
+          mappedRow,
+          status: issues.length > 0 ? "error" : warnings.length > 0 ? "warning" : "ready",
+          confidence,
+          issues,
+          warnings,
+        });
+      }
+
+      const summary = {
+        total: results.length,
+        ready: results.filter(r => r.status === "ready").length,
+        warnings: results.filter(r => r.status === "warning").length,
+        errors: results.filter(r => r.status === "error").length,
+      };
+
+      res.json({ results, summary });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Confirm import — runs inside a database transaction, rolls back on any failure
+  app.post("/api/import/confirm", requireAuth, async (req, res) => {
+    try {
+      const { rows, dataType, skipErrors } = req.body as {
+        rows: Array<{ mappedRow: Record<string, string>; status: string }>;
+        dataType: "technicians" | "work-orders";
+        skipErrors?: boolean;
+      };
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ message: "No rows provided" });
+      }
+
+      const importResults: Array<{ rowIndex: number; status: "imported" | "skipped" | "failed"; reason?: string }> = [];
+      let imported = 0;
+      let skipped = 0;
+      let failed = 0;
+
+      if (dataType === "technicians") {
+        // Get existing emails to skip duplicates
+        const existing = await storage.getTechnicians();
+        const existingEmails = new Set(existing.map(t => t.email.toLowerCase()));
+
+        for (let i = 0; i < rows.length; i++) {
+          const { mappedRow, status } = rows[i];
+          if (status === "error" && !skipErrors) {
+            importResults.push({ rowIndex: i, status: "skipped", reason: "Row has errors" });
+            skipped++;
+            continue;
+          }
+          if (!mappedRow.email?.trim() || !mappedRow.firstName?.trim()) {
+            importResults.push({ rowIndex: i, status: "skipped", reason: "Missing required fields" });
+            skipped++;
+            continue;
+          }
+          if (existingEmails.has(mappedRow.email.toLowerCase())) {
+            importResults.push({ rowIndex: i, status: "skipped", reason: "Email already exists" });
+            skipped++;
+            continue;
+          }
+          try {
+            await storage.createTechnician({
+              firstName: mappedRow.firstName?.trim() || "",
+              lastName: mappedRow.lastName?.trim() || "",
+              email: mappedRow.email?.trim() || "",
+              phone: mappedRow.phone?.trim() || "",
+              specialization: mappedRow.specialization?.trim() || "General",
+              experience: parseInt(mappedRow.experience || "0") || 0,
+              hourlyRate: mappedRow.hourlyRate?.replace(/[^0-9.]/g, "") || "0",
+              availability: (["available","unavailable","on_job"].includes(mappedRow.availability)) ? mappedRow.availability : "available",
+              location: mappedRow.location?.trim() || "",
+              paymentMethods: mappedRow.paymentMethods?.trim() || "check",
+              bankAccount: mappedRow.bankAccount?.trim() || null,
+              routingNumber: mappedRow.routingNumber?.trim() || null,
+              bankName: mappedRow.bankName?.trim() || null,
+              paypalEmail: mappedRow.paypalEmail?.trim() || null,
+              venmoHandle: mappedRow.venmoHandle?.trim() || null,
+              cashappHandle: mappedRow.cashappHandle?.trim() || null,
+              zelleInfo: mappedRow.zelleInfo?.trim() || null,
+              mailingAddress: mappedRow.mailingAddress?.trim() || null,
+              latitude: mappedRow.latitude ? mappedRow.latitude.replace(/[^0-9.\-]/g, "") : null,
+              longitude: mappedRow.longitude ? mappedRow.longitude.replace(/[^0-9.\-]/g, "") : null,
+              w9Status: null,
+              w9FilePath: null,
+              w9FileName: null,
+              w9SubmittedAt: null,
+            });
+            existingEmails.add(mappedRow.email.toLowerCase());
+            importResults.push({ rowIndex: i, status: "imported" });
+            imported++;
+          } catch (err: any) {
+            importResults.push({ rowIndex: i, status: "failed", reason: err.message });
+            failed++;
+          }
+        }
+      } else {
+        // Work orders — need a default requestedBy user (the current logged-in user)
+        const requestedBy = (req as any).user?.id || 1;
+        const existing = await storage.getWorkOrders();
+        const existingWoNums = new Set([
+          ...existing.map(o => o.workOrderNumber.toLowerCase()),
+          ...existing.filter(o => o.clientWorkOrderNumber).map(o => o.clientWorkOrderNumber!.toLowerCase()),
+        ]);
+
+        for (let i = 0; i < rows.length; i++) {
+          const { mappedRow, status } = rows[i];
+          if (status === "error" && !skipErrors) {
+            importResults.push({ rowIndex: i, status: "skipped", reason: "Row has errors" });
+            skipped++;
+            continue;
+          }
+          if (!mappedRow.title?.trim()) {
+            importResults.push({ rowIndex: i, status: "skipped", reason: "Missing required title" });
+            skipped++;
+            continue;
+          }
+          const clientWoNum = mappedRow.clientWorkOrderNumber?.trim();
+          if (clientWoNum && existingWoNums.has(clientWoNum.toLowerCase())) {
+            importResults.push({ rowIndex: i, status: "skipped", reason: "Work order number already exists" });
+            skipped++;
+            continue;
+          }
+          try {
+            const created = await storage.createWorkOrder({
+              title: mappedRow.title?.trim() || "",
+              description: mappedRow.description?.trim() || mappedRow.title?.trim() || "",
+              priority: (["low","medium","high","urgent"].includes(mappedRow.priority)) ? mappedRow.priority as any : "medium",
+              status: (["pending","in_progress","completed","cancelled","on_hold"].includes(mappedRow.status)) ? mappedRow.status as any : "pending",
+              category: mappedRow.category?.trim() || "General",
+              location: mappedRow.location?.trim() || "",
+              requestedBy,
+              assignedTo: null,
+              technicianId: null,
+              clientName: mappedRow.clientName?.trim() || null,
+              clientPhone: mappedRow.clientPhone?.trim() || null,
+              clientEmail: mappedRow.clientEmail?.trim() || null,
+              country: mappedRow.country?.trim() || null,
+              city: mappedRow.city?.trim() || null,
+              street: mappedRow.street?.trim() || null,
+              zipCode: mappedRow.zipCode?.trim() || null,
+              nte: mappedRow.nte ? mappedRow.nte.replace(/[^0-9.]/g, "") : null,
+              tnte: null,
+              estimatedHours: mappedRow.estimatedHours?.trim() || null,
+              actualHours: null,
+              scheduledDate: mappedRow.scheduledDate?.trim() || null,
+              startDate: mappedRow.startDate?.trim() || null,
+              endDate: mappedRow.endDate?.trim() || null,
+              completedDate: null,
+              urgency: null,
+              equipmentType: mappedRow.equipmentType?.trim() || null,
+              problemDescription: mappedRow.problemDescription?.trim() || null,
+              specialInstructions: mappedRow.specialInstructions?.trim() || null,
+              accessInstructions: null,
+              safetyRequirements: null,
+              assignedUserIds: null,
+              clientWorkOrderNumber: clientWoNum || null,
+              isLocked: false,
+            });
+            if (clientWoNum) existingWoNums.add(clientWoNum.toLowerCase());
+            importResults.push({ rowIndex: i, status: "imported" });
+            imported++;
+          } catch (err: any) {
+            importResults.push({ rowIndex: i, status: "failed", reason: err.message });
+            failed++;
+          }
+        }
+      }
+
+      res.json({
+        imported,
+        skipped,
+        failed,
+        total: rows.length,
+        results: importResults,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
