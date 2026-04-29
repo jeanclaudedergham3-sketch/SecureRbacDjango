@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, Calendar, DollarSign, User, MapPin, Eye, Edit, Trash2, FileText, Search, Filter } from "lucide-react";
+import { Plus, Calendar, DollarSign, User, MapPin, Eye, Edit, Trash2, FileText, Search, Filter, Download } from "lucide-react";
+import { exportToCSV } from "@/lib/export";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,29 @@ export default function WorkOrders() {
           </div>
           <ModalGuard modalName="workorders" operation="create">
             <div className="space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const rows = filteredWorkOrders.map((wo) => ({
+                    "Work Order #": wo.workOrderNumber,
+                    Title: wo.title,
+                    Status: wo.status,
+                    Priority: wo.priority,
+                    Category: wo.category,
+                    Location: wo.location,
+                    "Client Name": wo.clientName || "",
+                    "Assigned To": wo.assignedUsers?.map((u) => `${u.firstName} ${u.lastName}`).join("; ") || "",
+                    "Scheduled Date": wo.scheduledDate ? new Date(wo.scheduledDate).toLocaleDateString() : "",
+                    "Completed Date": wo.completedDate ? new Date(wo.completedDate).toLocaleDateString() : "",
+                    "NTE ($)": wo.nte || "",
+                    "TNTE ($)": wo.tnte || "",
+                  }));
+                  exportToCSV(rows, "work_orders");
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
               <ButtonGuard buttonType="create">
                 <Button onClick={() => setIsCreating(true)}>
                   <Plus className="h-4 w-4 mr-2" />

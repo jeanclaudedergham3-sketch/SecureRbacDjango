@@ -13,8 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import {
   DollarSign, History, CheckCircle2, XCircle, Clock, AlertCircle,
-  Receipt, Eye, CreditCard, Banknote, User, AlertTriangle
+  Receipt, Eye, CreditCard, Banknote, User, AlertTriangle, Download
 } from "lucide-react";
+import { exportToCSV } from "@/lib/export";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AdvancedPermissionGuard, PageGuard } from "@/components/rbac/advanced-permission-guard";
@@ -27,6 +28,7 @@ interface PaymentRequest {
   technicianId: number;
   technicianName: string;
   technicianPaymentMethods: string;
+  technicianW9Status: string | null;
   paymentMethod: string;
   amountRequested: string;
   amountApproved: string;
@@ -274,6 +276,31 @@ export default function PaymentManager() {
                 {pendingInvoices.length} invoice{pendingInvoices.length > 1 ? "s" : ""} need review
               </Badge>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const rows = payments.map((p) => ({
+                  "Work Order #": p.workOrderNumber,
+                  Client: p.clientName,
+                  Technician: p.technicianName,
+                  "W9 Status": p.technicianW9Status || "None",
+                  "Amount Requested ($)": parseFloat(p.amountRequested || "0").toFixed(2),
+                  "Amount Approved ($)": parseFloat(p.amountApproved || "0").toFixed(2),
+                  "Amount Paid ($)": parseFloat(p.amountPaid || "0").toFixed(2),
+                  Status: p.status,
+                  Priority: p.priority,
+                  "Requested Date": new Date(p.requestedAt).toLocaleDateString(),
+                  "Approved Date": p.approvedAt ? new Date(p.approvedAt).toLocaleDateString() : "",
+                  "Paid Date": p.paidAt ? new Date(p.paidAt).toLocaleDateString() : "",
+                  Description: p.description || "",
+                }));
+                exportToCSV(rows, "payment_requests");
+              }}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
         </div>
 
@@ -604,38 +631,59 @@ export default function PaymentManager() {
         <Dialog open={isApproveOpen} onOpenChange={setIsApproveOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>Approve Payment Request</DialogTitle></DialogHeader>
-            {selectedPayment && (
-              <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="font-semibold text-blue-900">{selectedPayment.technicianName}</p>
-                  <p className="text-sm text-blue-700">{selectedPayment.workOrderNumber} · Requested: {formatCurrency(selectedPayment.amountRequested)}</p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Amount to Approve</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                    <Input type="number" step="0.01" min="0.01" className="pl-9"
-                      placeholder={selectedPayment.amountRequested}
-                      value={approveAmount}
-                      onChange={(e) => setApproveAmount(e.target.value)} />
+            {selectedPayment && (() => {
+              const approveAmt = parseFloat(approveAmount || selectedPayment.amountRequested || "0");
+              const needsW9 = approveAmt > 500 && !selectedPayment.technicianW9Status;
+              const w9Pending = approveAmt > 500 && selectedPayment.technicianW9Status === "submitted";
+              return (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="font-semibold text-blue-900">{selectedPayment.technicianName}</p>
+                    <p className="text-sm text-blue-700">{selectedPayment.workOrderNumber} · Requested: {formatCurrency(selectedPayment.amountRequested)}</p>
                   </div>
-                  <p className="text-xs text-gray-500">
-                    You can approve a different amount than requested. Payments over $500 require a W9 on file.
-                  </p>
+                  {needsW9 && (
+                    <div className="flex gap-2 p-3 bg-red-50 border border-red-300 rounded-lg text-sm text-red-800">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-600" />
+                      <div>
+                        <strong>W9 Required</strong> — This technician has no W9 on file. Payments over $500 to non-W9 contractors must be reported to the IRS. Upload their W9 under Technicians before approving.
+                      </div>
+                    </div>
+                  )}
+                  {w9Pending && (
+                    <div className="flex gap-2 p-3 bg-yellow-50 border border-yellow-300 rounded-lg text-sm text-yellow-800">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-yellow-600" />
+                      <div>
+                        <strong>W9 Submitted (Not Verified)</strong> — The technician has submitted a W9 but it has not been verified yet. Proceed with caution.
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label>Amount to Approve</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                      <Input type="number" step="0.01" min="0.01" className="pl-9"
+                        placeholder={selectedPayment.amountRequested}
+                        value={approveAmount}
+                        onChange={(e) => setApproveAmount(e.target.value)} />
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      You can approve a different amount than requested. Payments over $500 require a verified W9.
+                    </p>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsApproveOpen(false)}>Cancel</Button>
+                    <Button
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() => approveMutation.mutate({ id: selectedPayment.id, amount: approveAmount || selectedPayment.amountRequested })}
+                      disabled={approveMutation.isPending}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      {approveMutation.isPending ? "Approving..." : needsW9 ? "Approve Anyway" : "Approve Payment"}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsApproveOpen(false)}>Cancel</Button>
-                  <Button
-                    className="bg-green-600 hover:bg-green-700"
-                    onClick={() => approveMutation.mutate({ id: selectedPayment.id, amount: approveAmount || selectedPayment.amountRequested })}
-                    disabled={approveMutation.isPending}
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    {approveMutation.isPending ? "Approving..." : "Approve Payment"}
-                  </Button>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </DialogContent>
         </Dialog>
 

@@ -5,13 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DollarSign, Eye, Calculator, TrendingUp } from "lucide-react";
+import { DollarSign, Eye, Calculator, TrendingUp, Download } from "lucide-react";
 import { PageGuard } from "@/components/rbac/advanced-permission-guard";
+import { exportToCSV } from "@/lib/export";
 
 interface Technician {
   id: number;
-  name: string;
-  phoneNumber: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
   email: string;
   location: string;
   hourlyRate: string;
@@ -109,6 +111,25 @@ export default function TechnicianPayments() {
       <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Technician Payments Overview</h1>
+        <Button
+          variant="outline"
+          onClick={() => {
+            const rows = technicianSummaries.map((s) => ({
+              "Technician": `${s.technician.firstName} ${s.technician.lastName}`,
+              Email: s.technician.email,
+              Phone: s.technician.phone,
+              "# Requests": s.paymentCount,
+              "Total Requested ($)": s.totalRequested.toFixed(2),
+              "Total Approved ($)": s.totalApproved.toFixed(2),
+              "Total Paid ($)": s.totalPaid.toFixed(2),
+              "Amount Owed ($)": s.totalOwed.toFixed(2),
+            }));
+            exportToCSV(rows, "technician_payments");
+          }}
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Overall Statistics */}
@@ -189,11 +210,11 @@ export default function TechnicianPayments() {
               {technicianSummaries.map((summary) => (
                 <TableRow key={summary.technician.id}>
                   <TableCell className="font-medium">
-                    {summary.technician.name}
+                    {summary.technician.firstName} {summary.technician.lastName}
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      <div>{summary.technician.phoneNumber}</div>
+                      <div>{summary.technician.phone}</div>
                       <div className="text-gray-600">{summary.technician.email}</div>
                     </div>
                   </TableCell>
@@ -233,7 +254,7 @@ export default function TechnicianPayments() {
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Payment History - {selectedTechnician?.technician.name}
+              Payment History - {selectedTechnician?.technician.firstName} {selectedTechnician?.technician.lastName}
             </DialogTitle>
           </DialogHeader>
           

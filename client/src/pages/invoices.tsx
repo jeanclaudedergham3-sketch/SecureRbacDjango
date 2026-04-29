@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Edit, Trash2, Receipt, Search, Filter, Lock } from "lucide-react";
+import { Edit, Trash2, Receipt, Search, Filter, Lock, Download } from "lucide-react";
+import { exportToCSV } from "@/lib/export";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
 import { PageGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
 import type { WorkOrderInvoice, WorkOrder } from "@shared/schema";
@@ -241,15 +242,40 @@ export default function Invoices() {
           <h1 className="text-3xl font-bold">ABC Corporation - Invoice Management</h1>
           <p className="text-gray-600">Manage all invoices across work orders</p>
         </div>
-        <ButtonGuard permission="invoices.create">
-          <Button 
-            onClick={() => setIsCreateModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700"
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const rows = filteredInvoices.map((inv) => ({
+                "Invoice #": inv.invoiceNumber || inv.id,
+                "Work Order #": inv.workOrderNumber,
+                "Client": inv.clientName,
+                "Labor Cost ($)": parseFloat(inv.laborCost || "0").toFixed(2),
+                "Material Cost ($)": parseFloat(inv.materialCost || "0").toFixed(2),
+                "Tax Rate (%)": parseFloat(inv.taxRate || "0").toFixed(1),
+                "Tax Amount ($)": parseFloat(inv.taxAmount || "0").toFixed(2),
+                "Total ($)": parseFloat(inv.totalAmount || "0").toFixed(2),
+                Status: inv.status,
+                Locked: inv.isLocked ? "Yes" : "No",
+                Created: new Date(inv.createdAt).toLocaleDateString(),
+                Notes: inv.notes || "",
+              }));
+              exportToCSV(rows, "invoices");
+            }}
           >
-            <Receipt className="h-4 w-4 mr-2" />
-            Create Invoice
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
           </Button>
-        </ButtonGuard>
+          <ButtonGuard permission="invoices.create">
+            <Button 
+              onClick={() => setIsCreateModalOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Receipt className="h-4 w-4 mr-2" />
+              Create Invoice
+            </Button>
+          </ButtonGuard>
+        </div>
       </div>
 
       {/* Filters */}

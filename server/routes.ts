@@ -661,7 +661,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!proposal) {
         return res.status(404).json({ message: "Proposal not found" });
       }
-      
+
+      if (status === "approved" || status === "cancelled") {
+        const workOrder = await storage.getWorkOrder(workOrderId);
+        await notifyWorkOrderAssignees(workOrderId, {
+          type: status === "approved" ? "proposal_approved" : "proposal_rejected",
+          title: status === "approved" ? "Proposal Approved" : "Proposal Rejected",
+          message: status === "approved"
+            ? `The proposal for work order ${workOrder?.workOrderNumber || workOrderId} has been approved.`
+            : `The proposal for work order ${workOrder?.workOrderNumber || workOrderId} has been rejected and needs to be revised.`,
+          relatedEntity: "proposal",
+          relatedId: workOrderId,
+        });
+      }
+
       console.log(`Proposal ${proposal.id} status updated to ${status} by user ${req.session.userId}`);
       res.json(proposal);
     } catch (error) {
@@ -669,6 +682,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: "Failed to update proposal status" });
     }
   });
+
+  // Helper: notify all users assigned to a work order
+  async function notifyWorkOrderAssignees(workOrderId: number, notification: { type: string; title: string; message: string; relatedEntity: string; relatedId: number }) {
+    try {
+      const workOrder = await storage.getWorkOrder(workOrderId);
+      if (!workOrder) return;
+      const recipientIds = new Set<number>();
+      if (workOrder.requestedBy) recipientIds.add(workOrder.requestedBy);
+      if (workOrder.assignedTo) recipientIds.add(workOrder.assignedTo);
+      try {
+        if (workOrder.assignedUserIds) {
+          const ids: number[] = JSON.parse(workOrder.assignedUserIds);
+          ids.forEach(id => recipientIds.add(id));
+        }
+      } catch {}
+      for (const userId of recipientIds) {
+        await storage.createNotification({ userId, ...notification, isRead: false });
+      }
+    } catch (err) {
+      console.error("Failed to send work order notifications:", err);
+    }
+  }
 
   // Approve proposal
   app.put("/api/proposals/:id/approve", requireAuth, requirePermission("proposals.approve"), async (req, res) => {
@@ -691,6 +726,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updatedProposal) {
         return res.status(404).json({ message: "Failed to approve proposal" });
       }
+
+      const workOrder = await storage.getWorkOrder(proposal.workOrderId);
+      await notifyWorkOrderAssignees(proposal.workOrderId, {
+        type: "proposal_approved",
+        title: "Proposal Approved",
+        message: `The proposal for work order ${workOrder?.workOrderNumber || proposal.workOrderId} has been approved.`,
+        relatedEntity: "proposal",
+        relatedId: proposal.workOrderId,
+      });
       
       res.json(updatedProposal);
     } catch (error) {
@@ -719,6 +763,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updatedProposal) {
         return res.status(404).json({ message: "Failed to reject proposal" });
       }
+
+      const workOrder = await storage.getWorkOrder(proposal.workOrderId);
+      await notifyWorkOrderAssignees(proposal.workOrderId, {
+        type: "proposal_rejected",
+        title: "Proposal Rejected",
+        message: `The proposal for work order ${workOrder?.workOrderNumber || proposal.workOrderId} has been rejected and needs to be revised.`,
+        relatedEntity: "proposal",
+        relatedId: proposal.workOrderId,
+      });
       
       res.json(updatedProposal);
     } catch (error) {
@@ -1160,6 +1213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clientName: workOrder?.clientName || "Unknown",
             technicianName: technician ? `${technician.firstName} ${technician.lastName}` : "Unknown",
             technicianPaymentMethods: technician?.paymentMethods || "[]",
+            technicianW9Status: technician?.w9Status || null,
             assignedUserIds,
           };
         })

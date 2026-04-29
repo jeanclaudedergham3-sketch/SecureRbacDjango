@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Calendar } from "lucide-react";
+import { Plus, Trash2, Calendar, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -542,10 +543,37 @@ export function WorkOrderProposalModal({ isOpen, onClose, workOrder }: WorkOrder
 
           <Separator />
 
-          {/* Grand Total */}
-          <div className="text-right text-xl font-bold">
-            Grand Total: ${(calculateLaborTotal() + calculatePartsTotal() + calculateServicesTotal()).toFixed(2)}
-          </div>
+          {/* Grand Total + NTE Warning */}
+          {(() => {
+            const grandTotal = calculateLaborTotal() + calculatePartsTotal() + calculateServicesTotal();
+            const nte = parseFloat(workOrder?.nte || "0");
+            const tnte = parseFloat(workOrder?.tnte || "0");
+            const overNte = nte > 0 && grandTotal > nte;
+            const overTnte = tnte > 0 && grandTotal > tnte;
+            return (
+              <div className="space-y-3">
+                <div className="text-right text-xl font-bold">
+                  Grand Total: ${grandTotal.toFixed(2)}
+                  {nte > 0 && (
+                    <span className={`ml-3 text-sm font-normal ${overNte ? "text-red-600" : "text-green-600"}`}>
+                      NTE: ${nte.toFixed(2)} ({overNte ? `OVER by $${(grandTotal - nte).toFixed(2)}` : `$${(nte - grandTotal).toFixed(2)} remaining`})
+                    </span>
+                  )}
+                </div>
+                {(overNte || overTnte) && (
+                  <Alert className="border-red-300 bg-red-50">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <AlertDescription className="text-red-800">
+                      <strong>NTE Limit Exceeded.</strong>{" "}
+                      {overNte && `This proposal ($${grandTotal.toFixed(2)}) exceeds the work order NTE of $${nte.toFixed(2)} by $${(grandTotal - nte).toFixed(2)}.`}
+                      {overTnte && ` Total NTE (incl. tax) is $${tnte.toFixed(2)}.`}
+                      {" "}Client approval may be required before proceeding.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Message Section */}
           <div>
