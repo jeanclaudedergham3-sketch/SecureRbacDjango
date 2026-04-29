@@ -20,11 +20,13 @@ const MapPicker = ({
   technicians,
   searchTerm,
   onPick,
+  onConfirm,
   highlighted,
 }: {
   technicians: Technician[];
   searchTerm: string;
   onPick: (t: Technician) => void;
+  onConfirm: (t: Technician) => void;
   highlighted: Technician | null;
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -88,7 +90,11 @@ const MapPicker = ({
 
       const marker = L.marker([lat, lng], { icon: makeIcon(tech, isHighlighted) })
         .addTo(mapInstanceRef.current)
-        .on("click", () => onPick(tech));
+        .on("click", () => onPick(tech))
+        .on("dblclick", (e) => {
+          L.DomEvent.stopPropagation(e);
+          onConfirm(tech);
+        });
 
       markersRef.current.set(tech.id, marker);
     });
@@ -208,7 +214,7 @@ export function TechnicianMapPickerModal({ isOpen, onClose, onSelect }: Technici
             Select Technician from Map
           </DialogTitle>
           <DialogDescription>
-            Click a marker on the map or a name from the list to select a technician for payment.
+            Single-click a marker or name to preview. Double-click to select immediately.
           </DialogDescription>
         </DialogHeader>
 
@@ -238,6 +244,8 @@ export function TechnicianMapPickerModal({ isOpen, onClose, onSelect }: Technici
                   <button
                     key={tech.id}
                     onClick={() => setHighlighted(tech)}
+                    onDoubleClick={() => { onSelect(tech); onClose(); }}
+                    title="Double-click to select immediately"
                     className={`w-full text-left px-4 py-3 border-b transition-colors hover:bg-muted/50 ${
                       highlighted?.id === tech.id ? "bg-blue-50 dark:bg-blue-950/30 border-l-4 border-l-blue-600" : ""
                     }`}
@@ -268,6 +276,7 @@ export function TechnicianMapPickerModal({ isOpen, onClose, onSelect }: Technici
                   technicians={technicians as Technician[]}
                   searchTerm={searchTerm}
                   onPick={setHighlighted}
+                  onConfirm={(tech) => { onSelect(tech); onClose(); }}
                   highlighted={highlighted}
                 />
               </div>
@@ -317,7 +326,7 @@ export function TechnicianMapPickerModal({ isOpen, onClose, onSelect }: Technici
 
               {!highlighted && (
                 <div className="mx-3 mb-3 p-3 rounded-lg border border-dashed text-center text-sm text-muted-foreground">
-                  Click a marker on the map or a technician in the list to select
+                  Single-click to preview · Double-click to select immediately
                 </div>
               )}
             </div>
