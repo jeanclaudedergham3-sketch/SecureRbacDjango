@@ -2,6 +2,7 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
+import OpenAI from "openai";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission } from "./middleware/rbac";
@@ -2303,8 +2304,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // NOVIQ canonical field definitions with aliases and metadata
       const technicianFields: Record<string, { aliases: string[]; required: boolean; label: string; transform?: string }> = {
+        fullName:         { aliases: ["name","full_name","fullname","full name","name_full","contact_name","technician_name","employee_name","worker_name"], required: false, label: "Full Name (auto-split)", transform: "split_full_name" },
         firstName:        { aliases: ["first_name","firstname","fname","first","given_name","name_first","forename"], required: true, label: "First Name", transform: "split_name_first" },
-        lastName:         { aliases: ["last_name","lastname","lname","last","family_name","surname","name_last","name"], required: true, label: "Last Name", transform: "split_name_last" },
+        lastName:         { aliases: ["last_name","lastname","lname","last","family_name","surname","name_last"], required: true, label: "Last Name", transform: "split_name_last" },
         email:            { aliases: ["email","email_address","e_mail","mail","contact_email","tech_email"], required: true, label: "Email" },
         phone:            { aliases: ["phone","phone_number","tel","telephone","mobile","cell","contact_phone","ph"], required: true, label: "Phone", transform: "normalize_phone" },
         specialization:   { aliases: ["specialization","specialty","trade","skill","expertise","area","discipline","field","profession"], required: true, label: "Specialization" },
@@ -2408,6 +2410,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }
 
+      // Optionally enhance suggestions using OpenAI when API key is configured
+      if (process.env.OPENAI_API_KEY) {
+        try {
+          const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+          const fieldList = Object.entries(fieldDefs).map(([k, v]) => `${k}: "${v.label}"`).join("\n");
+          const columnList = columns.map(c => `"${c}"`).join(", ");
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: `You are a data mapping assistant for a field-service management platform called NOVIQ. Given CSV column names and available NOVIQ system field keys with their labels, map each column to the most appropriate field key. Respond with ONLY valid JSON: an object where each key is the exact CSV column name and the value is the exact NOVIQ field key string (or null if no match). Available fields:\n${fieldList}`,
+              },
+              {
+                role: "user",
+                content: `Map these CSV columns to NOVIQ fields: ${columnList}`,
+              },
+            ],
+            response_format: { type: "json_object" },
+            max_tokens: 600,
+            temperature: 0,
+          });
+          const aiMappings: Record<string, string | null> = JSON.parse(completion.choices[0].message.content || "{}");
+          for (const [col, aiField] of Object.entries(aiMappings)) {
+            if (!suggestions[col]) continue;
+            if (typeof aiField === "string" && fieldDefs[aiField]) {
+              // AI suggests a valid field — boost confidence if heuristic was below 85
+              if (suggestions[col].confidence < 85) {
+                suggestions[col] = {
+                  ...suggestions[col],
+                  noviqField: aiField,
+                  confidence: Math.max(suggestions[col].confidence, 85),
+                  label: fieldDefs[aiField].label,
+                  required: fieldDefs[aiField].required,
+                  transform: fieldDefs[aiField].transform,
+                };
+              }
+            } else if (aiField === null && suggestions[col].confidence < 60) {
+              // AI says skip; only apply if heuristic confidence was also low
+              suggestions[col].noviqField = null;
+            }
+          }
+        } catch (_) {
+          // OpenAI unavailable or failed — silently continue with heuristic results
+        }
+      }
+
       // Return available NOVIQ fields for manual selection
       const availableFields = Object.entries(fieldDefs).map(([k, v]) => ({ value: k, label: v.label, required: v.required }));
 
@@ -2439,7 +2488,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (noviqField && rawRow[oldCol] !== undefined) {
             const val = rawRow[oldCol];
             // Handle split name fields - first check if we already have a value
-            if (noviqField === "firstName" && !mapped.firstName) {
+            if (noviqField === "fullName") {
+              // Dedicated full-name field: always split on first space into firstName + lastName
+              const parts = val.trim().split(/\s+/);
+              if (!mapped.firstName) mapped.firstName = parts[0];
+              if (!mapped.lastName) mapped.lastName = parts.length > 1 ? parts.slice(1).join(" ") : "";
+              transformations.namesSplit++;
+            } else if (noviqField === "firstName" && !mapped.firstName) {
               // If value looks like a full name (has a space), split into first+last
               if (val.includes(" ")) {
                 const parts = val.trim().split(/\s+/);
@@ -2760,20 +2815,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const existingEmails = new Set(existing.map(t => t.email.toLowerCase()));
 
         for (let i = 0; i < rows.length; i++) {
-          const { mappedRow, status } = rows[i];
+          const { mappedRow, status, rowIndex: origRowIndex } = rows[i];
           // Error rows are NEVER imported — skip them
           if (status === "error") {
-            importResults.push({ rowIndex: i, status: "skipped", reason: "Row has validation errors" });
+            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Row has validation errors" });
             skipped++;
             continue;
           }
           if (!mappedRow.email?.trim() || !mappedRow.firstName?.trim()) {
-            importResults.push({ rowIndex: i, status: "skipped", reason: "Missing required fields (email or first name)" });
+            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Missing required fields (email or first name)" });
             skipped++;
             continue;
           }
           if (existingEmails.has(mappedRow.email.toLowerCase())) {
-            importResults.push({ rowIndex: i, status: "skipped", reason: "Email already exists in NOVIQ" });
+            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Email already exists in NOVIQ" });
             skipped++;
             continue;
           }
@@ -2806,10 +2861,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               w9SubmittedAt: null,
             });
             existingEmails.add(mappedRow.email.toLowerCase());
-            importResults.push({ rowIndex: i, status: "imported" });
+            importResults.push({ rowIndex: origRowIndex, status: "imported" });
             imported++;
           } catch (err: any) {
-            importResults.push({ rowIndex: i, status: "failed", reason: err.message });
+            importResults.push({ rowIndex: origRowIndex, status: "failed", reason: err.message });
             failed++;
           }
         }
@@ -2823,21 +2878,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ]);
 
         for (let i = 0; i < rows.length; i++) {
-          const { mappedRow, status } = rows[i];
+          const { mappedRow, status, rowIndex: origRowIndex } = rows[i];
           // Error rows are NEVER imported
           if (status === "error") {
-            importResults.push({ rowIndex: i, status: "skipped", reason: "Row has validation errors" });
+            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Row has validation errors" });
             skipped++;
             continue;
           }
           if (!mappedRow.title?.trim()) {
-            importResults.push({ rowIndex: i, status: "skipped", reason: "Missing required title" });
+            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Missing required title" });
             skipped++;
             continue;
           }
           const clientWoNum = mappedRow.clientWorkOrderNumber?.trim() || null;
           if (clientWoNum && existingWoNums.has(clientWoNum.toLowerCase())) {
-            importResults.push({ rowIndex: i, status: "skipped", reason: "Work order number already exists in NOVIQ" });
+            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Work order number already exists in NOVIQ" });
             skipped++;
             continue;
           }
@@ -2880,10 +2935,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isLocked: false,
             });
             if (clientWoNum) existingWoNums.add(clientWoNum.toLowerCase());
-            importResults.push({ rowIndex: i, status: "imported" });
+            importResults.push({ rowIndex: origRowIndex, status: "imported" });
             imported++;
           } catch (err: any) {
-            importResults.push({ rowIndex: i, status: "failed", reason: err.message });
+            importResults.push({ rowIndex: origRowIndex, status: "failed", reason: err.message });
             failed++;
           }
         }
