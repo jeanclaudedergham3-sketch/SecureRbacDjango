@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   DollarSign,
   User,
@@ -37,6 +38,11 @@ import {
   Building,
   Smartphone,
   ArrowLeftRight,
+  FileText,
+  Upload,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -121,7 +127,10 @@ const paymentMethodsInfo = {
 export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRequestModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const w9FileInputRef = useRef<HTMLInputElement>(null);
+
   const [selectedTechnician, setSelectedTechnician] = useState<any>(null);
+  const [w9Uploading, setW9Uploading] = useState(false);
 
   const form = useForm<PaymentRequestForm>({
     resolver: zodResolver(paymentRequestSchema),
@@ -135,11 +144,19 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
     },
   });
 
+  const amountValue = useWatch({ control: form.control, name: "amountRequested" });
+  const amount = parseFloat(amountValue || "0") || 0;
+
+  // W9 gate: amount > $500 and no W9 on file
+  const w9Missing = !selectedTechnician?.w9FileName || !selectedTechnician?.w9Status;
+  const w9Pending = selectedTechnician?.w9Status === "submitted";
+  const w9Verified = selectedTechnician?.w9Status === "verified";
+  const paymentBlocked = selectedTechnician && amount > 500 && w9Missing;
+
   const { data: technicians = [] } = useQuery({
     queryKey: ["/api/technicians"],
   });
 
-  // Reset when modal opens/closes
   useEffect(() => {
     if (isOpen) {
       form.reset();
@@ -169,18 +186,13 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
     },
   });
 
-  // Get available payment methods for selected technician
   const availablePaymentMethods = useMemo(() => {
     if (!selectedTechnician || !selectedTechnician.paymentMethods) return [];
-    
     try {
-      // Handle comma-separated string format
       if (typeof selectedTechnician.paymentMethods === 'string') {
         if (selectedTechnician.paymentMethods.startsWith('[')) {
-          // JSON format
           return JSON.parse(selectedTechnician.paymentMethods);
         } else {
-          // Comma-separated format
           return selectedTechnician.paymentMethods
             .split(',')
             .map((method: string) => method.trim())
@@ -197,10 +209,51 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
     const technician = (technicians as any[]).find((t: any) => t.id.toString() === value);
     setSelectedTechnician(technician);
     form.setValue("technicianId", value);
-    form.setValue("paymentMethods", []); // Reset payment methods
+    form.setValue("paymentMethods", []);
+  };
+
+  const handleW9Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedTechnician || !e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: "Invalid file type", description: "Only PDF, JPG, and PNG files are accepted for W9 documents.", variant: "destructive" });
+      return;
+    }
+    setW9Uploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("w9", file);
+      const response = await fetch(`/api/technicians/${selectedTechnician.id}/w9`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || "Upload failed");
+      }
+      const data = await response.json();
+      // Update local state so the block clears immediately
+      setSelectedTechnician((prev: any) => ({
+        ...prev,
+        w9Status: "submitted",
+        w9FileName: data.technician?.w9FileName || file.name,
+        w9FilePath: data.technician?.w9FilePath || null,
+        w9SubmittedAt: new Date().toISOString(),
+      }));
+      queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });
+      toast({ title: "W9 Uploaded", description: "W9 document uploaded successfully. You can now submit the payment request." });
+    } catch (error: any) {
+      toast({ title: "Upload Failed", description: error.message || "Failed to upload W9", variant: "destructive" });
+    } finally {
+      setW9Uploading(false);
+      if (w9FileInputRef.current) w9FileInputRef.current.value = "";
+    }
   };
 
   const onSubmit = (data: PaymentRequestForm) => {
+    if (paymentBlocked) return;
     const payload = {
       technicianId: parseInt(data.technicianId),
       amountRequested: data.amountRequested,
@@ -209,7 +262,6 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
       priority: data.priority,
       dueDate: data.dueDate || null,
     };
-
     createPaymentMutation.mutate(payload);
   };
 
@@ -230,13 +282,14 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
           <ScrollArea className="max-h-[calc(90vh-120px)]">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
                 {/* Technician Selection */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     <h3 className="text-lg font-semibold">Select Technician</h3>
                   </div>
-                  
+
                   <FormField
                     control={form.control}
                     name="technicianId"
@@ -272,9 +325,9 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
                     )}
                   />
 
-                  {/* Technician Details */}
+                  {/* Technician Details Card */}
                   {selectedTechnician && (
-                    <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                    <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-950/30 dark:to-indigo-950/30 dark:border-blue-800">
                       <CardHeader className="pb-3">
                         <CardTitle className="flex items-center gap-3">
                           <Avatar>
@@ -284,24 +337,40 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
                           </Avatar>
                           <div>
                             <div className="text-lg">{selectedTechnician.firstName} {selectedTechnician.lastName}</div>
-                            <div className="text-sm text-gray-600 font-normal">{selectedTechnician.specialization}</div>
+                            <div className="text-sm text-muted-foreground font-normal">{selectedTechnician.specialization}</div>
+                          </div>
+                          {/* W9 mini-badge in the technician card */}
+                          <div className="ml-auto">
+                            {w9Verified ? (
+                              <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
+                                <CheckCircle className="h-3 w-3 mr-1" />W9 Verified
+                              </Badge>
+                            ) : w9Pending ? (
+                              <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs">
+                                <FileText className="h-3 w-3 mr-1" />W9 Pending Review
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-red-100 text-red-800 border-red-200 text-xs">
+                                <XCircle className="h-3 w-3 mr-1" />No W9 on File
+                              </Badge>
+                            )}
                           </div>
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-gray-500" />
+                            <Mail className="h-4 w-4 text-muted-foreground" />
                             <span>{selectedTechnician.email}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-gray-500" />
+                            <Phone className="h-4 w-4 text-muted-foreground" />
                             <span>{selectedTechnician.phone}</span>
                           </div>
                         </div>
                         {selectedTechnician.location && (
                           <div className="flex items-center gap-2 text-sm">
-                            <MapPin className="h-4 w-4 text-gray-500" />
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
                             <span>{selectedTechnician.location}</span>
                           </div>
                         )}
@@ -309,75 +378,6 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
                     </Card>
                   )}
                 </div>
-
-                {/* Payment Methods */}
-                {selectedTechnician && availablePaymentMethods.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
-                      <h3 className="text-lg font-semibold">Available Payment Methods</h3>
-                    </div>
-                    
-                    <FormField
-                      control={form.control}
-                      name="paymentMethods"
-                      render={({ field }) => (
-                        <FormItem>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {availablePaymentMethods.map((method: string) => {
-                              const methodInfo = paymentMethodsInfo[method as keyof typeof paymentMethodsInfo];
-                              if (!methodInfo) return null;
-
-                              return (
-                                <Card 
-                                  key={method} 
-                                  className={`cursor-pointer transition-all hover:shadow-md ${
-                                    field.value.includes(method) 
-                                      ? methodInfo.color + " border-2" 
-                                      : "border hover:border-gray-300"
-                                  }`}
-                                >
-                                  <CardContent className="p-4">
-                                    <div className="flex items-start gap-3">
-                                      <Checkbox
-                                        checked={field.value.includes(method)}
-                                        onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            field.onChange([...field.value, method]);
-                                          } else {
-                                            field.onChange(field.value.filter((m: string) => m !== method));
-                                          }
-                                        }}
-                                        className="mt-1"
-                                      />
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                          {methodInfo.icon}
-                                          <h4 className="font-semibold">{methodInfo.name}</h4>
-                                        </div>
-                                        <p className="text-sm text-gray-600 mb-3">{methodInfo.description}</p>
-                                        
-                                        {/* Features */}
-                                        <div className="flex flex-wrap gap-1 mt-2">
-                                          {methodInfo.features.map((feature, idx) => (
-                                            <Badge key={idx} variant="secondary" className="text-xs">
-                                              {feature}
-                                            </Badge>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              );
-                            })}
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
 
                 {/* Payment Details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -389,7 +389,7 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
                         <FormLabel>Amount Requested</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input {...field} placeholder="0.00" className="pl-10" type="number" step="0.01" />
                           </div>
                         </FormControl>
@@ -423,6 +423,136 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
                   />
                 </div>
 
+                {/* W9 BLOCK — shown when amount > $500 and technician has no W9 */}
+                {selectedTechnician && amount > 500 && w9Missing && (
+                  <div className="space-y-4">
+                    <Alert className="border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                      <AlertTitle className="text-red-800 dark:text-red-300 font-semibold">
+                        Payment Cannot Be Submitted — W9 Required
+                      </AlertTitle>
+                      <AlertDescription className="text-red-700 dark:text-red-400 text-sm mt-1">
+                        Payments over <strong>$500</strong> require a W9 tax form on file for{" "}
+                        <strong>{selectedTechnician.firstName} {selectedTechnician.lastName}</strong>.
+                        This is required by IRS regulations for contractor payments. Upload the W9 below to continue.
+                      </AlertDescription>
+                    </Alert>
+
+                    {/* Inline W9 upload card */}
+                    <Card className="border-2 border-dashed border-red-300 dark:border-red-700">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-base text-red-700 dark:text-red-400">
+                          <FileText className="h-4 w-4" />
+                          Upload W9 for {selectedTechnician.firstName} {selectedTechnician.lastName}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Upload the technician's signed W9 document (PDF, JPG, or PNG). Once uploaded, you will be able to submit this payment request.
+                        </p>
+                        <input
+                          ref={w9FileInputRef}
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={handleW9Upload}
+                          className="hidden"
+                          id="payment-w9-upload"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => w9FileInputRef.current?.click()}
+                          disabled={w9Uploading}
+                          className="w-full border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {w9Uploading ? "Uploading W9..." : "Click to Upload W9 Document"}
+                        </Button>
+                        <p className="text-xs text-muted-foreground text-center">
+                          Accepted: PDF, JPG, PNG
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Warning (not a block) when W9 is submitted but not yet verified */}
+                {selectedTechnician && amount > 500 && w9Pending && (
+                  <Alert className="border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-700">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    <AlertTitle className="text-yellow-800 dark:text-yellow-300 text-sm font-semibold">W9 Pending Verification</AlertTitle>
+                    <AlertDescription className="text-yellow-700 dark:text-yellow-400 text-xs">
+                      A W9 has been submitted for this technician but has not been verified yet. You can still submit the payment, but ensure the W9 is reviewed before processing.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Payment Methods */}
+                {selectedTechnician && availablePaymentMethods.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      <h3 className="text-lg font-semibold">Available Payment Methods</h3>
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="paymentMethods"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {availablePaymentMethods.map((method: string) => {
+                              const methodInfo = paymentMethodsInfo[method as keyof typeof paymentMethodsInfo];
+                              if (!methodInfo) return null;
+                              return (
+                                <Card
+                                  key={method}
+                                  className={`cursor-pointer transition-all hover:shadow-md ${
+                                    field.value.includes(method)
+                                      ? methodInfo.color + " border-2"
+                                      : "border hover:border-gray-300"
+                                  }`}
+                                >
+                                  <CardContent className="p-4">
+                                    <div className="flex items-start gap-3">
+                                      <Checkbox
+                                        checked={field.value.includes(method)}
+                                        onCheckedChange={(checked) => {
+                                          if (checked) {
+                                            field.onChange([...field.value, method]);
+                                          } else {
+                                            field.onChange(field.value.filter((m: string) => m !== method));
+                                          }
+                                        }}
+                                        className="mt-1"
+                                      />
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          {methodInfo.icon}
+                                          <h4 className="font-semibold">{methodInfo.name}</h4>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mb-3">{methodInfo.description}</p>
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                          {methodInfo.features.map((feature, idx) => (
+                                            <Badge key={idx} variant="secondary" className="text-xs">
+                                              {feature}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
                 <FormField
                   control={form.control}
                   name="dueDate"
@@ -444,8 +574,8 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
                     <FormItem>
                       <FormLabel>Description (Optional)</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          {...field} 
+                        <Textarea
+                          {...field}
                           placeholder="Additional details about the payment request..."
                           rows={3}
                         />
@@ -459,14 +589,24 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
                   <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={createPaymentMutation.isPending}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  <Button
+                    type="submit"
+                    disabled={createPaymentMutation.isPending || paymentBlocked}
+                    className={
+                      paymentBlocked
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    }
+                    title={paymentBlocked ? "Upload a W9 for this technician to enable payment submission" : undefined}
                   >
-                    {createPaymentMutation.isPending ? "Creating..." : "Create Payment Request"}
+                    {createPaymentMutation.isPending
+                      ? "Creating..."
+                      : paymentBlocked
+                      ? "W9 Required to Submit"
+                      : "Create Payment Request"}
                   </Button>
                 </div>
+
               </form>
             </Form>
           </ScrollArea>
