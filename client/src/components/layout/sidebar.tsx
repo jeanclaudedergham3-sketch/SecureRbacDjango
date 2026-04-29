@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp } from "lucide-react";
+import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -55,6 +55,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       items: [
         { name: "Payment Manager", href: "/payment-manager", icon: DollarSign, permission: "sidebar.payments" },
         { name: "Technician Payments", href: "/technician-payments", icon: DollarSign, permission: "sidebar.payments" },
+      ]
+    },
+    {
+      title: "Admin Tools",
+      items: [
+        { name: "Data Import", href: "/data-import", icon: Upload, permission: "sidebar.user_management" },
       ]
     }
   ];
