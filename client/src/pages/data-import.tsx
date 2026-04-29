@@ -1,15 +1,13 @@
 import { useState, useRef, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import Papa from "papaparse";
-import { Upload, FileText, ChevronRight, ChevronLeft, CheckCircle2, AlertTriangle, XCircle, Zap, RotateCcw, Download, Filter, Check, SkipForward } from "lucide-react";
+import { Upload, ChevronRight, ChevronLeft, CheckCircle2, AlertTriangle, XCircle, Zap, RotateCcw, Download, Filter, Check, ListFilter } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -40,9 +38,16 @@ interface RowResult {
   warnings: string[];
 }
 
+interface Anomaly {
+  message: string;
+  rowCount: number;
+  severity: "error" | "warning";
+}
+
 interface PreviewResponse {
   results: RowResult[];
   summary: { total: number; ready: number; warnings: number; errors: number };
+  anomalies: Anomaly[];
 }
 
 interface ConfirmResponse {
@@ -93,7 +98,7 @@ export default function DataImport() {
   });
 
   const confirmMutation = useMutation({
-    mutationFn: (data: { rows: RowResult[]; dataType: DataType; skipErrors: boolean }) =>
+    mutationFn: (data: { rows: RowResult[]; dataType: DataType }) =>
       apiRequest("POST", "/api/import/confirm", data).then(r => r.json()) as Promise<ConfirmResponse>,
     onSuccess: (data) => { setConfirmResult(data); setStep(4); },
     onError: () => toast({ title: "Import failed", variant: "destructive" }),
@@ -450,6 +455,34 @@ export default function DataImport() {
               </Alert>
             )}
 
+            {/* Anomaly report — grouped issues */}
+            {previewResult.anomalies && previewResult.anomalies.length > 0 && (
+              <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/10">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                    <ListFilter className="h-4 w-4" /> Anomaly Report — {previewResult.anomalies.length} distinct issue{previewResult.anomalies.length !== 1 ? "s" : ""} detected
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <div className="space-y-1.5">
+                    {previewResult.anomalies.map((anomaly, i) => (
+                      <div key={i} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {anomaly.severity === "error"
+                            ? <XCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                            : <AlertTriangle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />}
+                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{anomaly.message}</span>
+                        </div>
+                        <Badge variant="secondary" className="text-xs flex-shrink-0">
+                          {anomaly.rowCount} row{anomaly.rowCount !== 1 ? "s" : ""}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Filter tabs */}
             <div className="flex items-center gap-2 flex-wrap">
               <Filter className="h-4 w-4 text-gray-400" />
@@ -542,7 +575,7 @@ export default function DataImport() {
                 <strong className="text-emerald-600">{previewResult.summary.ready + previewResult.summary.warnings}</strong> rows will be imported · <strong className="text-red-500">{previewResult.summary.errors}</strong> will be skipped
               </div>
               <Button
-                onClick={() => confirmMutation.mutate({ rows: previewResult.results, dataType, skipErrors: true })}
+                onClick={() => confirmMutation.mutate({ rows: previewResult.results, dataType })}
                 disabled={confirmMutation.isPending || (previewResult.summary.ready + previewResult.summary.warnings) === 0}
                 className="gap-2 bg-emerald-600 hover:bg-emerald-700"
               >

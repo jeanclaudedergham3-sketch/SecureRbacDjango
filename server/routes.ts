@@ -2287,10 +2287,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ─── Data Import Routes ───────────────────────────────────────────────────
 
+  // Simple in-memory cache for column analysis results (keyed by sorted columns + dataType)
+  const columnAnalysisCache = new Map<string, object>();
+
   // Heuristic AI field mapping: accepts column names, returns best NOVIQ field matches
-  app.post("/api/import/analyze-columns", requireAuth, async (req, res) => {
+  app.post("/api/import/analyze-columns", requireAuth, requirePermission("technicians.create"), async (req, res) => {
     try {
       const { columns, dataType } = req.body as { columns: string[]; dataType: "technicians" | "work-orders" };
+
+      // Check cache first (keyed by sorted column list + dataType)
+      const cacheKey = `${dataType}::${[...columns].sort().join(",")}`;
+      if (columnAnalysisCache.has(cacheKey)) {
+        return res.json(columnAnalysisCache.get(cacheKey));
+      }
 
       // NOVIQ canonical field definitions with aliases and metadata
       const technicianFields: Record<string, { aliases: string[]; required: boolean; label: string; transform?: string }> = {
@@ -2401,14 +2410,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Return available NOVIQ fields for manual selection
       const availableFields = Object.entries(fieldDefs).map(([k, v]) => ({ value: k, label: v.label, required: v.required }));
 
-      res.json({ suggestions, availableFields });
+      const result = { suggestions, availableFields };
+      columnAnalysisCache.set(cacheKey, result);
+      res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
   // Preview (dry-run) import - validates and detects anomalies, nothing is saved
-  app.post("/api/import/preview", requireAuth, async (req, res) => {
+  app.post("/api/import/preview", requireAuth, requirePermission("technicians.create"), async (req, res) => {
     try {
       const { rows, fieldMapping, dataType } = req.body as {
         rows: Record<string, string>[];
@@ -2428,8 +2439,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const val = rawRow[oldCol];
             // Handle split name fields - first check if we already have a value
             if (noviqField === "firstName" && !mapped.firstName) {
-              // Check if this looks like a full name (has a space)
-              if (val.includes(" ") && !mapping[oldCol + "_split_done"]) {
+              // If value looks like a full name (has a space), split into first+last
+              if (val.includes(" ")) {
                 const parts = val.trim().split(/\s+/);
                 mapped.firstName = parts[0];
                 if (!mapped.lastName) mapped.lastName = parts.slice(1).join(" ");
@@ -2494,16 +2505,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get existing emails/WO numbers for duplicate checking
       let existingEmails = new Set<string>();
       let existingWoNumbers = new Set<string>();
+      // For work-order cross-reference: collect technician emails in this import batch
+      let existingTechEmails = new Set<string>();
       try {
         if (dataType === "technicians") {
-          const techs = await storage.getTechnicians();
+          const techs = await storage.getAllTechnicians();
           techs.forEach(t => existingEmails.add(t.email.toLowerCase()));
         } else {
-          const orders = await storage.getWorkOrders();
+          const [orders, techs] = await Promise.all([
+            storage.getAllWorkOrders(),
+            storage.getAllTechnicians(),
+          ]);
           orders.forEach(o => {
             if (o.clientWorkOrderNumber) existingWoNumbers.add(o.clientWorkOrderNumber.toLowerCase());
             existingWoNumbers.add(o.workOrderNumber.toLowerCase());
           });
+          techs.forEach(t => existingTechEmails.add(t.email.toLowerCase()));
         }
       } catch (e) { /* non-fatal */ }
 
@@ -2597,6 +2614,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             woNumbersSeen.add(woLower);
           }
 
+          // Cross-reference: if a technician email is provided, check it exists in NOVIQ
+          const techEmail = mappedRow.technicianEmail?.trim().toLowerCase();
+          if (techEmail && existingTechEmails.size > 0 && !existingTechEmails.has(techEmail)) {
+            warnings.push(`Technician email "${techEmail}" not found in NOVIQ — technician link will be left blank`);
+            confidence -= 10;
+          }
+
           // NTE outlier check
           if (mappedRow.nte && amountStdDev > 0) {
             const amount = parseFloat(mappedRow.nte.replace(/[^0-9.]/g, ""));
@@ -2631,19 +2655,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errors: results.filter(r => r.status === "error").length,
       };
 
-      res.json({ results, summary });
+      // Grouped anomaly report: aggregate unique issue/warning messages with row counts
+      const issueGroups: Record<string, { message: string; rowCount: number; severity: "error" | "warning" }> = {};
+      for (const row of results) {
+        for (const msg of row.issues) {
+          if (!issueGroups[msg]) issueGroups[msg] = { message: msg, rowCount: 0, severity: "error" };
+          issueGroups[msg].rowCount++;
+        }
+        for (const msg of row.warnings) {
+          if (!issueGroups[msg]) issueGroups[msg] = { message: msg, rowCount: 0, severity: "warning" };
+          issueGroups[msg].rowCount++;
+        }
+      }
+      const anomalies = Object.values(issueGroups).sort((a, b) => {
+        if (a.severity !== b.severity) return a.severity === "error" ? -1 : 1;
+        return b.rowCount - a.rowCount;
+      });
+
+      res.json({ results, summary, anomalies });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  // Confirm import — runs inside a database transaction, rolls back on any failure
-  app.post("/api/import/confirm", requireAuth, async (req, res) => {
+  // Confirm import — error rows are always skipped; warning+ready rows are imported
+  app.post("/api/import/confirm", requireAuth, requirePermission("technicians.create"), async (req, res) => {
     try {
-      const { rows, dataType, skipErrors } = req.body as {
+      const { rows, dataType } = req.body as {
         rows: Array<{ mappedRow: Record<string, string>; status: string }>;
         dataType: "technicians" | "work-orders";
-        skipErrors?: boolean;
       };
 
       if (!Array.isArray(rows) || rows.length === 0) {
@@ -2655,38 +2695,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let skipped = 0;
       let failed = 0;
 
+      const validStatuses: Set<string> = new Set(["available", "unavailable", "on_job"]);
+      const validPriorities: Set<string> = new Set(["low", "medium", "high", "urgent"]);
+      const validWoStatuses: Set<string> = new Set(["pending", "in_progress", "completed", "cancelled", "on_hold"]);
+
       if (dataType === "technicians") {
-        // Get existing emails to skip duplicates
-        const existing = await storage.getTechnicians();
+        const existing = await storage.getAllTechnicians();
         const existingEmails = new Set(existing.map(t => t.email.toLowerCase()));
 
         for (let i = 0; i < rows.length; i++) {
           const { mappedRow, status } = rows[i];
-          if (status === "error" && !skipErrors) {
-            importResults.push({ rowIndex: i, status: "skipped", reason: "Row has errors" });
+          // Error rows are NEVER imported — skip them
+          if (status === "error") {
+            importResults.push({ rowIndex: i, status: "skipped", reason: "Row has validation errors" });
             skipped++;
             continue;
           }
           if (!mappedRow.email?.trim() || !mappedRow.firstName?.trim()) {
-            importResults.push({ rowIndex: i, status: "skipped", reason: "Missing required fields" });
+            importResults.push({ rowIndex: i, status: "skipped", reason: "Missing required fields (email or first name)" });
             skipped++;
             continue;
           }
           if (existingEmails.has(mappedRow.email.toLowerCase())) {
-            importResults.push({ rowIndex: i, status: "skipped", reason: "Email already exists" });
+            importResults.push({ rowIndex: i, status: "skipped", reason: "Email already exists in NOVIQ" });
             skipped++;
             continue;
           }
           try {
+            const availability = validStatuses.has(mappedRow.availability ?? "") ? mappedRow.availability : "available";
             await storage.createTechnician({
-              firstName: mappedRow.firstName?.trim() || "",
+              firstName: mappedRow.firstName.trim(),
               lastName: mappedRow.lastName?.trim() || "",
-              email: mappedRow.email?.trim() || "",
+              email: mappedRow.email.trim(),
               phone: mappedRow.phone?.trim() || "",
               specialization: mappedRow.specialization?.trim() || "General",
               experience: parseInt(mappedRow.experience || "0") || 0,
-              hourlyRate: mappedRow.hourlyRate?.replace(/[^0-9.]/g, "") || "0",
-              availability: (["available","unavailable","on_job"].includes(mappedRow.availability)) ? mappedRow.availability : "available",
+              hourlyRate: (mappedRow.hourlyRate || "0").replace(/[^0-9.]/g, "") || "0",
+              availability,
               location: mappedRow.location?.trim() || "",
               paymentMethods: mappedRow.paymentMethods?.trim() || "check",
               bankAccount: mappedRow.bankAccount?.trim() || null,
@@ -2697,8 +2742,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               cashappHandle: mappedRow.cashappHandle?.trim() || null,
               zelleInfo: mappedRow.zelleInfo?.trim() || null,
               mailingAddress: mappedRow.mailingAddress?.trim() || null,
-              latitude: mappedRow.latitude ? mappedRow.latitude.replace(/[^0-9.\-]/g, "") : null,
-              longitude: mappedRow.longitude ? mappedRow.longitude.replace(/[^0-9.\-]/g, "") : null,
+              latitude: mappedRow.latitude ? mappedRow.latitude.replace(/[^0-9.-]/g, "") : null,
+              longitude: mappedRow.longitude ? mappedRow.longitude.replace(/[^0-9.-]/g, "") : null,
               w9Status: null,
               w9FilePath: null,
               w9FileName: null,
@@ -2713,18 +2758,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       } else {
-        // Work orders — need a default requestedBy user (the current logged-in user)
-        const requestedBy = (req as any).user?.id || 1;
-        const existing = await storage.getWorkOrders();
-        const existingWoNums = new Set([
+        // Work orders — use the authenticated user as requestedBy
+        const requestedBy: number = req.user.id;
+        const existing = await storage.getAllWorkOrders();
+        const existingWoNums = new Set<string>([
           ...existing.map(o => o.workOrderNumber.toLowerCase()),
           ...existing.filter(o => o.clientWorkOrderNumber).map(o => o.clientWorkOrderNumber!.toLowerCase()),
         ]);
 
         for (let i = 0; i < rows.length; i++) {
           const { mappedRow, status } = rows[i];
-          if (status === "error" && !skipErrors) {
-            importResults.push({ rowIndex: i, status: "skipped", reason: "Row has errors" });
+          // Error rows are NEVER imported
+          if (status === "error") {
+            importResults.push({ rowIndex: i, status: "skipped", reason: "Row has validation errors" });
             skipped++;
             continue;
           }
@@ -2733,18 +2779,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             skipped++;
             continue;
           }
-          const clientWoNum = mappedRow.clientWorkOrderNumber?.trim();
+          const clientWoNum = mappedRow.clientWorkOrderNumber?.trim() || null;
           if (clientWoNum && existingWoNums.has(clientWoNum.toLowerCase())) {
-            importResults.push({ rowIndex: i, status: "skipped", reason: "Work order number already exists" });
+            importResults.push({ rowIndex: i, status: "skipped", reason: "Work order number already exists in NOVIQ" });
             skipped++;
             continue;
           }
           try {
-            const created = await storage.createWorkOrder({
-              title: mappedRow.title?.trim() || "",
-              description: mappedRow.description?.trim() || mappedRow.title?.trim() || "",
-              priority: (["low","medium","high","urgent"].includes(mappedRow.priority)) ? mappedRow.priority as any : "medium",
-              status: (["pending","in_progress","completed","cancelled","on_hold"].includes(mappedRow.status)) ? mappedRow.status as any : "pending",
+            const priority = validPriorities.has(mappedRow.priority ?? "") ? mappedRow.priority : "medium";
+            const woStatus = validWoStatuses.has(mappedRow.status ?? "") ? mappedRow.status : "pending";
+            await storage.createWorkOrder({
+              title: mappedRow.title.trim(),
+              description: mappedRow.description?.trim() || mappedRow.title.trim(),
+              priority,
+              status: woStatus,
               category: mappedRow.category?.trim() || "General",
               location: mappedRow.location?.trim() || "",
               requestedBy,
@@ -2772,7 +2820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               accessInstructions: null,
               safetyRequirements: null,
               assignedUserIds: null,
-              clientWorkOrderNumber: clientWoNum || null,
+              clientWorkOrderNumber: clientWoNum,
               isLocked: false,
             });
             if (clientWoNum) existingWoNums.add(clientWoNum.toLowerCase());
@@ -2785,13 +2833,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      res.json({
-        imported,
-        skipped,
-        failed,
-        total: rows.length,
-        results: importResults,
-      });
+      res.json({ imported, skipped, failed, total: rows.length, results: importResults });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
