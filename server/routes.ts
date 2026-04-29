@@ -5,7 +5,7 @@ import session from "express-session";
 import OpenAI from "openai";
 import { storage } from "./storage";
 import { requireAuth } from "./middleware/auth";
-import { requirePermission } from "./middleware/rbac";
+import { requirePermission, requireAnyPermission } from "./middleware/rbac";
 import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, loginSchema } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -2292,7 +2292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const columnAnalysisCache = new Map<string, object>();
 
   // Heuristic AI field mapping: accepts column names, returns best NOVIQ field matches
-  app.post("/api/import/analyze-columns", requireAuth, requirePermission("technicians.create"), async (req, res) => {
+  app.post("/api/import/analyze-columns", requireAuth, requireAnyPermission(["technicians.create", "workorders.create"]), async (req, res) => {
     try {
       const { columns, dataType } = req.body as { columns: string[]; dataType: "technicians" | "work-orders" };
 
@@ -2469,7 +2469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Preview (dry-run) import - validates and detects anomalies, nothing is saved
-  app.post("/api/import/preview", requireAuth, requirePermission("technicians.create"), async (req, res) => {
+  app.post("/api/import/preview", requireAuth, requireAnyPermission(["technicians.create", "workorders.create"]), async (req, res) => {
     try {
       const { rows, fieldMapping, dataType } = req.body as {
         rows: Record<string, string>[];
@@ -2790,7 +2790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Confirm import — error rows are always skipped; warning+ready rows are imported
-  app.post("/api/import/confirm", requireAuth, requirePermission("technicians.create"), async (req, res) => {
+  app.post("/api/import/confirm", requireAuth, requireAnyPermission(["technicians.create", "workorders.create"]), async (req, res) => {
     try {
       const { rows, dataType } = req.body as {
         rows: Array<{ mappedRow: Record<string, string>; status: string }>;
