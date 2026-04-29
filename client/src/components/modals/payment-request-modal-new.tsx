@@ -43,10 +43,12 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  Map,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AdvancedPermissionGuard } from "@/components/rbac/advanced-permission-guard";
+import { TechnicianMapPickerModal } from "@/components/modals/technician-map-picker-modal";
 
 const paymentRequestSchema = z.object({
   technicianId: z.string().min(1, "Technician is required"),
@@ -131,6 +133,7 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
 
   const [selectedTechnician, setSelectedTechnician] = useState<any>(null);
   const [w9Uploading, setW9Uploading] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   const form = useForm<PaymentRequestForm>({
     resolver: zodResolver(paymentRequestSchema),
@@ -209,6 +212,12 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
     const technician = (technicians as any[]).find((t: any) => t.id.toString() === value);
     setSelectedTechnician(technician);
     form.setValue("technicianId", value);
+    form.setValue("paymentMethods", []);
+  };
+
+  const handleMapPickerSelect = (technician: any) => {
+    setSelectedTechnician(technician);
+    form.setValue("technicianId", technician.id.toString());
     form.setValue("paymentMethods", []);
   };
 
@@ -296,30 +305,42 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Technician</FormLabel>
-                        <Select onValueChange={handleTechnicianChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose a technician" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {(technicians as any[]).map((technician) => (
-                              <SelectItem key={technician.id} value={technician.id.toString()}>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarFallback>
-                                      {technician.firstName?.[0]}{technician.lastName?.[0]}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span>{technician.firstName} {technician.lastName}</span>
-                                  <Badge variant="outline" className="ml-2">
-                                    ${technician.hourlyRate}/hr
-                                  </Badge>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex gap-2">
+                          <Select onValueChange={handleTechnicianChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choose a technician" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {(technicians as any[]).map((technician) => (
+                                <SelectItem key={technician.id} value={technician.id.toString()}>
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarFallback>
+                                        {technician.firstName?.[0]}{technician.lastName?.[0]}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span>{technician.firstName} {technician.lastName}</span>
+                                    <Badge variant="outline" className="ml-2">
+                                      ${technician.hourlyRate}/hr
+                                    </Badge>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowMapPicker(true)}
+                            title="Browse technician map to select"
+                            className="shrink-0 gap-1.5"
+                          >
+                            <Map className="h-4 w-4" />
+                            Browse Map
+                          </Button>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -612,6 +633,11 @@ export function PaymentRequestModalNew({ isOpen, onClose, workOrder }: PaymentRe
           </ScrollArea>
         </DialogContent>
       </Dialog>
+      <TechnicianMapPickerModal
+        isOpen={showMapPicker}
+        onClose={() => setShowMapPicker(false)}
+        onSelect={handleMapPickerSelect}
+      />
     </AdvancedPermissionGuard>
   );
 }
