@@ -89,6 +89,9 @@ const uploadW9 = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Trust Replit's reverse proxy so HTTPS cookies work correctly in production
+  app.set('trust proxy', 1);
+
   // Session configuration
   const sessionSecret = process.env.SESSION_SECRET;
   if (!sessionSecret && process.env.NODE_ENV === 'production') {
