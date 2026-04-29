@@ -44,10 +44,21 @@ interface Anomaly {
   severity: "error" | "warning";
 }
 
+interface TransformationSummary {
+  phonesNormalized: number;
+  datesConverted: number;
+  namesSplit: number;
+  statusesNormalized: number;
+  prioritiesNormalized: number;
+  statusMap: Record<string, string>;
+  detectedDateFormats: string[];
+}
+
 interface PreviewResponse {
   results: RowResult[];
   summary: { total: number; ready: number; warnings: number; errors: number };
   anomalies: Anomaly[];
+  transformations: TransformationSummary;
 }
 
 interface ConfirmResponse {
@@ -74,6 +85,7 @@ export default function DataImport() {
   const [previewResult, setPreviewResult] = useState<PreviewResponse | null>(null);
   const [confirmResult, setConfirmResult] = useState<ConfirmResponse | null>(null);
   const [previewFilter, setPreviewFilter] = useState<"all" | "ready" | "warning" | "error">("all");
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
 
   const analyzeMutation = useMutation({
     mutationFn: (data: { columns: string[]; dataType: DataType }) =>
@@ -93,7 +105,12 @@ export default function DataImport() {
   const previewMutation = useMutation({
     mutationFn: (data: { rows: Record<string, string>[]; fieldMapping: Record<string, string | null>; dataType: DataType }) =>
       apiRequest("POST", "/api/import/preview", data).then(r => r.json()) as Promise<PreviewResponse>,
-    onSuccess: (data) => { setPreviewResult(data); setStep(3); },
+    onSuccess: (data) => {
+      setPreviewResult(data);
+      // Pre-select all ready + warning rows (error rows cannot be imported)
+      setSelectedRows(new Set(data.results.filter(r => r.status !== "error").map(r => r.rowIndex)));
+      setStep(3);
+    },
     onError: () => toast({ title: "Preview failed", variant: "destructive" }),
   });
 
@@ -181,8 +198,30 @@ export default function DataImport() {
     setFieldMapping({});
     setPreviewResult(null);
     setConfirmResult(null);
+    setSelectedRows(new Set());
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  const toggleRow = (rowIndex: number, importable: boolean) => {
+    if (!importable) return;
+    setSelectedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(rowIndex)) next.delete(rowIndex); else next.add(rowIndex);
+      return next;
+    });
+  };
+
+  const selectAllGreen = () => {
+    if (!previewResult) return;
+    setSelectedRows(new Set(previewResult.results.filter(r => r.status === "ready").map(r => r.rowIndex)));
+  };
+
+  const selectAllGreenAndYellow = () => {
+    if (!previewResult) return;
+    setSelectedRows(new Set(previewResult.results.filter(r => r.status !== "error").map(r => r.rowIndex)));
+  };
+
+  const deselectAll = () => setSelectedRows(new Set());
 
   const confidenceBadge = (confidence: number) => {
     if (confidence >= 80) return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs">{confidence}%</Badge>;
@@ -362,15 +401,26 @@ export default function DataImport() {
                   {csvColumns.map((col) => {
                     const suggestion = analyzeResult.suggestions[col];
                     const currentMapping = fieldMapping[col];
+                    const aiSuggested = suggestion?.noviqField;
+                    const userOverrode = aiSuggested && currentMapping !== aiSuggested;
+                    const matchesAI = aiSuggested && currentMapping === aiSuggested;
                     return (
-                      <div key={col} className="grid grid-cols-12 gap-3 px-4 py-3 items-center">
+                      <div key={col} className={cn("grid grid-cols-12 gap-3 px-4 py-3 items-center", userOverrode && "bg-amber-50/40 dark:bg-amber-950/10")}>
                         <div className="col-span-4">
                           <p className="font-mono text-sm text-gray-800 dark:text-gray-200 truncate">{col}</p>
-                          {suggestion?.confidence >= 60 && suggestion.noviqField && (
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              AI suggests: <span className="text-blue-500">{suggestion.label}</span>
-                            </p>
+                          {aiSuggested && (
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {matchesAI && <span className="text-xs text-emerald-600 dark:text-emerald-400">✓ AI suggestion accepted</span>}
+                              {userOverrode && (
+                                <>
+                                  <span className="text-xs text-amber-600 dark:text-amber-400">AI suggested:</span>
+                                  <span className="text-xs text-gray-400 line-through">{suggestion.label}</span>
+                                  <span className="text-xs text-amber-600">→ changed</span>
+                                </>
+                              )}
+                            </div>
                           )}
+                          {!aiSuggested && currentMapping && <span className="text-xs text-gray-400">Manually mapped</span>}
                         </div>
                         <div className="col-span-2 flex justify-center">
                           {suggestion ? confidenceBadge(suggestion.confidence) : <Badge variant="secondary" className="text-xs">—</Badge>}
@@ -483,6 +533,58 @@ export default function DataImport() {
               </Card>
             )}
 
+            {/* Transformation summary */}
+            {previewResult.transformations && (
+              () => {
+                const t = previewResult.transformations;
+                const items = [
+                  t.namesSplit > 0 && `${t.namesSplit} full name${t.namesSplit !== 1 ? "s" : ""} split into first/last`,
+                  t.phonesNormalized > 0 && `${t.phonesNormalized} phone number${t.phonesNormalized !== 1 ? "s" : ""} normalized`,
+                  t.datesConverted > 0 && `${t.datesConverted} date${t.datesConverted !== 1 ? "s" : ""} converted (${t.detectedDateFormats.join(", ")} → YYYY-MM-DD)`,
+                  t.statusesNormalized > 0 && `${t.statusesNormalized} status value${t.statusesNormalized !== 1 ? "s" : ""} mapped (${Object.entries(t.statusMap).map(([k,v]) => `"${k}"→"${v}"`).join(", ")})`,
+                  t.prioritiesNormalized > 0 && `${t.prioritiesNormalized} priority value${t.prioritiesNormalized !== 1 ? "s" : ""} normalized`,
+                ].filter(Boolean) as string[];
+                if (items.length === 0) return null;
+                return (
+                  <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/10">
+                    <CardHeader className="pb-2 pt-4 px-4">
+                      <CardTitle className="text-sm font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                        <Zap className="h-4 w-4" /> Transformations Applied
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4">
+                      <ul className="space-y-1">
+                        {items.map((item, i) => (
+                          <li key={i} className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" /> {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                );
+              }
+            )()}
+
+            {/* Bulk selection controls */}
+            <div className="flex items-center gap-2 flex-wrap justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Select rows to import:</span>
+                <Button variant="outline" size="sm" onClick={selectAllGreenAndYellow} className="h-7 text-xs gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Select Ready + Review ({previewResult.summary.ready + previewResult.summary.warnings})
+                </Button>
+                <Button variant="outline" size="sm" onClick={selectAllGreen} className="h-7 text-xs gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Ready Only ({previewResult.summary.ready})
+                </Button>
+                <Button variant="outline" size="sm" onClick={deselectAll} className="h-7 text-xs">
+                  Deselect All
+                </Button>
+              </div>
+              <span className="text-sm text-gray-500">
+                <strong className="text-blue-600">{selectedRows.size}</strong> selected
+              </span>
+            </div>
+
             {/* Filter tabs */}
             <div className="flex items-center gap-2 flex-wrap">
               <Filter className="h-4 w-4 text-gray-400" />
@@ -510,25 +612,40 @@ export default function DataImport() {
                   <div className="divide-y divide-gray-100 dark:divide-gray-800">
                     {/* Header */}
                     <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-800/50 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-10">
+                      <div className="col-span-1 flex items-center">Import</div>
                       <div className="col-span-1">#</div>
                       <div className="col-span-1">Status</div>
                       <div className="col-span-2">Confidence</div>
-                      <div className="col-span-4">{dataType === "technicians" ? "Name / Email" : "Title / WO#"}</div>
+                      <div className="col-span-3">{dataType === "technicians" ? "Name / Email" : "Title / WO#"}</div>
                       <div className="col-span-4">Issues / Notes</div>
                     </div>
                     {filteredRows.length === 0 && (
                       <div className="text-center py-10 text-gray-400">No rows match this filter</div>
                     )}
-                    {filteredRows.map((row) => (
+                    {filteredRows.map((row) => {
+                      const isImportable = row.status !== "error";
+                      const isSelected = selectedRows.has(row.rowIndex);
+                      return (
                       <div key={row.rowIndex} className={cn(
-                        "grid grid-cols-12 gap-3 px-4 py-3 items-start transition-colors",
-                        row.status === "error" ? "bg-red-50/30 dark:bg-red-950/10" :
-                        row.status === "warning" ? "bg-amber-50/30 dark:bg-amber-950/10" : ""
-                      )}>
+                        "grid grid-cols-12 gap-3 px-4 py-3 items-start transition-colors cursor-pointer",
+                        row.status === "error" ? "bg-red-50/30 dark:bg-red-950/10 opacity-60" :
+                        row.status === "warning" ? "bg-amber-50/30 dark:bg-amber-950/10" : "",
+                        isSelected && isImportable && "ring-1 ring-inset ring-blue-200 dark:ring-blue-800"
+                      )} onClick={() => toggleRow(row.rowIndex, isImportable)}>
+                        <div className="col-span-1 flex items-center pt-0.5">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            disabled={!isImportable}
+                            onChange={() => toggleRow(row.rowIndex, isImportable)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-40 cursor-pointer"
+                          />
+                        </div>
                         <div className="col-span-1 text-xs text-gray-400 pt-0.5">{row.rowIndex + 1}</div>
                         <div className="col-span-1 pt-0.5">{statusIcon(row.status)}</div>
                         <div className="col-span-2">{confidenceBadge(row.confidence)}</div>
-                        <div className="col-span-4">
+                        <div className="col-span-3">
                           {dataType === "technicians" ? (
                             <>
                               <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
@@ -564,7 +681,8 @@ export default function DataImport() {
                           )}
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 </div>
               </CardContent>
@@ -572,11 +690,15 @@ export default function DataImport() {
 
             <div className="flex justify-between items-center">
               <div className="text-sm text-gray-500">
-                <strong className="text-emerald-600">{previewResult.summary.ready + previewResult.summary.warnings}</strong> rows will be imported · <strong className="text-red-500">{previewResult.summary.errors}</strong> will be skipped
+                <strong className="text-blue-600">{selectedRows.size}</strong> selected ·{" "}
+                <strong className="text-red-500">{previewResult.summary.errors}</strong> error rows skipped
               </div>
               <Button
-                onClick={() => confirmMutation.mutate({ rows: previewResult.results, dataType })}
-                disabled={confirmMutation.isPending || (previewResult.summary.ready + previewResult.summary.warnings) === 0}
+                onClick={() => {
+                  const rowsToImport = previewResult.results.filter(r => selectedRows.has(r.rowIndex));
+                  confirmMutation.mutate({ rows: rowsToImport, dataType });
+                }}
+                disabled={confirmMutation.isPending || selectedRows.size === 0}
                 className="gap-2 bg-emerald-600 hover:bg-emerald-700"
               >
                 {confirmMutation.isPending ? "Importing…" : "Confirm Import"}

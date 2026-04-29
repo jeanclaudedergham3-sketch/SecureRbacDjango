@@ -2348,6 +2348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         problemDescription:     { aliases: ["problem_description","problem","issue","fault","complaint","reason"], required: false, label: "Problem Description" },
         specialInstructions:    { aliases: ["special_instructions","instructions","special_notes","notes"], required: false, label: "Special Instructions" },
         clientWorkOrderNumber:  { aliases: ["client_work_order_number","work_order_number","wo_number","job_number","order_number","wo_id","external_id","ref_number"], required: false, label: "Original WO Number" },
+        technicianEmail:        { aliases: ["technician_email","tech_email","assigned_tech_email","worker_email","assignee_email","tech"], required: false, label: "Technician Email (for linking)" },
       };
 
       const fieldDefs = dataType === "technicians" ? technicianFields : workOrderFields;
@@ -2444,6 +2445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const parts = val.trim().split(/\s+/);
                 mapped.firstName = parts[0];
                 if (!mapped.lastName) mapped.lastName = parts.slice(1).join(" ");
+                transformations.namesSplit++;
               } else {
                 mapped.firstName = val;
               }
@@ -2496,6 +2498,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         confidence: number;
         issues: string[];
         warnings: string[];
+      };
+
+      // Transformation tracking counters
+      const transformations = {
+        phonesNormalized: 0,
+        datesConverted: 0,
+        namesSplit: 0,
+        statusesNormalized: 0,
+        prioritiesNormalized: 0,
+        statusMap: {} as Record<string, string>,
+        detectedDateFormats: new Set<string>(),
       };
 
       const results: RowResult[] = [];
@@ -2567,7 +2580,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!mappedRow.paymentMethods?.trim()) { warnings.push("Missing payment methods — will default to 'check'"); confidence -= 5; }
 
           // Apply phone normalization
-          if (mappedRow.phone) mappedRow.phone = normalizePhone(mappedRow.phone);
+          if (mappedRow.phone) {
+            const normalized = normalizePhone(mappedRow.phone);
+            if (normalized !== mappedRow.phone) transformations.phonesNormalized++;
+            mappedRow.phone = normalized;
+          }
 
           // Set defaults
           if (!mappedRow.availability) mappedRow.availability = "available";
@@ -2584,8 +2601,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Normalize status
           if (mappedRow.status) {
-            const normalized = statusMap[mappedRow.status.toLowerCase()];
-            if (!normalized) warnings.push(`Unknown status "${mappedRow.status}" — will default to "pending"`);
+            const rawStatus = mappedRow.status;
+            const normalized = statusMap[rawStatus.toLowerCase()];
+            if (!normalized) warnings.push(`Unknown status "${rawStatus}" — will default to "pending"`);
+            else {
+              if (rawStatus !== normalized) {
+                transformations.statusesNormalized++;
+                transformations.statusMap[rawStatus] = normalized;
+              }
+            }
             mappedRow.status = normalized || "pending";
           } else {
             mappedRow.status = "pending";
@@ -2593,17 +2617,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Normalize priority
           if (mappedRow.priority) {
-            const normalized = priorityMap[mappedRow.priority.toLowerCase()];
-            if (!normalized) warnings.push(`Unknown priority "${mappedRow.priority}" — will default to "medium"`);
+            const rawPriority = mappedRow.priority;
+            const normalized = priorityMap[rawPriority.toLowerCase()];
+            if (!normalized) warnings.push(`Unknown priority "${rawPriority}" — will default to "medium"`);
+            else if (rawPriority !== normalized) transformations.prioritiesNormalized++;
             mappedRow.priority = normalized || "medium";
           } else {
             mappedRow.priority = "medium";
           }
 
-          // Normalize dates
-          if (mappedRow.scheduledDate) mappedRow.scheduledDate = normalizeDate(mappedRow.scheduledDate);
-          if (mappedRow.startDate) mappedRow.startDate = normalizeDate(mappedRow.startDate);
-          if (mappedRow.endDate) mappedRow.endDate = normalizeDate(mappedRow.endDate);
+          // Normalize dates with format tracking
+          const normalizeAndTrack = (dateStr: string): string => {
+            if (!dateStr) return dateStr;
+            if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+              transformations.detectedDateFormats.add("YYYY-MM-DD");
+              return dateStr.slice(0, 10);
+            }
+            const mdy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (mdy) {
+              transformations.detectedDateFormats.add("MM/DD/YYYY");
+              transformations.datesConverted++;
+              return `${mdy[3]}-${mdy[1].padStart(2,"0")}-${mdy[2].padStart(2,"0")}`;
+            }
+            const ymd = dateStr.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+            if (ymd) {
+              transformations.detectedDateFormats.add("YYYY/MM/DD");
+              transformations.datesConverted++;
+              return `${ymd[1]}-${ymd[2].padStart(2,"0")}-${ymd[3].padStart(2,"0")}`;
+            }
+            return dateStr;
+          };
+          if (mappedRow.scheduledDate) mappedRow.scheduledDate = normalizeAndTrack(mappedRow.scheduledDate);
+          if (mappedRow.startDate) mappedRow.startDate = normalizeAndTrack(mappedRow.startDate);
+          if (mappedRow.endDate) mappedRow.endDate = normalizeAndTrack(mappedRow.endDate);
 
           // Check WO number duplicates
           const woNum = mappedRow.clientWorkOrderNumber?.trim();
@@ -2672,7 +2718,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return b.rowCount - a.rowCount;
       });
 
-      res.json({ results, summary, anomalies });
+      const transformationSummary = {
+        phonesNormalized: transformations.phonesNormalized,
+        datesConverted: transformations.datesConverted,
+        namesSplit: transformations.namesSplit,
+        statusesNormalized: transformations.statusesNormalized,
+        prioritiesNormalized: transformations.prioritiesNormalized,
+        statusMap: transformations.statusMap,
+        detectedDateFormats: Array.from(transformations.detectedDateFormats),
+      };
+
+      res.json({ results, summary, anomalies, transformations: transformationSummary });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
