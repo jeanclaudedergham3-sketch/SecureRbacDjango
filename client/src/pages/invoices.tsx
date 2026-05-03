@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Table,
@@ -37,6 +38,7 @@ export default function Invoices() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { systemName, logoUrl } = useSystemSettings();
+  const { t } = useTranslation();
 
   // Fetch all invoices with work order details
   const { data: invoices = [], isLoading } = useQuery<InvoiceWithWorkOrder[]>({
@@ -242,8 +244,8 @@ export default function Invoices() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">ABC Corporation - Invoice Management</h1>
-          <p className="text-gray-600">Manage all invoices across work orders</p>
+          <h1 className="text-3xl font-bold">{t("invoices.title")}</h1>
+          <p className="text-gray-600">{t("invoices.title")}</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -267,7 +269,7 @@ export default function Invoices() {
             }}
           >
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            {t("invoices.exportCSV")}
           </Button>
           <ButtonGuard permission="invoices.create">
             <Button 
@@ -275,7 +277,7 @@ export default function Invoices() {
               className="bg-blue-600 hover:bg-blue-700"
             >
               <Receipt className="h-4 w-4 mr-2" />
-              Create Invoice
+              {t("invoices.createInvoice")}
             </Button>
           </ButtonGuard>
         </div>
@@ -343,15 +345,15 @@ export default function Invoices() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Work Order</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Labor Cost</TableHead>
-                    <TableHead>Material Cost</TableHead>
-                    <TableHead>Tax Rate</TableHead>
-                    <TableHead>Total Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t("invoices.workOrder")}</TableHead>
+                    <TableHead>{t("invoices.client")}</TableHead>
+                    <TableHead>{t("invoices.laborCost")}</TableHead>
+                    <TableHead>{t("invoices.materialCost")}</TableHead>
+                    <TableHead>{t("invoices.taxRate")}</TableHead>
+                    <TableHead>{t("invoices.totalAmount")}</TableHead>
+                    <TableHead>{t("common.status")}</TableHead>
+                    <TableHead>{t("common.date")}</TableHead>
+                    <TableHead>{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

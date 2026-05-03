@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Search, Plus, MapPin, Phone, Mail, Star, Edit, Trash2, CreditCard, FileText, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -112,21 +113,23 @@ export default function TechniciansPage() {
     );
   }
 
+  const { t } = useTranslation();
+
   return (
     <PageGuard pageName="technicians">
       <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Technicians</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t("technicians.title")}</h1>
           <p className="text-gray-600 mt-1">
-            Manage your technician team and their information
+            {t("technicians.title")}
           </p>
         </div>
         <AdvancedPermissionGuard permission="technicians.create">
           <Button onClick={handleAdd} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
-            Add Technician
+            {t("technicians.createTechnician")}
           </Button>
         </AdvancedPermissionGuard>
       </div>
@@ -148,7 +151,7 @@ export default function TechniciansPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Technicians</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("dashboard.technicians")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{technicians?.length || 0}</div>

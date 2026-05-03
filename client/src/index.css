@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Arabic font support */
+:root[lang="ar"],
+[lang="ar"] {
+  font-family: 'Cairo', 'Segoe UI', sans-serif;
+}
+
+/* Ensure RTL transitions work smoothly */
+[dir="rtl"] {
+  font-family: 'Cairo', 'Segoe UI', sans-serif;
+}
+
 /* Custom scrollbar styles for sidebar */
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;

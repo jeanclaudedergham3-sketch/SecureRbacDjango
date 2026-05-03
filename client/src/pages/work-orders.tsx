@@ -13,12 +13,14 @@ import { WorkOrderDetailsModal } from "@/components/modals/work-order-details-mo
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "react-i18next";
 import type { WorkOrderWithUsers } from "@shared/schema";
 
 export default function WorkOrders() {
   const { user, permissions } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [isCreating, setIsCreating] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderWithUsers | null>(null);
   const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrderWithUsers | null>(null);
@@ -32,17 +34,13 @@ export default function WorkOrders() {
     refetchOnMount: true,
   });
 
-  // Check for viewId parameter in URL to auto-open work order details
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const viewId = urlParams.get('viewId');
-    
     if (viewId && workOrders) {
       const workOrder = workOrders.find(wo => wo.id === parseInt(viewId));
       if (workOrder) {
         setSelectedWorkOrder(workOrder);
-        
-        // Remove the parameter from URL to clean it up
         const newUrl = window.location.pathname;
         window.history.replaceState({}, '', newUrl);
       }
@@ -59,55 +57,36 @@ export default function WorkOrders() {
   };
 
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    return new Date(date).toLocaleDateString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric'
     });
   };
 
   const formatCurrency = (amount: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(parseFloat(amount));
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(parseFloat(amount));
   };
 
-  // Get unique categories and statuses for filters
-  const categories = Array.from(new Set(workOrders.map(wo => wo.category))).filter(category => category && category.trim() !== '');
-  const statuses = Array.from(new Set(workOrders.map(wo => wo.status))).filter(status => status && status.trim() !== '');
+  const categories = Array.from(new Set(workOrders.map(wo => wo.category))).filter(c => c && c.trim() !== '');
+  const statuses = Array.from(new Set(workOrders.map(wo => wo.status))).filter(s => s && s.trim() !== '');
 
-  // Filter work orders based on user permissions and search/filters
   const filteredWorkOrders = workOrders.filter(workOrder => {
-    // Permission check first
     let hasPermission = false;
     if (permissions?.includes("workorders.view_all") || permissions?.includes("workorders.page.view") || permissions?.includes("system.admin")) {
       hasPermission = true;
     } else {
-      // Regular users can only see work orders assigned to them
       try {
         const assignedUserIds = workOrder.assignedUsers ? workOrder.assignedUsers.map(u => u.id) : [];
         hasPermission = assignedUserIds.includes(user?.id || 0);
-      } catch {
-        hasPermission = false;
-      }
+      } catch { hasPermission = false; }
     }
-
     if (!hasPermission) return false;
-
-    // Search filter
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       workOrder.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       workOrder.workOrderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       workOrder.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
       workOrder.description.toLowerCase().includes(searchTerm.toLowerCase());
-
-    // Status filter
     const matchesStatus = statusFilter === "all" || workOrder.status === statusFilter;
-
-    // Category filter
     const matchesCategory = categoryFilter === "all" || workOrder.category === categoryFilter;
-
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
@@ -117,241 +96,196 @@ export default function WorkOrders() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Work Orders</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">{t("workOrders.title")}</h1>
               <p className="mt-2 text-sm text-gray-600">
-                Manage work orders, proposals, and project tracking.
-            </p>
-          </div>
-          <ModalGuard modalName="workorders" operation="create">
-            <div className="space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const rows = filteredWorkOrders.map((wo) => ({
-                    "Work Order #": wo.workOrderNumber,
-                    Title: wo.title,
-                    Status: wo.status,
-                    Priority: wo.priority,
-                    Category: wo.category,
-                    Location: wo.location,
-                    "Client Name": wo.clientName || "",
-                    "Assigned To": wo.assignedUsers?.map((u) => `${u.firstName} ${u.lastName}`).join("; ") || "",
-                    "Scheduled Date": wo.scheduledDate ? new Date(wo.scheduledDate).toLocaleDateString() : "",
-                    "Completed Date": wo.completedDate ? new Date(wo.completedDate).toLocaleDateString() : "",
-                    "NTE ($)": wo.nte || "",
-                    "TNTE ($)": wo.tnte || "",
-                  }));
-                  exportToCSV(rows, "work_orders");
-                }}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-              <ButtonGuard buttonType="create">
-                <Button onClick={() => setIsCreating(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Work Order
-                </Button>
-              </ButtonGuard>
-              <Button variant="outline" onClick={() => refetch()}>
-                Refresh
-              </Button>
+                {t("workOrders.noWorkOrdersDesc")}
+              </p>
             </div>
-          </ModalGuard>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="mt-6 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-            <Input
-              placeholder="Search by title, work order number, category, or description..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+            <ModalGuard modalName="workorders" operation="create">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const rows = filteredWorkOrders.map((wo) => ({
+                      "Work Order #": wo.workOrderNumber,
+                      Title: wo.title,
+                      Status: wo.status,
+                      Priority: wo.priority,
+                      Category: wo.category,
+                      Location: wo.location,
+                      "Client Name": wo.clientName || "",
+                      "Assigned To": wo.assignedUsers?.map((u) => `${u.firstName} ${u.lastName}`).join("; ") || "",
+                      "Scheduled Date": wo.scheduledDate ? new Date(wo.scheduledDate).toLocaleDateString() : "",
+                      "Completed Date": wo.completedDate ? new Date(wo.completedDate).toLocaleDateString() : "",
+                      "NTE ($)": wo.nte || "",
+                      "TNTE ($)": wo.tnte || "",
+                    }));
+                    exportToCSV(rows, "work_orders");
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {t("workOrders.exportCSV")}
+                </Button>
+                <ButtonGuard buttonType="create">
+                  <Button onClick={() => setIsCreating(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("workOrders.createWorkOrder")}
+                  </Button>
+                </ButtonGuard>
+                <Button variant="outline" onClick={() => refetch()}>
+                  {t("common.refresh")}
+                </Button>
+              </div>
+            </ModalGuard>
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {statuses.map(status => (
-                <SelectItem key={status} value={status}>
-                  <div className="flex items-center">
-                    <Badge className={`${getStatusColor(status)} mr-2 text-xs`}>
-                      {status}
+
+          {/* Search and Filters */}
+          <div className="mt-6 flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+              <Input
+                placeholder={t("workOrders.searchPlaceholder")}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder={t("workOrders.filterByStatus")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("workOrders.allStatuses")}</SelectItem>
+                {statuses.map(status => (
+                  <SelectItem key={status} value={status}>
+                    <Badge className={`${getStatusColor(status)} text-xs`}>{status}</Badge>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder={t("workOrders.filterByCategory")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("workOrders.allCategories")}</SelectItem>
+                {categories.map(category => (
+                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Results Count */}
+          <div className="mt-4 text-sm text-gray-600">
+            {filteredWorkOrders.length} / {workOrders.length} {t("workOrders.title").toLowerCase()}
+            {(searchTerm || statusFilter !== "all" || categoryFilter !== "all") && (
+              <Button
+                variant="link" size="sm"
+                onClick={() => { setSearchTerm(""); setStatusFilter("all"); setCategoryFilter("all"); }}
+                className="ml-2 p-0 h-auto text-sm"
+              >
+                {t("common.reset")}
+              </Button>
+            )}
+          </div>
+
+          {/* Work Order Cards */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredWorkOrders.map((workOrder) => (
+              <Card key={workOrder.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg font-bold text-blue-600">
+                        {workOrder.workOrderNumber}
+                      </CardTitle>
+                      <CardDescription className="font-medium text-gray-900 mt-1">
+                        {workOrder.title}
+                      </CardDescription>
+                    </div>
+                    <Badge className={getStatusColor(workOrder.status)}>
+                      {workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
                     </Badge>
                   </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map(category => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+                </CardHeader>
 
-        {/* Results Count */}
-        <div className="mt-4 text-sm text-gray-600">
-          Showing {filteredWorkOrders.length} of {workOrders.length} work orders
-          {(searchTerm || statusFilter !== "all" || categoryFilter !== "all") && (
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => {
-                setSearchTerm("");
-                setStatusFilter("all");
-                setCategoryFilter("all");
-              }}
-              className="ml-2 p-0 h-auto text-sm"
-            >
-              Clear filters
-            </Button>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <span className="truncate">{workOrder.location}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <User className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <div className="flex flex-wrap gap-1">
+                      <span>{t("workOrders.assignedTo")}:</span>
+                      {workOrder.assignedUsers && workOrder.assignedUsers.length > 0 ? (
+                        workOrder.assignedUsers.map((u, i) => (
+                          <span key={u.id}>
+                            {u.firstName} {u.lastName}
+                            {i < workOrder.assignedUsers!.length - 1 && ", "}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-gray-400">{t("common.noData")}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <span>
+                      {workOrder.scheduledDate ? formatDate(new Date(workOrder.scheduledDate)) : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-gray-900">
+                      {t("workOrders.priority")}: {workOrder.priority}
+                    </div>
+                  </div>
+                </CardContent>
+
+                <div className="px-6 py-3 bg-gray-50 border-t flex justify-between">
+                  <Button
+                    variant="ghost" size="sm"
+                    onClick={() => setSelectedWorkOrder(workOrder)}
+                    className="flex-1 mr-1"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    {t("common.view")}
+                  </Button>
+                  <ButtonGuard buttonType="edit">
+                    <Button
+                      variant="ghost" size="sm"
+                      onClick={() => setEditingWorkOrder(workOrder)}
+                      className="flex-1 ml-1"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      {t("common.edit")}
+                    </Button>
+                  </ButtonGuard>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {filteredWorkOrders.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-500">
+                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-medium mb-2">{t("workOrders.noWorkOrders")}</h3>
+                <p className="text-sm">{t("workOrders.noWorkOrdersDesc")}</p>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Work Order Cards */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredWorkOrders.map((workOrder) => (
-            <Card key={workOrder.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg font-bold text-blue-600">
-                      {workOrder.workOrderNumber}
-                    </CardTitle>
-                    <CardDescription className="font-medium text-gray-900 mt-1">
-                      {workOrder.title}
-                    </CardDescription>
-                  </div>
-                  <Badge className={getStatusColor(workOrder.status)}>
-                    {workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-3">
-                <div className="flex items-center text-sm text-gray-600">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  <span className="truncate">
-                    {workOrder.location}
-                  </span>
-                </div>
-                
-                <div className="flex items-center text-sm text-gray-600">
-                  <User className="h-4 w-4 mr-2" />
-                  <div className="flex flex-wrap gap-1">
-                    <span>Assigned to:</span>
-                    {workOrder.assignedUsers && workOrder.assignedUsers.length > 0 ? (
-                      workOrder.assignedUsers.map((user, index) => (
-                        <span key={user.id}>
-                          {user.firstName} {user.lastName}
-                          {index < workOrder.assignedUsers!.length - 1 && ", "}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-gray-400">No users assigned</span>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex items-center text-sm text-gray-600">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  <span>
-                    {workOrder.scheduledDate ? formatDate(new Date(workOrder.scheduledDate)) : 'Not scheduled'}
-                    {workOrder.completedDate && ` - Completed: ${formatDate(new Date(workOrder.completedDate))}`}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center text-sm">
-                    <DollarSign className="h-4 w-4 mr-1 text-green-600" />
-                    <span className="font-medium">
-                      Est. Hours: {workOrder.estimatedHours || 'TBD'}
-                    </span>
-                  </div>
-                  <div className="text-sm font-medium text-gray-900">
-                    Priority: {workOrder.priority}
-                  </div>
-                </div>
-              </CardContent>
-
-              <div className="px-6 py-3 bg-gray-50 border-t flex justify-between">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedWorkOrder(workOrder)}
-                  className="flex-1 mr-1"
-                >
-                  <Eye className="h-3 w-3 mr-1" />
-                  View Details
-                </Button>
-                
-                <ButtonGuard buttonType="edit">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingWorkOrder(workOrder)}
-                    className="flex-1 ml-1"
-                  >
-                    <Edit className="h-3 w-3 mr-1" />
-                    Edit
-                  </Button>
-                </ButtonGuard>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {filteredWorkOrders.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-gray-500">
-              <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">No work orders found</h3>
-              <p className="text-sm">
-                {(permissions?.includes("workorders.create") || permissions?.includes("workorders.modal.create"))
-                  ? "Get started by creating your first work order."
-                  : "You don't have any assigned work orders yet."
-                }
-              </p>
-            </div>
-          </div>
+        <CreateWorkOrderModal isOpen={isCreating} onClose={() => setIsCreating(false)} workOrder={null} />
+        {editingWorkOrder && (
+          <CreateWorkOrderModal isOpen={!!editingWorkOrder} onClose={() => setEditingWorkOrder(null)} workOrder={editingWorkOrder} />
         )}
-      </div>
-
-      <CreateWorkOrderModal
-        isOpen={isCreating}
-        onClose={() => setIsCreating(false)}
-        workOrder={null}
-      />
-
-      {editingWorkOrder && (
-        <CreateWorkOrderModal
-          isOpen={!!editingWorkOrder}
-          onClose={() => setEditingWorkOrder(null)}
-          workOrder={editingWorkOrder}
-        />
-      )}
-
-      {selectedWorkOrder && (
-        <WorkOrderDetailsModal
-          isOpen={!!selectedWorkOrder}
-          onClose={() => setSelectedWorkOrder(null)}
-          workOrder={selectedWorkOrder}
-        />
-      )}
+        {selectedWorkOrder && (
+          <WorkOrderDetailsModal isOpen={!!selectedWorkOrder} onClose={() => setSelectedWorkOrder(null)} workOrder={selectedWorkOrder} />
+        )}
       </div>
     </PageGuard>
   );

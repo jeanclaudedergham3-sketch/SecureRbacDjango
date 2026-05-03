@@ -7,13 +7,7 @@ import { AdvancedPermissionGuard, PageGuard } from "@/components/rbac/advanced-p
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-
-const ACTIVITY_CONFIG: Record<string, { color: string; icon: any; label: string }> = {
-  work_order: { color: "bg-blue-500",   icon: ClipboardList, label: "Work Order" },
-  user:        { color: "bg-green-500",  icon: Users,         label: "User"       },
-  payment:     { color: "bg-orange-500", icon: CreditCard,    label: "Payment"    },
-  invoice:     { color: "bg-purple-500", icon: Receipt,       label: "Invoice"    },
-};
+import { useTranslation } from "react-i18next";
 
 function timeAgo(dateStr: string) {
   const now = Date.now();
@@ -27,6 +21,14 @@ function timeAgo(dateStr: string) {
 
 export default function Dashboard() {
   const { user, role } = useAuth();
+  const { t } = useTranslation();
+
+  const ACTIVITY_CONFIG: Record<string, { color: string; icon: any; label: string }> = {
+    work_order: { color: "bg-blue-500",   icon: ClipboardList, label: t("nav.workOrders") },
+    user:        { color: "bg-green-500",  icon: Users,         label: t("nav.users") },
+    payment:     { color: "bg-orange-500", icon: CreditCard,    label: t("nav.payments") },
+    invoice:     { color: "bg-purple-500", icon: Receipt,       label: t("nav.invoices") },
+  };
 
   const { data: stats, isLoading: statsLoading } = useQuery<any>({
     queryKey: ["/api/dashboard/stats"],
@@ -39,33 +41,33 @@ export default function Dashboard() {
   });
 
   const getProgress = () => {
-    if (!role || !stats) return { percentage: 0, label: "Loading...", current: 0, total: 1 };
+    if (!role || !stats) return { percentage: 0, label: t("common.loading"), current: 0, total: 1 };
     switch (role.name) {
       case "admin":
         const total = (stats.workOrdersCount || 1);
         const completed = stats.workOrdersCompleted || 0;
-        return { percentage: Math.round((completed / total) * 100), label: "Work Orders Completion", current: completed, total };
+        return { percentage: Math.round((completed / total) * 100), label: t("dashboard.workOrderCompletion"), current: completed, total };
       case "manager":
-        const t = stats.workOrdersCount || 1;
+        const tt = stats.workOrdersCount || 1;
         const c = stats.workOrdersCompleted || 0;
-        return { percentage: Math.round((c / t) * 100), label: "Work Orders Completion", current: c, total: t };
+        return { percentage: Math.round((c / tt) * 100), label: t("dashboard.workOrderCompletion"), current: c, total: tt };
       default:
         const pending = stats.workOrdersPending || 0;
         const all = stats.workOrdersCount || 1;
-        return { percentage: Math.round(((all - pending) / all) * 100), label: "Orders Progress", current: all - pending, total: all };
+        return { percentage: Math.round(((all - pending) / all) * 100), label: t("dashboard.ordersProgress"), current: all - pending, total: all };
     }
   };
   const progress = getProgress();
 
   const statCards = [
-    { label: "Total Users", value: stats?.totalUsers, icon: Users, color: "text-blue-600", bg: "bg-blue-50", permission: "users.view" },
-    { label: "Technicians", value: stats?.techniciansCount, icon: Wrench, color: "text-orange-600", bg: "bg-orange-50", permission: null },
-    { label: "Active Roles", value: stats?.activeRoles, icon: UserCheck, color: "text-green-600", bg: "bg-green-50", permission: null },
-    { label: "Total Work Orders", value: stats?.workOrdersCount, icon: ClipboardList, color: "text-indigo-600", bg: "bg-indigo-50", permission: null },
-    { label: "Completed Orders", value: stats?.workOrdersCompleted, icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50", permission: null },
-    { label: "Pending Orders", value: stats?.workOrdersPending, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50", permission: null },
-    { label: "Pending Payments", value: stats?.pendingPayments, icon: CreditCard, color: "text-red-600", bg: "bg-red-50", permission: "payments.list.view" },
-    { label: "Pending Invoices", value: stats?.pendingInvoices, icon: Receipt, color: "text-purple-600", bg: "bg-purple-50", permission: "payments.list.view" },
+    { label: t("dashboard.totalUsers"), value: stats?.totalUsers, icon: Users, color: "text-blue-600", bg: "bg-blue-50", permission: "users.view" },
+    { label: t("dashboard.technicians"), value: stats?.techniciansCount, icon: Wrench, color: "text-orange-600", bg: "bg-orange-50", permission: null },
+    { label: t("dashboard.activeRoles"), value: stats?.activeRoles, icon: UserCheck, color: "text-green-600", bg: "bg-green-50", permission: null },
+    { label: t("dashboard.totalWorkOrders"), value: stats?.workOrdersCount, icon: ClipboardList, color: "text-indigo-600", bg: "bg-indigo-50", permission: null },
+    { label: t("dashboard.completedOrders"), value: stats?.workOrdersCompleted, icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50", permission: null },
+    { label: t("dashboard.pendingOrders"), value: stats?.workOrdersPending, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50", permission: null },
+    { label: t("dashboard.pendingPayments"), value: stats?.pendingPayments, icon: CreditCard, color: "text-red-600", bg: "bg-red-50", permission: "payments.list.view" },
+    { label: t("dashboard.pendingInvoices"), value: stats?.pendingInvoices, icon: Receipt, color: "text-purple-600", bg: "bg-purple-50", permission: "payments.list.view" },
   ];
 
   return (
@@ -74,10 +76,10 @@ export default function Dashboard() {
         {/* Header */}
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
-            Welcome back, {user?.firstName}!
+            {t("dashboard.welcomeBack", { name: user?.firstName })}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+            {new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
 
@@ -95,7 +97,7 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-blue-800">{progress.current} of {progress.total}</span>
+                  <span className="text-sm text-blue-800">{progress.current} {t("dashboard.of")} {progress.total}</span>
                   <span className="text-2xl font-bold text-blue-900">{progress.percentage}%</span>
                 </div>
                 <Progress value={progress.percentage} className="h-3" />
@@ -141,9 +143,9 @@ export default function Dashboard() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <AlertCircle className="h-5 w-5 text-red-500" />
-                Needs Attention
+                {t("dashboard.pendingOrders")}
               </CardTitle>
-              <CardDescription>Items requiring action</CardDescription>
+              <CardDescription>{t("dashboard.pendingOrders")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {statsLoading ? (
@@ -154,7 +156,7 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
                       <div className="flex items-center gap-2">
                         <CreditCard className="h-4 w-4 text-orange-600" />
-                        <span className="text-sm font-medium text-orange-800">Pending Payment Requests</span>
+                        <span className="text-sm font-medium text-orange-800">{t("dashboard.pendingPayments")}</span>
                       </div>
                       <Badge className="bg-orange-100 text-orange-800 border-0">{stats.pendingPayments}</Badge>
                     </div>
@@ -163,7 +165,7 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Receipt className="h-4 w-4 text-purple-600" />
-                        <span className="text-sm font-medium text-purple-800">Pending Invoices</span>
+                        <span className="text-sm font-medium text-purple-800">{t("dashboard.pendingInvoices")}</span>
                       </div>
                       <Badge className="bg-purple-100 text-purple-800 border-0">{stats.pendingInvoices}</Badge>
                     </div>
@@ -172,7 +174,7 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-yellow-600" />
-                        <span className="text-sm font-medium text-yellow-800">Active / Pending Work Orders</span>
+                        <span className="text-sm font-medium text-yellow-800">{t("dashboard.pendingOrders")}</span>
                       </div>
                       <Badge className="bg-yellow-100 text-yellow-800 border-0">{stats.workOrdersPending}</Badge>
                     </div>
@@ -180,7 +182,7 @@ export default function Dashboard() {
                   {(stats?.pendingPayments ?? 0) === 0 && (stats?.pendingInvoices ?? 0) === 0 && (stats?.workOrdersPending ?? 0) === 0 && (
                     <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-800">All clear — nothing needs attention!</span>
+                      <span className="text-sm font-medium text-green-800">{t("dashboard.noActivity")}</span>
                     </div>
                   )}
                 </>
@@ -193,9 +195,9 @@ export default function Dashboard() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Activity className="h-5 w-5 text-blue-500" />
-                Recent Activity
+                {t("dashboard.recentActivity")}
               </CardTitle>
-              <CardDescription>Live system events</CardDescription>
+              <CardDescription>{t("dashboard.recentActivity")}</CardDescription>
             </CardHeader>
             <CardContent>
               {activityLoading ? (
@@ -211,7 +213,7 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : activities.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-4">No recent activity</p>
+                <p className="text-gray-400 text-sm text-center py-4">{t("dashboard.noActivity")}</p>
               ) : (
                 <ul className="space-y-3 max-h-72 overflow-y-auto pr-1">
                   {activities.map((event: any) => {

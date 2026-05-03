@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { printProposal } from "@/lib/print-utils";
 import { useSystemSettings } from "@/contexts/system-settings";
+import { useTranslation } from "react-i18next";
 import type { WorkOrderWithUsers, WorkOrderProposal } from "@shared/schema";
 
 export default function Proposals() {
@@ -22,6 +23,7 @@ export default function Proposals() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { systemName, logoUrl } = useSystemSettings();
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -194,10 +196,8 @@ export default function Proposals() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Proposal Management</h1>
-            <p className="text-gray-600 mt-1">
-              Create, review, and manage project proposals with detailed cost breakdowns
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900">{t("proposals.title")}</h1>
+            <p className="text-gray-600 mt-1">{t("proposals.subtitle")}</p>
           </div>
         </div>
 
@@ -225,7 +225,7 @@ export default function Proposals() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center">
                 <Clock className="h-4 w-4 mr-2 text-yellow-600" />
-                Pending Proposals
+                {t("proposals.pendingProposals")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -236,7 +236,7 @@ export default function Proposals() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center">
                 <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                Approved Proposals
+                {t("proposals.approvedProposals")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -247,7 +247,7 @@ export default function Proposals() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center">
                 <XCircle className="h-4 w-4 mr-2 text-red-600" />
-                Rejected Proposals
+                {t("proposals.rejectedProposals")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -258,7 +258,7 @@ export default function Proposals() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center">
                 <DollarSign className="h-4 w-4 mr-2 text-blue-600" />
-                Approved Value
+                {t("proposals.approvedValue")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -304,11 +304,11 @@ export default function Proposals() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="requests" className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4" />
-            Request Proposals ({filteredWorkOrders.length})
+            {t("proposals.requestProposals")} ({filteredWorkOrders.length})
           </TabsTrigger>
           <TabsTrigger value="existing" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Existing Proposals ({filteredProposals.length})
+            {t("proposals.existingProposals")} ({filteredProposals.length})
           </TabsTrigger>
         </TabsList>
 
@@ -394,7 +394,7 @@ export default function Proposals() {
                               className="flex-1"
                             >
                               <Plus className="h-4 w-4 mr-2" />
-                              Create Proposal
+                              {t("proposals.createProposal")}
                             </Button>
                           </AdvancedPermissionGuard>
                           <Button
@@ -529,7 +529,7 @@ export default function Proposals() {
                                   className="flex-1"
                                 >
                                   <CheckCircle className="h-4 w-4 mr-1" />
-                                  Approve
+                                  {t("common.approve")}
                                 </Button>
                               </AdvancedPermissionGuard>
                               <AdvancedPermissionGuard permission="proposals.reject">
@@ -541,7 +541,7 @@ export default function Proposals() {
                                   className="flex-1"
                                 >
                                   <XCircle className="h-4 w-4 mr-1" />
-                                  Reject
+                                  {t("common.reject")}
                                 </Button>
                               </AdvancedPermissionGuard>
                             </div>
@@ -559,7 +559,7 @@ export default function Proposals() {
                               })}
                             >
                               <Printer className="h-4 w-4" />
-                              Print / PDF
+                              {t("proposals.printPDF")}
                             </Button>
                           </div>
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -248,6 +249,8 @@ export default function PaymentManager() {
     }
   };
 
+  const { t } = useTranslation();
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -262,7 +265,7 @@ export default function PaymentManager() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Payment Manager</h1>
+            <h1 className="text-3xl font-bold">{t("payments.title")}</h1>
             <p className="text-gray-600">Manage technician payments and invoice approvals for your assigned work orders</p>
           </div>
           <div className="flex items-center gap-3">

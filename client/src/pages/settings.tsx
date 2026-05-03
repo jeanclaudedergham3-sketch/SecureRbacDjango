@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Settings, Upload, Trash2, CheckCircle2, Loader2, ImageIcon, RotateCcw, Shield, Lock, LockOpen, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Settings, Upload, Trash2, CheckCircle2, Loader2, ImageIcon, RotateCcw, Shield, Lock, LockOpen, KeyRound, Eye, EyeOff, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,10 +10,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useSystemSettings } from "@/contexts/system-settings";
 import { apiRequest } from "@/lib/queryClient";
 import { lockAdminTools } from "@/components/admin-pin-guard";
+import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/contexts/language";
 
 export default function SystemSettings() {
   const { systemName, logoUrl, refresh } = useSystemSettings();
   const { toast } = useToast();
+  const { t } = useTranslation();
+  const { language, toggleLanguage, isRTL } = useLanguage();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [nameInput, setNameInput] = useState(systemName);
@@ -138,16 +142,41 @@ export default function SystemSettings() {
           <Settings className="h-6 w-6 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">System Settings</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Customize the name and logo shown throughout the system</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("settings.title")}</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t("settings.subtitle")}</p>
         </div>
       </div>
+
+      {/* ── Language ────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Languages className="h-4 w-4" /> {t("settings.language")}
+              </CardTitle>
+              <CardDescription>{t("settings.languageDesc")}</CardDescription>
+            </div>
+            <Badge variant="secondary">{isRTL ? "Arabic / العربية" : "English"}</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={toggleLanguage}
+          >
+            <Languages className="h-4 w-4" />
+            {isRTL ? "Switch to English" : "التبديل إلى العربية"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* ── System Name ────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">System Name</CardTitle>
-          <CardDescription>Shown in the sidebar, login page, and browser tab.</CardDescription>
+          <CardTitle className="text-base">{t("settings.systemName")}</CardTitle>
+          <CardDescription>{t("settings.systemNameDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,7 @@ const PAYMENT_STATUS: Record<string, { label: string; color: string }> = {
 };
 
 export default function Analytics() {
+  const { t } = useTranslation();
   const [dateRange, setDateRange] = useState("last30days");
 
   const { data: analytics, isLoading, error, refetch } = useQuery<AnalyticsData>({
@@ -92,7 +94,7 @@ export default function Analytics() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Analytics & Reports</h1>
+        <h1 className="text-3xl font-bold">{t("analytics.title")}</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(8)].map((_, i) => (
             <Card key={i} className="animate-pulse">
@@ -111,7 +113,7 @@ export default function Analytics() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Analytics & Reports</h1>
+          <h1 className="text-3xl font-bold">{t("analytics.title")}</h1>
           <Button onClick={() => refetch()} variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />Retry
           </Button>

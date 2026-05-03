@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Search, Package, CheckCircle, XCircle, Clock, Filter,
   ShoppingCart, Inbox, AlertTriangle, ChevronRight, Eye,
@@ -155,13 +156,14 @@ export default function PartsRequests() {
 
   const openDetail = (r: PartsRequestWithDetails) => { setSelectedRequest(r); setIsDetailOpen(true); };
   const openReject = (r: PartsRequestWithDetails) => { setSelectedRequest(r); setRejectReason(""); setIsRejectOpen(true); };
+  const { t } = useTranslation();
 
   return (
     <PageGuard pageName="parts">
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">Parts Request Management</h1>
+          <h1 className="text-3xl font-bold">{t("partsRequests.title")}</h1>
           <p className="text-gray-600">Review and manage parts requests for your assigned work orders</p>
         </div>
 

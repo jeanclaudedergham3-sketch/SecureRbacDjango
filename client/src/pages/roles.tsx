@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Edit, Check, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,21 +51,23 @@ export default function Roles() {
     return role.permissions.some(p => p.name === permissionName);
   };
 
+  const { t } = useTranslation();
+
   return (
     <PageGuard pageName="roles">
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Roles & Permissions</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">{t("roles.title")}</h1>
               <p className="mt-2 text-sm text-gray-600">
-                Configure roles and their associated permissions.
+                {t("roles.permissions")}
               </p>
             </div>
             <AdvancedPermissionGuard permission="roles.create">
               <Button onClick={() => setIsCreating(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create Role
+                {t("roles.createRole")}
               </Button>
             </AdvancedPermissionGuard>
           </div>
@@ -83,7 +86,7 @@ export default function Roles() {
                 <p className="mt-1 text-sm">{role.description}</p>
               </div>
               <CardContent className="px-6 py-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">Permissions</h4>
+                <h4 className="text-sm font-medium text-gray-900 mb-3">{t("roles.permissions")}</h4>
                 {role.name === "admin" ? (
                   <div className="flex items-center space-x-2 py-2 px-3 bg-blue-50 rounded-md">
                     <Check className="h-5 w-5 text-blue-600 flex-shrink-0" />
@@ -117,7 +120,7 @@ export default function Roles() {
                     onClick={() => setEditingRole(role)}
                   >
                     <Edit className="h-3 w-3 mr-1" />
-                    Edit Permissions
+                    {t("roles.editRole")}
                   </Button>
                 </AdvancedPermissionGuard>
               </div>

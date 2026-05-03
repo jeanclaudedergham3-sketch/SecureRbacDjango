@@ -66,6 +66,7 @@ The application utilizes a comprehensive PostgreSQL schema for RBAC, users, role
 - **zod**: Schema validation
 - **tailwindcss**: Utility-first CSS framework
 - **shadcn/ui**: Component library
+- **i18next + react-i18next**: Full Arabic/English internationalization with RTL layout support
 
 ### Development Dependencies
 - **vite**: Build tool and development server

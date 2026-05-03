@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { SystemSettingsProvider } from "@/contexts/system-settings";
+import { LanguageProvider } from "@/contexts/language";
 import { MainLayout } from "@/components/layout/main-layout";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
@@ -107,12 +108,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <SystemSettingsProvider>
-            <AuthProvider>
-              <Toaster />
-              <Router />
-            </AuthProvider>
-          </SystemSettingsProvider>
+          <LanguageProvider>
+            <SystemSettingsProvider>
+              <AuthProvider>
+                <Toaster />
+                <Router />
+              </AuthProvider>
+            </SystemSettingsProvider>
+          </LanguageProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
