@@ -29,8 +29,12 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    // cache: 'no-store' prevents the browser HTTP cache from serving stale
+    // data after mutations. TanStack Query's own in-memory cache (staleTime,
+    // gcTime) is the source of truth for performance — no need for both.
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
+      cache: "no-store",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
