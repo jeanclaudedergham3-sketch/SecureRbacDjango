@@ -3403,6 +3403,274 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ═══════════════════════════════════════════════════════
+  // FULL SYSTEM BACKUP (VPS-ready pg_dump style)
+  // ═══════════════════════════════════════════════════════
+
+  function pgColType(col: { data_type: string; udt_name: string; character_maximum_length: string | null; numeric_precision: string | null; numeric_scale: string | null }): string {
+    switch (col.data_type) {
+      case "character varying": return col.character_maximum_length ? `varchar(${col.character_maximum_length})` : "varchar";
+      case "character": return col.character_maximum_length ? `char(${col.character_maximum_length})` : "char";
+      case "numeric": return (col.numeric_precision && col.numeric_scale != null) ? `numeric(${col.numeric_precision},${col.numeric_scale})` : "numeric";
+      case "integer": return "integer";
+      case "bigint": return "bigint";
+      case "smallint": return "smallint";
+      case "text": return "text";
+      case "boolean": return "boolean";
+      case "timestamp without time zone": return "timestamp";
+      case "timestamp with time zone": return "timestamptz";
+      case "date": return "date";
+      case "real": return "real";
+      case "double precision": return "double precision";
+      case "json": return "json";
+      case "jsonb": return "jsonb";
+      case "uuid": return "uuid";
+      case "ARRAY": return col.udt_name.replace(/^_/, "") + "[]";
+      default: return col.data_type || col.udt_name;
+    }
+  }
+
+  app.post("/api/db-export/full-backup", requireAuth, requirePermission("users.manage"), async (_req, res) => {
+    try {
+      const lines: string[] = [];
+      const stamp = new Date().toISOString();
+
+      lines.push(`-- ╔══════════════════════════════════════════════════════════════════╗`);
+      lines.push(`-- ║  NOVIQ Full System Backup                                        ║`);
+      lines.push(`-- ║  Generated: ${stamp.replace("T", " ").slice(0, 19)} UTC${" ".repeat(32)}║`);
+      lines.push(`-- ║  Compatible with PostgreSQL 14+                                  ║`);
+      lines.push(`-- ╚══════════════════════════════════════════════════════════════════╝`);
+      lines.push(``, `SET statement_timeout = 0;`, `SET lock_timeout = 0;`,
+        `SET client_encoding = 'UTF8';`, `SET standard_conforming_strings = on;`,
+        `SET check_function_bodies = false;`, `SET row_security = off;`, ``);
+
+      // ── 1. Get all public tables in dependency order ──────────────────────
+      const tablesRes = await pool.query<{ table_name: string }>(
+        `SELECT table_name FROM information_schema.tables
+         WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+         ORDER BY table_name`
+      );
+      const tableNames = tablesRes.rows.map(r => r.table_name);
+
+      // ── 2. Sequences ──────────────────────────────────────────────────────
+      const seqRes = await pool.query<{ sequence_name: string; start_value: string; increment: string; minimum_value: string; maximum_value: string }>(
+        `SELECT sequence_name, start_value, increment_by AS increment, minimum_value, maximum_value
+         FROM information_schema.sequences WHERE sequence_schema = 'public'`
+      );
+      if (seqRes.rows.length) {
+        lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+        lines.push(`-- SEQUENCES`);
+        lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+        for (const s of seqRes.rows) {
+          lines.push(
+            `CREATE SEQUENCE IF NOT EXISTS "${s.sequence_name}"`,
+            `    START WITH ${s.start_value} INCREMENT BY ${s.increment}`,
+            `    NO MINVALUE NO MAXVALUE CACHE 1;`, ``
+          );
+        }
+      }
+
+      // ── 3. CREATE TABLE for every table ───────────────────────────────────
+      lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+      lines.push(`-- TABLE SCHEMAS`);
+      lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+
+      for (const tname of tableNames) {
+        // Columns
+        const colsRes = await pool.query<{
+          column_name: string; data_type: string; udt_name: string;
+          character_maximum_length: string | null; numeric_precision: string | null; numeric_scale: string | null;
+          is_nullable: string; column_default: string | null;
+        }>(
+          `SELECT column_name, data_type, udt_name, character_maximum_length,
+                  numeric_precision, numeric_scale, is_nullable, column_default
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = $1
+           ORDER BY ordinal_position`, [tname]
+        );
+
+        // Primary key columns
+        const pkRes = await pool.query<{ column_name: string }>(
+          `SELECT kcu.column_name FROM information_schema.table_constraints tc
+           JOIN information_schema.key_column_usage kcu
+             ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+           WHERE tc.table_schema = 'public' AND tc.table_name = $1
+             AND tc.constraint_type = 'PRIMARY KEY'
+           ORDER BY kcu.ordinal_position`, [tname]
+        );
+        const pkCols = pkRes.rows.map(r => r.column_name);
+
+        // Unique constraints
+        const uqRes = await pool.query<{ constraint_name: string; column_name: string }>(
+          `SELECT tc.constraint_name, kcu.column_name
+           FROM information_schema.table_constraints tc
+           JOIN information_schema.key_column_usage kcu
+             ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+           WHERE tc.table_schema = 'public' AND tc.table_name = $1 AND tc.constraint_type = 'UNIQUE'
+           ORDER BY tc.constraint_name, kcu.ordinal_position`, [tname]
+        );
+        const uqMap: Record<string, string[]> = {};
+        for (const r of uqRes.rows) {
+          (uqMap[r.constraint_name] = uqMap[r.constraint_name] || []).push(r.column_name);
+        }
+
+        const colDefs: string[] = colsRes.rows.map(col => {
+          const type = pgColType(col);
+          const notNull = col.is_nullable === "NO" ? " NOT NULL" : "";
+          let def = "";
+          if (col.column_default) {
+            // Simplify serial sequences
+            const seqMatch = col.column_default.match(/nextval\('([^']+)'.*\)/);
+            def = seqMatch ? ` DEFAULT nextval('${seqMatch[1]}')` : ` DEFAULT ${col.column_default}`;
+          }
+          return `  "${col.column_name}" ${type}${notNull}${def}`;
+        });
+
+        if (pkCols.length) colDefs.push(`  PRIMARY KEY (${pkCols.map(c => `"${c}"`).join(", ")})`);
+        for (const [name, cols] of Object.entries(uqMap)) {
+          colDefs.push(`  CONSTRAINT "${name}" UNIQUE (${cols.map(c => `"${c}"`).join(", ")})`);
+        }
+
+        lines.push(`CREATE TABLE IF NOT EXISTS "${tname}" (`);
+        lines.push(colDefs.join(",\n"));
+        lines.push(`);`, ``);
+      }
+
+      // ── 4. Data ───────────────────────────────────────────────────────────
+      lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+      lines.push(`-- DATA`);
+      lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+
+      // Disable triggers during data load
+      lines.push(`SET session_replication_role = 'replica';`, ``);
+
+      // Determine safe insert order (tables without FKs first, then dependents)
+      const fkDepRes = await pool.query<{ table_name: string; foreign_table_name: string }>(
+        `SELECT DISTINCT tc.table_name, ccu.table_name AS foreign_table_name
+         FROM information_schema.table_constraints tc
+         JOIN information_schema.constraint_column_usage ccu
+           ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+         WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'`
+      );
+      // Build topological order (simple): tables referenced by others come first
+      const deps = new Map<string, Set<string>>();
+      for (const t of tableNames) deps.set(t, new Set());
+      for (const { table_name, foreign_table_name } of fkDepRes.rows) {
+        if (table_name !== foreign_table_name) deps.get(table_name)?.add(foreign_table_name);
+      }
+      const ordered: string[] = [];
+      const visited = new Set<string>();
+      function visit(t: string) {
+        if (visited.has(t)) return;
+        visited.add(t);
+        for (const dep of deps.get(t) || []) visit(dep);
+        ordered.push(t);
+      }
+      for (const t of tableNames) visit(t);
+
+      for (const tname of ordered) {
+        const dataRes = await pool.query(`SELECT * FROM "${tname}" ORDER BY id`);
+        if (!dataRes.rows.length) { lines.push(`-- (${tname}: no rows)`, ``); continue; }
+        const cols = dataRes.fields.map(f => f.name);
+        const colList = cols.map(c => `"${c}"`).join(", ");
+        lines.push(`-- ${tname}: ${dataRes.rows.length.toLocaleString()} rows`);
+        for (let i = 0; i < dataRes.rows.length; i += 500) {
+          const batch = dataRes.rows.slice(i, i + 500);
+          const vals = batch.map((r: Record<string, unknown>) =>
+            `(${cols.map(c => {
+              const v = r[c];
+              if (v === null || v === undefined) return "NULL";
+              if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
+              if (typeof v === "number") return String(v);
+              if (v instanceof Date) return `'${v.toISOString()}'`;
+              return `'${String(v).replace(/\\/g, "\\\\").replace(/'/g, "''")}'`;
+            }).join(", ")})`
+          ).join(",\n  ");
+          lines.push(`INSERT INTO "${tname}" (${colList}) VALUES`, `  ${vals}`, `ON CONFLICT DO NOTHING;`, ``);
+        }
+      }
+
+      lines.push(`SET session_replication_role = 'DEFAULT';`, ``);
+
+      // ── 5. Sequence resets ────────────────────────────────────────────────
+      lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+      lines.push(`-- SEQUENCE RESETS (so next INSERT gets correct auto-increment)`);
+      lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+      for (const s of seqRes.rows) {
+        // Sequence name pattern: <table>_<col>_seq
+        const match = s.sequence_name.match(/^(.+)_([^_]+)_seq$/);
+        if (match) {
+          const tbl = match[1], col = match[2];
+          if (tableNames.includes(tbl)) {
+            lines.push(`SELECT setval('${s.sequence_name}', COALESCE((SELECT MAX("${col}") FROM "${tbl}"), 1));`);
+          }
+        }
+      }
+      lines.push(``);
+
+      // ── 6. Foreign key constraints ────────────────────────────────────────
+      lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+      lines.push(`-- FOREIGN KEY CONSTRAINTS`);
+      lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+      const fkFullRes = await pool.query<{
+        constraint_name: string; table_name: string; column_name: string;
+        foreign_table: string; foreign_column: string; delete_rule: string; update_rule: string;
+      }>(
+        `SELECT tc.constraint_name, tc.table_name, kcu.column_name,
+                ccu.table_name AS foreign_table, ccu.column_name AS foreign_column,
+                rc.delete_rule, rc.update_rule
+         FROM information_schema.table_constraints tc
+         JOIN information_schema.key_column_usage kcu
+           ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+         JOIN information_schema.constraint_column_usage ccu
+           ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+         JOIN information_schema.referential_constraints rc
+           ON rc.constraint_name = tc.constraint_name AND rc.constraint_schema = tc.table_schema
+         WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'
+         ORDER BY tc.table_name, tc.constraint_name`
+      );
+      for (const fk of fkFullRes.rows) {
+        const onDel = fk.delete_rule !== "NO ACTION" ? ` ON DELETE ${fk.delete_rule}` : "";
+        const onUpd = fk.update_rule !== "NO ACTION" ? ` ON UPDATE ${fk.update_rule}` : "";
+        lines.push(
+          `ALTER TABLE "${fk.table_name}" ADD CONSTRAINT IF NOT EXISTS "${fk.constraint_name}"`,
+          `  FOREIGN KEY ("${fk.column_name}") REFERENCES "${fk.foreign_table}" ("${fk.foreign_column}")${onDel}${onUpd};`
+        );
+      }
+      lines.push(``);
+
+      // ── 7. Indexes ────────────────────────────────────────────────────────
+      lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+      lines.push(`-- INDEXES`);
+      lines.push(`-- ──────────────────────────────────────────────────────────────────`);
+      const idxRes = await pool.query<{ tablename: string; indexname: string; indexdef: string }>(
+        `SELECT tablename, indexname, indexdef FROM pg_indexes
+         WHERE schemaname = 'public'
+           AND indexname NOT IN (
+             SELECT constraint_name FROM information_schema.table_constraints
+             WHERE table_schema = 'public'
+           )
+         ORDER BY tablename, indexname`
+      );
+      for (const idx of idxRes.rows) {
+        const def = idx.indexdef.replace(/^CREATE INDEX/, "CREATE INDEX IF NOT EXISTS")
+          .replace(/^CREATE UNIQUE INDEX/, "CREATE UNIQUE INDEX IF NOT EXISTS");
+        lines.push(`${def};`);
+      }
+      lines.push(``);
+
+      lines.push(`-- ── End of NOVIQ Full System Backup ──`);
+
+      const stamp2 = new Date().toISOString().slice(0, 10);
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="noviq-full-backup-${stamp2}.sql"`);
+      res.send(lines.join("\n"));
+
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════
   // DATABASE EXPORT ENDPOINTS
   // ═══════════════════════════════════════════════════════
 

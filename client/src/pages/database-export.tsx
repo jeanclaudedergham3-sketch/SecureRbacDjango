@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Download, Database, FileText, Archive, CheckSquare, Square,
+  Download, Database, FileText, Archive, CheckSquare,
   Table2, Shield, AlertTriangle, CheckCircle2, Loader2, RefreshCw,
-  ChevronDown, ChevronUp, Info
+  ChevronDown, ChevronUp, Info, HardDrive
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,7 +62,9 @@ export default function DatabaseExport() {
   const [format, setFormat] = useState<ExportFormat>("csv");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
+  const [fullBackupExporting, setFullBackupExporting] = useState(false);
   const [done, setDone] = useState<{ rows: number; format: ExportFormat } | null>(null);
+  const [fullBackupDone, setFullBackupDone] = useState(false);
   const [showSystem, setShowSystem] = useState(false);
 
   // ── Load table stats ────────────────────────────────────────────────────────
@@ -101,6 +103,35 @@ export default function DatabaseExport() {
     .reduce((s, t) => s + t.rowCount, 0);
 
   const selectedList = [...selected];
+
+  // ── Full System Backup ───────────────────────────────────────────────────────
+  async function handleFullBackup() {
+    setFullBackupExporting(true);
+    setFullBackupDone(false);
+    try {
+      const res = await fetch("/api/db-export/full-backup", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Backup failed" }));
+        throw new Error(err.message || "Backup failed");
+      }
+      const blob = await res.blob();
+      const stamp = new Date().toISOString().slice(0, 10);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `noviq-full-backup-${stamp}.sql`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setFullBackupDone(true);
+    } catch (e: any) {
+      toast({ title: e.message, variant: "destructive" });
+    } finally {
+      setFullBackupExporting(false);
+    }
+  }
 
   // ── Export ──────────────────────────────────────────────────────────────────
   async function handleExport() {
@@ -155,6 +186,75 @@ export default function DatabaseExport() {
       </div>
 
       <div className="space-y-6">
+
+        {/* ── Full System Backup Banner ─────────────────────────── */}
+        <div className="relative overflow-hidden rounded-2xl border-2 border-gray-800 dark:border-gray-600 bg-gray-900 dark:bg-gray-950 p-6">
+          {/* subtle grid bg */}
+          <div className="pointer-events-none absolute inset-0 opacity-10"
+            style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.1) 1px,transparent 1px)", backgroundSize: "24px 24px" }} />
+
+          <div className="relative flex flex-col sm:flex-row sm:items-center gap-5">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <HardDrive className="h-5 w-5 text-white" />
+                <span className="text-white font-bold text-base tracking-tight">Full System Backup</span>
+                <span className="ml-1 text-xs font-mono font-bold px-2 py-0.5 rounded bg-white/10 text-gray-200">.sql</span>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">VPS Ready</span>
+              </div>
+              <p className="text-gray-300 text-sm leading-relaxed max-w-xl">
+                Exports the <strong className="text-white">complete database</strong> — every table, every row,
+                full schema <span className="text-gray-400">(CREATE TABLE)</span>, all foreign key relations,
+                indexes, and sequence resets. Drop this file into&nbsp;
+                <code className="text-emerald-300 text-xs bg-white/10 px-1 py-0.5 rounded">psql -f noviq-full-backup.sql</code>&nbsp;
+                on your VPS to restore everything.
+              </p>
+              <div className="flex flex-wrap gap-3 mt-3 text-xs text-gray-400">
+                <span className="flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Full schema DDL</span>
+                <span className="flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> All foreign keys</span>
+                <span className="flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> All indexes</span>
+                <span className="flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Sequence resets</span>
+                <span className="flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> All permissions &amp; roles</span>
+                <span className="flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Conflict-safe (ON CONFLICT DO NOTHING)</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-stretch sm:items-end gap-2 shrink-0">
+              <Button
+                onClick={handleFullBackup}
+                disabled={fullBackupExporting}
+                size="lg"
+                className="gap-2 bg-white text-gray-900 hover:bg-gray-100 font-semibold min-w-[210px] justify-center shadow-lg"
+              >
+                {fullBackupExporting ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Building backup…
+                  </>
+                ) : (
+                  <>
+                    <HardDrive className="h-5 w-5" />
+                    Download Full Backup
+                  </>
+                )}
+              </Button>
+              {fullBackupDone && (
+                <span className="flex items-center gap-1.5 text-emerald-300 text-xs justify-end">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Backup downloaded
+                </span>
+              )}
+              <span className="text-gray-500 text-xs text-center sm:text-right">
+                PostgreSQL 14+ compatible
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex-1 border-t border-gray-200 dark:border-gray-700" />
+          <span className="text-xs text-gray-400 dark:text-gray-600 uppercase tracking-wider font-medium">or export specific tables</span>
+          <div className="flex-1 border-t border-gray-200 dark:border-gray-700" />
+        </div>
+
         {/* ── Format Selection ──────────────────────────────────── */}
         <div>
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-3">
