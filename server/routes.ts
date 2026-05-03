@@ -3107,6 +3107,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ═══════════════════════════════════════════════════════
+  // SQL DIRECT IMPORT — paste or upload raw SQL (admin only)
+  // ═══════════════════════════════════════════════════════
+
+  const sqlUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+  app.post("/api/import/sql",
+    requireAuth,
+    requirePermission("technicians.create"),
+    sqlUpload.single("file"),
+    async (req, res) => {
+      try {
+        let sqlText: string = "";
+
+        if (req.file) {
+          sqlText = req.file.buffer.toString("utf8");
+        } else if (req.body?.sql) {
+          sqlText = String(req.body.sql);
+        }
+
+        if (!sqlText.trim()) {
+          return res.status(400).json({ message: "No SQL provided." });
+        }
+
+        // Safety gate: reject statements that delete/drop/truncate
+        const dangerPattern = /\b(DROP|TRUNCATE|DELETE\s+FROM|ALTER\s+TABLE|CREATE\s+TABLE|CREATE\s+INDEX|GRANT|REVOKE|VACUUM|REINDEX)\b/i;
+        if (dangerPattern.test(sqlText)) {
+          return res.status(400).json({
+            message: "Disallowed SQL statement detected. Only INSERT, COPY, and SELECT statements are permitted for safety.",
+          });
+        }
+
+        // Split into individual statements on semicolons (outside of string literals)
+        const splitStatements = (sql: string): string[] => {
+          const stmts: string[] = [];
+          let current = "";
+          let inSingleQuote = false;
+          let inDollarQuote = false;
+          let dollarTag = "";
+          let i = 0;
+
+          while (i < sql.length) {
+            const ch = sql[i];
+
+            if (!inSingleQuote && !inDollarQuote && ch === "'") {
+              inSingleQuote = true;
+              current += ch;
+              i++;
+            } else if (inSingleQuote && ch === "'" && sql[i + 1] === "'") {
+              current += "''";
+              i += 2;
+            } else if (inSingleQuote && ch === "'") {
+              inSingleQuote = false;
+              current += ch;
+              i++;
+            } else if (!inSingleQuote && !inDollarQuote && ch === "$") {
+              const tagMatch = sql.slice(i).match(/^\$([^$]*)\$/);
+              if (tagMatch) {
+                dollarTag = tagMatch[0];
+                inDollarQuote = true;
+                current += dollarTag;
+                i += dollarTag.length;
+              } else {
+                current += ch;
+                i++;
+              }
+            } else if (inDollarQuote && sql.slice(i).startsWith(dollarTag)) {
+              current += dollarTag;
+              i += dollarTag.length;
+              inDollarQuote = false;
+              dollarTag = "";
+            } else if (!inSingleQuote && !inDollarQuote && ch === "-" && sql[i + 1] === "-") {
+              while (i < sql.length && sql[i] !== "\n") i++;
+            } else if (!inSingleQuote && !inDollarQuote && ch === "/" && sql[i + 1] === "*") {
+              i += 2;
+              while (i < sql.length && !(sql[i] === "*" && sql[i + 1] === "/")) i++;
+              i += 2;
+            } else if (!inSingleQuote && !inDollarQuote && ch === ";") {
+              const stmt = current.trim();
+              if (stmt) stmts.push(stmt);
+              current = "";
+              i++;
+            } else {
+              current += ch;
+              i++;
+            }
+          }
+          const last = current.trim();
+          if (last) stmts.push(last);
+          return stmts;
+        };
+
+        const statements = splitStatements(sqlText).filter(s => {
+          const upper = s.toUpperCase().trimStart();
+          return upper.startsWith("INSERT") || upper.startsWith("COPY") || upper.startsWith("UPDATE");
+        });
+
+        if (statements.length === 0) {
+          return res.status(400).json({ message: "No INSERT, COPY, or UPDATE statements found in the provided SQL." });
+        }
+
+        // Execute all statements in a single transaction
+        const client = await pool.connect();
+        const statementResults: Array<{ statement: string; rowCount: number; error?: string }> = [];
+        let totalRowCount = 0;
+        let executedCount = 0;
+
+        try {
+          await client.query("BEGIN");
+
+          for (const stmt of statements) {
+            try {
+              const result = await client.query(stmt);
+              const rowCount = result.rowCount ?? 0;
+              totalRowCount += rowCount;
+              executedCount++;
+              statementResults.push({
+                statement: stmt.slice(0, 120) + (stmt.length > 120 ? "…" : ""),
+                rowCount,
+              });
+            } catch (stmtErr: any) {
+              await client.query("ROLLBACK");
+              return res.status(400).json({
+                message: `Statement ${executedCount + 1} failed — entire import rolled back: ${stmtErr.message}`,
+                failedStatement: stmt.slice(0, 200),
+              });
+            }
+          }
+
+          await client.query("COMMIT");
+        } finally {
+          client.release();
+        }
+
+        res.json({
+          success: true,
+          statements: executedCount,
+          totalRowCount,
+          results: statementResults,
+          message: `${executedCount} statement${executedCount !== 1 ? "s" : ""} executed successfully, ${totalRowCount} row${totalRowCount !== 1 ? "s" : ""} affected.`,
+        });
+      } catch (error: any) {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════
   // DATABASE IMPORT — parse + execute
   // ═══════════════════════════════════════════════════════
 

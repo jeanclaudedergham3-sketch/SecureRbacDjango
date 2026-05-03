@@ -1,13 +1,14 @@
 import { useState, useRef, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import Papa from "papaparse";
-import { Upload, ChevronRight, ChevronLeft, CheckCircle2, AlertTriangle, XCircle, Zap, RotateCcw, Download, Filter, Check, ListFilter } from "lucide-react";
+import { Upload, ChevronRight, ChevronLeft, CheckCircle2, AlertTriangle, XCircle, Zap, RotateCcw, Download, Filter, Check, ListFilter, Terminal, ChevronDown, ChevronUp, FileCode2, ShieldAlert, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -86,6 +87,54 @@ export default function DataImport() {
   const [confirmResult, setConfirmResult] = useState<ConfirmResponse | null>(null);
   const [previewFilter, setPreviewFilter] = useState<"all" | "ready" | "warning" | "error">("all");
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+
+  // SQL Direct Import state
+  const [sqlExpanded, setSqlExpanded] = useState(false);
+  const [sqlText, setSqlText] = useState("");
+  const [sqlResult, setSqlResult] = useState<{ success: boolean; statements: number; totalRowCount: number; results: Array<{ statement: string; rowCount: number; error?: string }>; message: string } | null>(null);
+  const sqlFileRef = useRef<HTMLInputElement>(null);
+
+  const sqlMutation = useMutation({
+    mutationFn: async (payload: { sql?: string; file?: File }) => {
+      const form = new FormData();
+      if (payload.file) {
+        form.append("file", payload.file);
+      } else if (payload.sql) {
+        form.append("sql", payload.sql);
+      }
+      const res = await fetch("/api/import/sql", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "SQL import failed");
+      return json as { success: boolean; statements: number; totalRowCount: number; results: Array<{ statement: string; rowCount: number }>; message: string };
+    },
+    onSuccess: (data) => {
+      setSqlResult(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({ title: "SQL executed successfully", description: data.message });
+    },
+    onError: (e: Error) => {
+      toast({ title: "SQL execution failed", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const handleSqlFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith(".sql")) {
+      toast({ title: "Only .sql files are supported", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => setSqlText(ev.target?.result as string ?? "");
+    reader.readAsText(file);
+    e.target.value = "";
+  };
 
   const analyzeMutation = useMutation({
     mutationFn: (data: { columns: string[]; dataType: DataType }) =>
@@ -791,6 +840,124 @@ export default function DataImport() {
             </div>
           </div>
         )}
+
+        {/* ─── SQL Direct Import Section ─────────────────────────── */}
+        <div className="mt-10 border-t border-gray-200 dark:border-gray-700 pt-8">
+          <button
+            onClick={() => setSqlExpanded(p => !p)}
+            className="w-full flex items-center justify-between gap-3 group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-800 dark:bg-gray-700 rounded-lg">
+                <Terminal className="h-5 w-5 text-green-400" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  SQL Direct Import
+                  <Badge className="bg-gray-800 dark:bg-gray-700 text-amber-400 text-xs border border-amber-500/30">Advanced</Badge>
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">For administrators with a PostgreSQL export — paste or upload raw INSERT statements</p>
+              </div>
+            </div>
+            <div className="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200 transition-colors shrink-0">
+              {sqlExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </div>
+          </button>
+
+          {sqlExpanded && (
+            <div className="mt-6 space-y-5">
+              {/* Warning banner */}
+              <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700">
+                <ShieldAlert className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800 dark:text-amber-300 text-sm">
+                  <strong>Advanced users only.</strong> Paste or upload PostgreSQL <code className="font-mono bg-amber-100 dark:bg-amber-900/40 px-1 rounded">INSERT INTO</code> statements exported from your old system.
+                  Statements are executed inside a single transaction — if any statement fails, the <strong>entire batch is rolled back automatically</strong>.
+                  <br /><span className="mt-1 block text-xs text-amber-700 dark:text-amber-400">
+                    Allowed: <code className="font-mono">INSERT</code>, <code className="font-mono">COPY</code>, <code className="font-mono">UPDATE</code> &nbsp;·&nbsp;
+                    Blocked: <code className="font-mono">DROP</code>, <code className="font-mono">DELETE</code>, <code className="font-mono">TRUNCATE</code>, <code className="font-mono">ALTER</code>
+                  </span>
+                </AlertDescription>
+              </Alert>
+
+              {/* File upload row */}
+              <div className="flex items-center gap-3">
+                <input ref={sqlFileRef} type="file" accept=".sql" className="hidden" onChange={handleSqlFileChange} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => sqlFileRef.current?.click()}
+                  className="gap-2 shrink-0"
+                >
+                  <FileCode2 className="h-4 w-4" /> Upload .sql file
+                </Button>
+                <span className="text-sm text-gray-400">or paste your SQL below</span>
+              </div>
+
+              {/* SQL Textarea */}
+              <Textarea
+                value={sqlText}
+                onChange={e => setSqlText(e.target.value)}
+                placeholder={`-- Paste your INSERT statements here\nINSERT INTO technicians (first_name, last_name, email, phone, specialization, experience, hourly_rate, location, payment_methods)\nVALUES ('Jane', 'Smith', 'jane@example.com', '555-0100', 'HVAC', 5, 75.00, 'Chicago, IL', 'check');`}
+                className="font-mono text-xs h-52 bg-gray-900 dark:bg-gray-950 text-green-300 dark:text-green-300 border-gray-700 placeholder:text-gray-600 resize-y"
+              />
+
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-400">
+                  {sqlText.trim() ? `${sqlText.split(";").filter(s => s.trim()).length} statement(s) detected` : "No SQL entered"}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setSqlText(""); setSqlResult(null); }}
+                    disabled={!sqlText && !sqlResult}
+                    className="gap-2"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Clear
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => sqlMutation.mutate({ sql: sqlText })}
+                    disabled={sqlMutation.isPending || !sqlText.trim()}
+                    className="gap-2 bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white"
+                  >
+                    {sqlMutation.isPending
+                      ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Executing…</>
+                      : <><Play className="h-3.5 w-3.5" /> Execute SQL</>
+                    }
+                  </Button>
+                </div>
+              </div>
+
+              {/* Results */}
+              {sqlResult && (
+                <Card className={cn(
+                  "border",
+                  sqlResult.success
+                    ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/10"
+                    : "border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/10"
+                )}>
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className={cn("text-sm flex items-center gap-2", sqlResult.success ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400")}>
+                      {sqlResult.success ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      {sqlResult.message}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                      {sqlResult.results.map((r, i) => (
+                        <div key={i} className="flex items-start gap-2 text-xs">
+                          <Badge variant="secondary" className="text-xs shrink-0 font-mono">{r.rowCount} row{r.rowCount !== 1 ? "s" : ""}</Badge>
+                          <code className="text-gray-600 dark:text-gray-400 truncate font-mono">{r.statement}</code>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -22,6 +22,8 @@ export default function TechniciansPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { t } = useTranslation();
+
   const { data: technicians, isLoading } = useQuery<Technician[]>({
     queryKey: ["/api/technicians"],
   });
@@ -112,8 +114,6 @@ export default function TechniciansPage() {
       </div>
     );
   }
-
-  const { t } = useTranslation();
 
   return (
     <PageGuard pageName="technicians">
