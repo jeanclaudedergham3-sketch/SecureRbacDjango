@@ -1,13 +1,15 @@
 import { useState, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { Settings, Upload, Trash2, CheckCircle2, Loader2, ImageIcon, RotateCcw, Shield } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Settings, Upload, Trash2, CheckCircle2, Loader2, ImageIcon, RotateCcw, Shield, Lock, LockOpen, KeyRound, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useSystemSettings } from "@/contexts/system-settings";
 import { apiRequest } from "@/lib/queryClient";
+import { lockAdminTools } from "@/components/admin-pin-guard";
 
 export default function SystemSettings() {
   const { systemName, logoUrl, refresh } = useSystemSettings();
@@ -74,6 +76,59 @@ export default function SystemSettings() {
 
   const effectiveLogoUrl = logoPreview || logoUrl;
   const isWorking = nameMutation.isPending || uploading || removeMutation.isPending;
+
+  // ── Admin PIN management ──────────────────────────────────────────────────
+  const queryClient = useQueryClient();
+  const { data: pinStatus } = useQuery<{ hasPIN: boolean }>({
+    queryKey: ["/api/settings/admin-pin/status"],
+    staleTime: 10_000,
+  });
+  const hasPIN = pinStatus?.hasPIN ?? false;
+
+  const [pinMode, setPinMode] = useState<"idle" | "set" | "change" | "remove">("idle");
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [showPins, setShowPins] = useState(false);
+
+  const setPinMutation = useMutation({
+    mutationFn: (body: { pin: string; currentPin?: string }) =>
+      apiRequest("PATCH", "/api/settings/admin-pin", body),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/settings/admin-pin/status"] });
+      toast({ title: hasPIN ? "PIN updated successfully" : "Admin PIN set successfully" });
+      setPinMode("idle");
+      setCurrentPin(""); setNewPin(""); setConfirmPin("");
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const removePinMutation = useMutation({
+    mutationFn: (body: { currentPin: string }) =>
+      apiRequest("DELETE", "/api/settings/admin-pin", body),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/settings/admin-pin/status"] });
+      toast({ title: "Admin PIN removed" });
+      setPinMode("idle");
+      setCurrentPin(""); setNewPin(""); setConfirmPin("");
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  function handleSetPin() {
+    if (!/^\d{4,8}$/.test(newPin)) {
+      toast({ title: "PIN must be 4–8 digits", variant: "destructive" }); return;
+    }
+    if (newPin !== confirmPin) {
+      toast({ title: "PINs do not match", variant: "destructive" }); return;
+    }
+    setPinMutation.mutate(hasPIN ? { pin: newPin, currentPin } : { pin: newPin });
+  }
+
+  function handleRemovePin() {
+    if (!currentPin) { toast({ title: "Enter your current PIN", variant: "destructive" }); return; }
+    removePinMutation.mutate({ currentPin });
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -202,6 +257,163 @@ export default function SystemSettings() {
               e.target.value = "";
             }}
           />
+        </CardContent>
+      </Card>
+
+      {/* ── Admin PIN ──────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <KeyRound className="h-4 w-4" /> Admin Tools PIN Lock
+              </CardTitle>
+              <CardDescription>
+                Require a PIN before accessing Admin Tools pages (Data Import, Database Import/Export, System Settings).
+              </CardDescription>
+            </div>
+            <Badge variant={hasPIN ? "default" : "secondary"} className={hasPIN ? "bg-emerald-600 text-white" : ""}>
+              {hasPIN ? <><Lock className="h-3 w-3 mr-1" />Active</> : <><LockOpen className="h-3 w-3 mr-1" />Not set</>}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {pinMode === "idle" && (
+            <div className="flex flex-wrap gap-2">
+              {!hasPIN && (
+                <Button size="sm" className="gap-2" onClick={() => setPinMode("set")}>
+                  <Lock className="h-4 w-4" /> Set PIN
+                </Button>
+              )}
+              {hasPIN && (
+                <>
+                  <Button size="sm" variant="outline" className="gap-2" onClick={() => setPinMode("change")}>
+                    <KeyRound className="h-4 w-4" /> Change PIN
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2 text-red-600 hover:text-red-700 hover:border-red-300"
+                    onClick={() => setPinMode("remove")}
+                  >
+                    <LockOpen className="h-4 w-4" /> Remove PIN
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-2 text-slate-500"
+                    onClick={() => { lockAdminTools(); toast({ title: "Admin Tools locked — PIN required to re-enter" }); }}
+                  >
+                    <Lock className="h-4 w-4" /> Lock now
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
+          {(pinMode === "set" || pinMode === "change") && (
+            <div className="space-y-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                {pinMode === "change" ? "Change Admin PIN" : "Set Admin PIN"}
+              </p>
+
+              {hasPIN && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Current PIN</Label>
+                  <div className="relative">
+                    <Input
+                      type={showPins ? "text" : "password"}
+                      inputMode="numeric"
+                      placeholder="Enter current PIN"
+                      value={currentPin}
+                      onChange={e => setCurrentPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      onClick={() => setShowPins(p => !p)}
+                    >
+                      {showPins ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">New PIN <span className="text-slate-400">(4–8 digits)</span></Label>
+                <Input
+                  type={showPins ? "text" : "password"}
+                  inputMode="numeric"
+                  placeholder="e.g. 1234"
+                  value={newPin}
+                  onChange={e => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Confirm New PIN</Label>
+                <Input
+                  type={showPins ? "text" : "password"}
+                  inputMode="numeric"
+                  placeholder="Repeat PIN"
+                  value={confirmPin}
+                  onChange={e => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                  onKeyDown={e => { if (e.key === "Enter") handleSetPin(); }}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" onClick={handleSetPin} disabled={setPinMutation.isPending} className="gap-2">
+                  {setPinMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                  {setPinMutation.isPending ? "Saving…" : "Save PIN"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setPinMode("idle"); setCurrentPin(""); setNewPin(""); setConfirmPin(""); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {pinMode === "remove" && (
+            <div className="space-y-3 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+              <p className="text-sm font-medium text-red-700 dark:text-red-400">Remove Admin PIN</p>
+              <p className="text-xs text-red-600 dark:text-red-500">Admin Tools pages will be accessible to any logged-in user without a PIN.</p>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Current PIN to confirm</Label>
+                <Input
+                  type={showPins ? "text" : "password"}
+                  inputMode="numeric"
+                  placeholder="Enter your PIN"
+                  value={currentPin}
+                  onChange={e => setCurrentPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                  onKeyDown={e => { if (e.key === "Enter") handleRemovePin(); }}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleRemovePin}
+                  disabled={removePinMutation.isPending}
+                  className="gap-2"
+                >
+                  {removePinMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LockOpen className="h-4 w-4" />}
+                  {removePinMutation.isPending ? "Removing…" : "Remove PIN"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setPinMode("idle"); setCurrentPin(""); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {hasPIN && pinMode === "idle" && (
+            <p className="text-xs text-slate-400 flex items-center gap-1.5">
+              <Shield className="h-3 w-3" />
+              Session stays unlocked for 4 hours after a correct PIN is entered.
+            </p>
+          )}
         </CardContent>
       </Card>
 

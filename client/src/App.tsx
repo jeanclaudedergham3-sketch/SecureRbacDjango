@@ -26,6 +26,7 @@ import DatabaseImport from "@/pages/database-import";
 import DatabaseExport from "@/pages/database-export";
 import SystemSettings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
+import { AdminPinGuard } from "@/components/admin-pin-guard";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
@@ -91,10 +92,10 @@ function Router() {
       <Route path="/invoices" component={() => <ProtectedRoute component={Invoices} />} />
       <Route path="/financial-analysis" component={() => <ProtectedRoute component={FinancialAnalysis} />} />
       <Route path="/analytics" component={() => <ProtectedRoute component={Analytics} />} />
-      <Route path="/data-import" component={() => <ProtectedRoute component={DataImport} />} />
-      <Route path="/database-import" component={() => <ProtectedRoute component={DatabaseImport} />} />
-      <Route path="/database-export" component={() => <ProtectedRoute component={DatabaseExport} />} />
-      <Route path="/settings" component={() => <ProtectedRoute component={SystemSettings} />} />
+      <Route path="/data-import" component={() => <ProtectedRoute component={() => <AdminPinGuard><DataImport /></AdminPinGuard>} />} />
+      <Route path="/database-import" component={() => <ProtectedRoute component={() => <AdminPinGuard><DatabaseImport /></AdminPinGuard>} />} />
+      <Route path="/database-export" component={() => <ProtectedRoute component={() => <AdminPinGuard><DatabaseExport /></AdminPinGuard>} />} />
+      <Route path="/settings" component={() => <ProtectedRoute component={() => <AdminPinGuard><SystemSettings /></AdminPinGuard>} />} />
       <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
     </Switch>

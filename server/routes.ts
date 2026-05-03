@@ -124,6 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   `);
   await pool.query(`INSERT INTO system_settings (key, value) VALUES ('system_name', 'NOVIQ') ON CONFLICT DO NOTHING`);
   await pool.query(`INSERT INTO system_settings (key, value) VALUES ('logo_url', '') ON CONFLICT DO NOTHING`);
+  await pool.query(`INSERT INTO system_settings (key, value) VALUES ('admin_pin_hash', '') ON CONFLICT DO NOTHING`);
 
   // Trust Replit's reverse proxy so HTTPS cookies work correctly in production
   app.set('trust proxy', 1);
@@ -145,6 +146,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
   }));
+
+  // ── Admin PIN endpoints ────────────────────────────────────────────────────
+  app.get("/api/settings/admin-pin/status", async (_req, res) => {
+    try {
+      const r = await pool.query<{ value: string }>(`SELECT value FROM system_settings WHERE key = 'admin_pin_hash'`);
+      res.json({ hasPIN: (r.rows[0]?.value || '').length > 0 });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/settings/admin-pin/verify", requireAuth, async (req, res) => {
+    try {
+      const { pin } = req.body;
+      if (!pin) return res.status(400).json({ message: 'PIN required' });
+      const r = await pool.query<{ value: string }>(`SELECT value FROM system_settings WHERE key = 'admin_pin_hash'`);
+      const hash = r.rows[0]?.value || '';
+      if (!hash) return res.json({ success: true }); // no PIN set
+      const match = await bcrypt.compare(String(pin), hash);
+      if (match) res.json({ success: true });
+      else res.status(401).json({ message: 'Incorrect PIN' });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.patch("/api/settings/admin-pin", requireAuth, async (req, res) => {
+    try {
+      const { pin, currentPin } = req.body;
+      if (!pin) return res.status(400).json({ message: 'New PIN required' });
+      if (!/^\d{4,8}$/.test(String(pin))) return res.status(400).json({ message: 'PIN must be 4–8 digits' });
+      const r = await pool.query<{ value: string }>(`SELECT value FROM system_settings WHERE key = 'admin_pin_hash'`);
+      const existingHash = r.rows[0]?.value || '';
+      if (existingHash) {
+        if (!currentPin) return res.status(400).json({ message: 'Current PIN required' });
+        const match = await bcrypt.compare(String(currentPin), existingHash);
+        if (!match) return res.status(401).json({ message: 'Current PIN is incorrect' });
+      }
+      const hash = await bcrypt.hash(String(pin), 12);
+      await pool.query(`INSERT INTO system_settings (key, value) VALUES ('admin_pin_hash', $1) ON CONFLICT (key) DO UPDATE SET value = $1`, [hash]);
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/settings/admin-pin", requireAuth, async (req, res) => {
+    try {
+      const { currentPin } = req.body;
+      const r = await pool.query<{ value: string }>(`SELECT value FROM system_settings WHERE key = 'admin_pin_hash'`);
+      const existingHash = r.rows[0]?.value || '';
+      if (existingHash) {
+        if (!currentPin) return res.status(400).json({ message: 'Current PIN required' });
+        const match = await bcrypt.compare(String(currentPin), existingHash);
+        if (!match) return res.status(401).json({ message: 'Current PIN is incorrect' });
+      }
+      await pool.query(`INSERT INTO system_settings (key, value) VALUES ('admin_pin_hash', '') ON CONFLICT (key) DO UPDATE SET value = ''`);
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
   // ── System Settings endpoints (must be after session middleware) ────────────
   app.get("/api/settings/system", async (_req, res) => {
