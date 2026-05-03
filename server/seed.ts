@@ -6,15 +6,16 @@ export async function seedDatabase() {
   try {
     console.log("Starting database seed...");
 
-    // Check if already seeded
+    // Check if already seeded — check roles first (inserted before users).
+    // This prevents a crash if the app starts twice or the seed was partially run.
     try {
-      const existingUsers = await db.select().from(users);
-      if (existingUsers.length > 0) {
+      const existingRoles = await db.select().from(roles);
+      if (existingRoles.length > 0) {
         console.log("Database already seeded");
         return;
       }
     } catch (error) {
-      console.log("Users table doesn't exist yet, continuing with seed...");
+      console.log("Roles table doesn't exist yet, continuing with seed...");
     }
 
     // Create roles

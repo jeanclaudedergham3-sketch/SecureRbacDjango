@@ -302,13 +302,7 @@ CREATE TABLE IF NOT EXISTS "session" (
 CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
 SQL
 
-info "Seeding database with default admin user and roles..."
-NODE_ENV=production DATABASE_URL="$DATABASE_URL" node -e "
-import('$APP_DIR/dist/index.js').catch(() => {});
-" 2>/dev/null || true
-# Seed runs automatically on first boot via seedDatabase() in server/index.ts
-
-log "Database schema initialized"
+log "Database schema initialized — seed runs automatically on first app start"
 
 # =============================================================================
 #  SECTION 9 — PM2 PROCESS MANAGER
