@@ -125,7 +125,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await pool.query(`INSERT INTO system_settings (key, value) VALUES ('system_name', 'NOVIQ') ON CONFLICT DO NOTHING`);
   await pool.query(`INSERT INTO system_settings (key, value) VALUES ('logo_url', '') ON CONFLICT DO NOTHING`);
 
-  // ── System Settings endpoints ──────────────────────────────────────────────
+  // Trust Replit's reverse proxy so HTTPS cookies work correctly in production
+  app.set('trust proxy', 1);
+
+  // Session configuration
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (!sessionSecret && process.env.NODE_ENV === 'production') {
+    console.error('FATAL: SESSION_SECRET environment variable is not set in production. Refusing to start.');
+    process.exit(1);
+  }
+  app.use(session({
+    secret: sessionSecret || 'dev-only-secret-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+  }));
+
+  // ── System Settings endpoints (must be after session middleware) ────────────
   app.get("/api/settings/system", async (_req, res) => {
     try {
       const result = await pool.query<{ key: string; value: string }>(
@@ -169,7 +190,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/settings/logo", requireAuth, async (_req, res) => {
     try {
-      // Remove file if it exists
       const result = await pool.query<{ value: string }>(`SELECT value FROM system_settings WHERE key = 'logo_url'`);
       const oldUrl = result.rows[0]?.value;
       if (oldUrl && oldUrl.startsWith('/uploads/')) {
@@ -182,27 +202,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: err.message });
     }
   });
-
-  // Trust Replit's reverse proxy so HTTPS cookies work correctly in production
-  app.set('trust proxy', 1);
-
-  // Session configuration
-  const sessionSecret = process.env.SESSION_SECRET;
-  if (!sessionSecret && process.env.NODE_ENV === 'production') {
-    console.error('FATAL: SESSION_SECRET environment variable is not set in production. Refusing to start.');
-    process.exit(1);
-  }
-  app.use(session({
-    secret: sessionSecret || 'dev-only-secret-change-in-production',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-  }));
 
   // Auth routes
   app.post("/api/auth/login", async (req, res) => {
