@@ -3453,7 +3453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // ── 2. Sequences ──────────────────────────────────────────────────────
       const seqRes = await pool.query<{ sequence_name: string; start_value: string; increment: string; minimum_value: string; maximum_value: string }>(
-        `SELECT sequence_name, start_value, increment_by AS increment, minimum_value, maximum_value
+        `SELECT sequence_name, start_value, increment, minimum_value, maximum_value
          FROM information_schema.sequences WHERE sequence_schema = 'public'`
       );
       if (seqRes.rows.length) {
@@ -3666,6 +3666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.send(lines.join("\n"));
 
     } catch (err: any) {
+      console.error("[full-backup] ERROR:", err.message);
       res.status(500).json({ message: err.message });
     }
   });
