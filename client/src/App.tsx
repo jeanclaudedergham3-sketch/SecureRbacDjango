@@ -22,6 +22,7 @@ import Invoices from "@/pages/invoices";
 import FinancialAnalysis from "@/pages/financial-analysis";
 import Analytics from "@/pages/analytics";
 import DataImport from "@/pages/data-import";
+import DatabaseImport from "@/pages/database-import";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -89,6 +90,7 @@ function Router() {
       <Route path="/financial-analysis" component={() => <ProtectedRoute component={FinancialAnalysis} />} />
       <Route path="/analytics" component={() => <ProtectedRoute component={Analytics} />} />
       <Route path="/data-import" component={() => <ProtectedRoute component={DataImport} />} />
+      <Route path="/database-import" component={() => <ProtectedRoute component={DatabaseImport} />} />
       <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
     </Switch>

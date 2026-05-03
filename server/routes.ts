@@ -13,6 +13,7 @@ import bcrypt from "bcrypt";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import AdmZip from "adm-zip";
 
 declare module 'express-session' {
   interface SessionData {
@@ -2950,6 +2951,453 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ imported, skipped, failed, total: rows.length, results: importResults });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // DATABASE IMPORT — parse + execute
+  // ═══════════════════════════════════════════════════════
+
+  interface DbTableData {
+    columns: string[];
+    rows: Record<string, string>[];
+    rowCount: number;
+  }
+
+  function stripIdent(s: string): string {
+    return s.trim().replace(/^[`"[\s]+|[`"\]\s]+$/g, "");
+  }
+
+  function parseSqlTokenValues(raw: string): string[] {
+    const vals: string[] = [];
+    let i = 0;
+    while (i < raw.length) {
+      while (i < raw.length && /\s/.test(raw[i])) i++;
+      if (i >= raw.length) break;
+      if (raw[i] === "'" || raw[i] === '"') {
+        const q = raw[i++];
+        let v = "";
+        while (i < raw.length) {
+          if (raw[i] === "\\") { i++; v += raw[i] ?? ""; i++; }
+          else if (raw[i] === q && raw[i + 1] === q) { v += q; i += 2; }
+          else if (raw[i] === q) { i++; break; }
+          else v += raw[i++];
+        }
+        vals.push(v);
+      } else if (raw.slice(i, i + 4).toUpperCase() === "NULL") {
+        vals.push(""); i += 4;
+      } else {
+        let v = "";
+        while (i < raw.length && raw[i] !== ",") v += raw[i++];
+        vals.push(v.trim());
+        while (i < raw.length && /\s/.test(raw[i])) i++;
+        if (i < raw.length && raw[i] === ",") i++;
+        continue;
+      }
+      while (i < raw.length && /\s/.test(raw[i])) i++;
+      if (i < raw.length && raw[i] === ",") i++;
+    }
+    return vals;
+  }
+
+  function parseSqlDumpContent(content: string): Map<string, DbTableData> {
+    const tables = new Map<string, DbTableData>();
+
+    // Strip comments
+    let cleaned = "";
+    let i = 0;
+    while (i < content.length) {
+      if (content[i] === "-" && content[i + 1] === "-") {
+        while (i < content.length && content[i] !== "\n") i++;
+      } else if (content[i] === "/" && content[i + 1] === "*") {
+        i += 2;
+        while (i < content.length && !(content[i] === "*" && content[i + 1] === "/")) i++;
+        i += 2;
+      } else {
+        cleaned += content[i++];
+      }
+    }
+
+    // PostgreSQL COPY FROM stdin format
+    const copyRx = /COPY\s+(?:\w+\.)?(?:`|")?(\w+)(?:`|")?\s*\(([^)]+)\)\s*FROM\s+stdin[^;]*;([\s\S]*?)\\\./gi;
+    let m: RegExpExecArray | null;
+    while ((m = copyRx.exec(cleaned)) !== null) {
+      const name = m[1].toLowerCase();
+      const cols = m[2].split(",").map(stripIdent);
+      const rows: Record<string, string>[] = [];
+      for (const line of m[3].split("\n")) {
+        const t = line.trim();
+        if (!t) continue;
+        const vals = t.split("\t").map(v =>
+          v === "\\N" ? "" : v.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\\\/g, "\\")
+        );
+        const row: Record<string, string> = {};
+        cols.forEach((c, idx) => { row[c] = vals[idx] ?? ""; });
+        rows.push(row);
+      }
+      if (rows.length) {
+        const ex = tables.get(name);
+        if (ex) { ex.rows.push(...rows); ex.rowCount += rows.length; }
+        else tables.set(name, { columns: cols, rows, rowCount: rows.length });
+      }
+    }
+
+    // INSERT INTO format — char-by-char scanner
+    i = 0;
+    const IK = "INSERT INTO";
+    while (i < cleaned.length - IK.length) {
+      if (cleaned.slice(i, i + IK.length).toUpperCase() !== IK) { i++; continue; }
+      i += IK.length;
+      while (i < cleaned.length && /\s/.test(cleaned[i])) i++;
+
+      let tname = "";
+      if (cleaned[i] === "`" || cleaned[i] === '"') {
+        const q = cleaned[i++];
+        while (i < cleaned.length && cleaned[i] !== q) tname += cleaned[i++];
+        if (i < cleaned.length) i++;
+      } else {
+        while (i < cleaned.length && !/[\s(,;]/.test(cleaned[i])) tname += cleaned[i++];
+      }
+      if (tname.includes(".")) tname = tname.split(".").pop() || tname;
+      tname = tname.toLowerCase().replace(/[`"]/g, "");
+      if (!tname) continue;
+
+      while (i < cleaned.length && /\s/.test(cleaned[i])) i++;
+      if (i >= cleaned.length || cleaned[i] !== "(") continue;
+      i++;
+      let colStr = "";
+      while (i < cleaned.length && cleaned[i] !== ")") colStr += cleaned[i++];
+      if (i < cleaned.length) i++;
+      const columns = colStr.split(",").map(stripIdent);
+
+      while (i < cleaned.length && /\s/.test(cleaned[i])) i++;
+      if (cleaned.slice(i, i + 6).toUpperCase() !== "VALUES") continue;
+      i += 6;
+      while (i < cleaned.length && /\s/.test(cleaned[i])) i++;
+
+      const tableRows: Record<string, string>[] = [];
+      while (i < cleaned.length && cleaned[i] !== ";") {
+        while (i < cleaned.length && /[\s,]/.test(cleaned[i]) && cleaned[i] !== ";") i++;
+        if (i >= cleaned.length || cleaned[i] === ";") break;
+        if (cleaned[i] !== "(") { i++; continue; }
+        i++;
+        let rowStr = "";
+        let depth = 1, inStr = false, sc = "";
+        while (i < cleaned.length && depth > 0) {
+          const ch = cleaned[i];
+          if (inStr) {
+            if (ch === "\\") { rowStr += ch + (cleaned[i + 1] || ""); i += 2; continue; }
+            if (ch === sc && cleaned[i + 1] === sc) { rowStr += ch + ch; i += 2; continue; }
+            if (ch === sc) { inStr = false; rowStr += ch; i++; continue; }
+            rowStr += ch; i++;
+          } else {
+            if (ch === "'" || ch === '"') { inStr = true; sc = ch; rowStr += ch; i++; }
+            else if (ch === "(") { depth++; rowStr += ch; i++; }
+            else if (ch === ")") { depth--; if (depth > 0) rowStr += ch; i++; }
+            else { rowStr += ch; i++; }
+          }
+        }
+        const vals = parseSqlTokenValues(rowStr);
+        const row: Record<string, string> = {};
+        columns.forEach((col, idx) => { row[col] = vals[idx] ?? ""; });
+        tableRows.push(row);
+      }
+      if (tableRows.length) {
+        const ex = tables.get(tname);
+        if (ex) { ex.rows.push(...tableRows); ex.rowCount += tableRows.length; }
+        else tables.set(tname, { columns, rows: tableRows, rowCount: tableRows.length });
+      }
+    }
+    return tables;
+  }
+
+  function parseCsvLine(line: string): string[] {
+    const vals: string[] = [];
+    let i = 0;
+    while (i <= line.length) {
+      if (i >= line.length) { vals.push(""); break; }
+      if (line[i] === '"') {
+        i++;
+        let v = "";
+        while (i < line.length) {
+          if (line[i] === '"' && line[i + 1] === '"') { v += '"'; i += 2; }
+          else if (line[i] === '"') { i++; break; }
+          else v += line[i++];
+        }
+        vals.push(v);
+        while (i < line.length && line[i] !== ",") i++;
+        if (i < line.length) i++;
+      } else {
+        let v = "";
+        while (i < line.length && line[i] !== ",") v += line[i++];
+        vals.push(v);
+        if (i < line.length) i++;
+      }
+    }
+    return vals;
+  }
+
+  function parseCsvContent(content: string): { columns: string[]; rows: Record<string, string>[] } {
+    const lines = content.split(/\r?\n/).filter(l => l.trim());
+    if (!lines.length) return { columns: [], rows: [] };
+    const columns = parseCsvLine(lines[0]).map(c => c.trim());
+    const rows: Record<string, string>[] = [];
+    for (let idx = 1; idx < lines.length; idx++) {
+      const vals = parseCsvLine(lines[idx]);
+      const row: Record<string, string> = {};
+      columns.forEach((c, ci) => { row[c] = vals[ci] ?? ""; });
+      rows.push(row);
+    }
+    return { columns, rows };
+  }
+
+  function parseZipCsvs(buf: Buffer): Map<string, DbTableData> {
+    const tables = new Map<string, DbTableData>();
+    const zip = new AdmZip(buf);
+    for (const entry of zip.getEntries()) {
+      if (entry.isDirectory) continue;
+      const ext = entry.entryName.split(".").pop()?.toLowerCase();
+      if (ext !== "csv") continue;
+      const base = path.basename(entry.entryName, "." + ext).toLowerCase().replace(/[\s\-]+/g, "_");
+      const { columns, rows } = parseCsvContent(entry.getData().toString("utf8"));
+      if (columns.length) tables.set(base, { columns, rows, rowCount: rows.length });
+    }
+    return tables;
+  }
+
+  function parseJsonDump(content: string): Map<string, DbTableData> {
+    const tables = new Map<string, DbTableData>();
+    try {
+      const parsed = JSON.parse(content);
+      const toRow = (obj: Record<string, unknown>): Record<string, string> =>
+        Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, v == null ? "" : String(v)]));
+      if (Array.isArray(parsed) && parsed.length && typeof parsed[0] === "object") {
+        const rows = parsed.map(toRow);
+        tables.set("data", { columns: Object.keys(rows[0] || {}), rows, rowCount: rows.length });
+      } else if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        for (const [key, val] of Object.entries(parsed)) {
+          if (Array.isArray(val) && val.length && typeof val[0] === "object") {
+            const rows = (val as Record<string, unknown>[]).map(toRow);
+            tables.set(key.toLowerCase(), { columns: Object.keys(rows[0] || {}), rows, rowCount: rows.length });
+          }
+        }
+      }
+    } catch {}
+    return tables;
+  }
+
+  function guessNoviqField(col: string, target: "work_orders" | "technicians"): string | null {
+    const c = col.toLowerCase().replace(/[\s_\-\.]/g, "");
+    if (target === "work_orders") {
+      if (/^(title|subject|jobname|ordertitle|workordertitle|jobtitle|servicetitle)$/.test(c)) return "title";
+      if (/^(desc|description|notes|jobdesc|details|summary|jobdescription)$/.test(c)) return "description";
+      if (/^(priority|prioritylevel|urgency)$/.test(c)) return "priority";
+      if (/^(status|state|workstatus|jobstatus|orderstatus)$/.test(c)) return "status";
+      if (/^(category|type|jobtype|worktype|servicetype|service)$/.test(c)) return "category";
+      if (/^(location|address|site|jobsite|serviceaddress|sitelocation|siteaddress)$/.test(c)) return "location";
+      if (/^(clientname|customername|client|customer|accountname|storename|companyname)$/.test(c)) return "clientName";
+      if (/^(clientphone|customerphone|phone|telephone|phonenumber|contactphone)$/.test(c)) return "clientPhone";
+      if (/^(clientemail|customeremail|email|emailaddress|contactemail)$/.test(c)) return "clientEmail";
+      if (/^(country|countrycode|nation)$/.test(c)) return "country";
+      if (/^(city|cityname|town|municipality)$/.test(c)) return "city";
+      if (/^(street|streetaddress|address1|addressline1|streetname)$/.test(c)) return "street";
+      if (/^(zip|zipcode|postalcode|postcode|postal)$/.test(c)) return "zipCode";
+      if (/^(nte|nteamount|nottoexceed|maxcost|budgetlimit|budget)$/.test(c)) return "nte";
+      if (/^(scheduledate|scheduleddate|duedate|targetdate|appointmentdate|scheddate)$/.test(c)) return "scheduledDate";
+      if (/^(startdate|starttime|begindate|jobstart)$/.test(c)) return "startDate";
+      if (/^(enddate|endtime|closedate|completiondate|jobend)$/.test(c)) return "endDate";
+      if (/^(estimatedhours|esthours|estimatedtime|laborhours|manhours)$/.test(c)) return "estimatedHours";
+      if (/^(equipmenttype|equipment|asset|assettype|machinetype|assetname)$/.test(c)) return "equipmentType";
+      if (/^(problemdesc|problemdescription|problem|issue|faultdesc|symptom|fault)$/.test(c)) return "problemDescription";
+      if (/^(specialinstructions|specialnotes|instructions|specialreq)$/.test(c)) return "specialInstructions";
+      if (/^(clientworkordernumber|clientwon|externalwon|externalid|clientid|workordernumber|won|jobno|jobnumber|ordernumber|ponumber|po|ponum|workorder)$/.test(c)) return "clientWorkOrderNumber";
+    } else {
+      if (/^(firstname|fname|givenname|first)$/.test(c)) return "firstName";
+      if (/^(lastname|lname|surname|familyname|last)$/.test(c)) return "lastName";
+      if (/^(fullname|name|technicianname|workername|displayname)$/.test(c)) return "fullName";
+      if (/^(email|emailaddress|mail)$/.test(c)) return "email";
+      if (/^(phone|phonenumber|telephone|mobile|cell|cellphone|contact)$/.test(c)) return "phone";
+      if (/^(specialization|specialty|skill|trade|expertise|department|discipline)$/.test(c)) return "specialization";
+      if (/^(experience|yearsofexperience|years|expyears|yrs)$/.test(c)) return "experience";
+      if (/^(hourlyrate|rate|payrate|hourly|rateperhr|wagerate)$/.test(c)) return "hourlyRate";
+      if (/^(availability|available|availstatus)$/.test(c)) return "availability";
+      if (/^(location|city|area|region|territory|zone)$/.test(c)) return "location";
+      if (/^(paymentmethods|paymethod|paymentmethod)$/.test(c)) return "paymentMethods";
+    }
+    return null;
+  }
+
+  const dbUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+  app.post("/api/db-import/parse", requireAuth, requireAnyPermission(["technicians.create", "workorders.create"]),
+    dbUpload.single("file"), async (req, res) => {
+      try {
+        if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+        const name = req.file.originalname.toLowerCase();
+        const buf = req.file.buffer;
+        let tables: Map<string, DbTableData>;
+
+        if (name.endsWith(".sql")) tables = parseSqlDumpContent(buf.toString("utf8"));
+        else if (name.endsWith(".zip")) tables = parseZipCsvs(buf);
+        else if (name.endsWith(".json")) tables = parseJsonDump(buf.toString("utf8"));
+        else return res.status(400).json({ message: "Unsupported format. Please upload a .sql dump, .zip of CSV files, or .json export." });
+
+        if (!tables.size) return res.status(400).json({ message: "No data tables found in the uploaded file." });
+
+        const MAX_ROWS = 10000;
+        const result: Record<string, {
+          columns: string[];
+          rowCount: number;
+          sampleRows: Record<string, string>[];
+          allRows: Record<string, string>[];
+          truncated: boolean;
+        }> = {};
+
+        for (const [tname, data] of tables.entries()) {
+          result[tname] = {
+            columns: data.columns,
+            rowCount: data.rowCount,
+            sampleRows: data.rows.slice(0, 5),
+            allRows: data.rows.slice(0, MAX_ROWS),
+            truncated: data.rowCount > MAX_ROWS,
+          };
+        }
+        res.json({ tables: result, fileName: req.file.originalname });
+      } catch (err: any) {
+        res.status(500).json({ message: `Parse error: ${err.message}` });
+      }
+    }
+  );
+
+  app.post("/api/db-import/execute", requireAuth, requireAnyPermission(["technicians.create", "workorders.create"]), async (req, res) => {
+    try {
+      const { tables } = req.body as {
+        tables: Array<{
+          sourceName: string;
+          targetEntity: "work_orders" | "technicians";
+          columnMapping: Record<string, string>;
+          rows: Record<string, string>[];
+        }>;
+      };
+
+      if (!tables?.length) return res.status(400).json({ message: "No tables provided" });
+
+      const requestedBy = req.user.id;
+
+      const existingEmails = new Set(
+        (await storage.getAllTechnicians()).map(t => t.email.toLowerCase())
+      );
+      const existingWoNums = new Set(
+        (await storage.getAllWorkOrders())
+          .filter(w => w.clientWorkOrderNumber)
+          .map(w => w.clientWorkOrderNumber!.toLowerCase())
+      );
+
+      const summary: Array<{ table: string; imported: number; skipped: number; failed: number; errors: string[] }> = [];
+
+      for (const tableConfig of tables) {
+        const { sourceName, targetEntity, columnMapping, rows } = tableConfig;
+        let imported = 0, skipped = 0, failed = 0;
+        const errors: string[] = [];
+
+        for (const rawRow of rows) {
+          const mapped: Record<string, string> = {};
+          for (const [srcCol, noviqField] of Object.entries(columnMapping)) {
+            if (noviqField && rawRow[srcCol] !== undefined) mapped[noviqField] = rawRow[srcCol];
+          }
+
+          // Split fullName if needed
+          if (mapped.fullName && (!mapped.firstName || !mapped.lastName)) {
+            const parts = mapped.fullName.trim().split(/\s+/);
+            mapped.firstName = parts[0] || "";
+            mapped.lastName = parts.slice(1).join(" ") || parts[0] || "";
+            delete mapped.fullName;
+          }
+
+          try {
+            if (targetEntity === "technicians") {
+              if (!mapped.firstName?.trim() || !mapped.email?.trim()) { skipped++; continue; }
+              const email = mapped.email.trim().toLowerCase();
+              if (existingEmails.has(email)) { skipped++; continue; }
+              await storage.createTechnician({
+                firstName: mapped.firstName.trim(),
+                lastName: mapped.lastName?.trim() || "",
+                email,
+                phone: mapped.phone?.trim() || "",
+                specialization: mapped.specialization?.trim() || "General",
+                experience: parseInt(mapped.experience || "0") || 0,
+                hourlyRate: mapped.hourlyRate?.replace(/[^0-9.]/g, "") || "0",
+                availability: ["available", "busy", "offline"].includes((mapped.availability || "").toLowerCase()) ? mapped.availability.toLowerCase() : "available",
+                location: mapped.location?.trim() || "",
+                paymentMethods: mapped.paymentMethods?.trim() || "check",
+                bankAccount: mapped.bankAccount?.trim() || null,
+                routingNumber: mapped.routingNumber?.trim() || null,
+                bankName: mapped.bankName?.trim() || null,
+                paypalEmail: mapped.paypalEmail?.trim() || null,
+                venmoHandle: mapped.venmoHandle?.trim() || null,
+                cashappHandle: mapped.cashappHandle?.trim() || null,
+                zelleInfo: mapped.zelleInfo?.trim() || null,
+                mailingAddress: mapped.mailingAddress?.trim() || null,
+              });
+              existingEmails.add(email);
+              imported++;
+            } else {
+              if (!mapped.title?.trim()) { skipped++; continue; }
+              const clientWoNum = mapped.clientWorkOrderNumber?.trim() || null;
+              if (clientWoNum && existingWoNums.has(clientWoNum.toLowerCase())) { skipped++; continue; }
+              await storage.createWorkOrder({
+                title: mapped.title.trim(),
+                description: mapped.description?.trim() || mapped.title.trim(),
+                priority: ["low", "medium", "high", "urgent"].includes((mapped.priority || "").toLowerCase()) ? mapped.priority.toLowerCase() : "medium",
+                status: ["pending", "in_progress", "completed", "cancelled", "on_hold"].includes((mapped.status || "").toLowerCase()) ? mapped.status.toLowerCase() : "pending",
+                category: mapped.category?.trim() || "General",
+                location: mapped.location?.trim() || "",
+                requestedBy,
+                assignedTo: null,
+                technicianId: null,
+                clientName: mapped.clientName?.trim() || null,
+                clientPhone: mapped.clientPhone?.trim() || null,
+                clientEmail: mapped.clientEmail?.trim() || null,
+                country: mapped.country?.trim() || null,
+                city: mapped.city?.trim() || null,
+                street: mapped.street?.trim() || null,
+                zipCode: mapped.zipCode?.trim() || null,
+                nte: mapped.nte?.replace(/[^0-9.]/g, "") || null,
+                tnte: null,
+                estimatedHours: mapped.estimatedHours?.trim() || null,
+                actualHours: null,
+                scheduledDate: mapped.scheduledDate?.trim() || null,
+                startDate: mapped.startDate?.trim() || null,
+                endDate: mapped.endDate?.trim() || null,
+                completedDate: null,
+                urgency: null,
+                equipmentType: mapped.equipmentType?.trim() || null,
+                problemDescription: mapped.problemDescription?.trim() || null,
+                specialInstructions: mapped.specialInstructions?.trim() || null,
+                accessInstructions: null,
+                safetyRequirements: null,
+                assignedUserIds: null,
+                clientWorkOrderNumber: clientWoNum,
+                isLocked: false,
+              });
+              if (clientWoNum) existingWoNums.add(clientWoNum.toLowerCase());
+              imported++;
+            }
+          } catch (err: any) {
+            failed++;
+            if (errors.length < 5) errors.push(err.message);
+          }
+        }
+        summary.push({ table: sourceName, imported, skipped, failed, errors });
+      }
+
+      const totalImported = summary.reduce((s, t) => s + t.imported, 0);
+      const totalSkipped = summary.reduce((s, t) => s + t.skipped, 0);
+      const totalFailed = summary.reduce((s, t) => s + t.failed, 0);
+
+      res.json({ totalImported, totalSkipped, totalFailed, tables: summary });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
     }
   });
 
