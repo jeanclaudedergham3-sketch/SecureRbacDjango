@@ -47,11 +47,28 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
+      // Keep data fresh indefinitely — mutations invalidate explicitly
       staleTime: Infinity,
+      // Keep unused data in cache for 10 minutes before garbage collecting
+      gcTime: 10 * 60 * 1000,
       retry: false,
+      // Don't re-fetch on component remount if data exists
+      refetchOnMount: false,
     },
     mutations: {
       retry: false,
     },
   },
 });
+
+/**
+ * Prefetch a query key immediately (fire-and-forget).
+ * Call this on sidebar link hover to warm the cache before navigation.
+ */
+export function prefetch(queryKey: string) {
+  queryClient.prefetchQuery({
+    queryKey: [queryKey],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    staleTime: Infinity,
+  });
+}

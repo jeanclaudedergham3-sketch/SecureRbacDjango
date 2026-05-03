@@ -113,7 +113,12 @@ const uploadW9 = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Serve uploads directory as static (logos, W9s, work order files)
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  // Cache uploaded assets for 1 day (they are content-addressed by timestamp)
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true,
+  }));
 
   // Initialize system_settings table and seed defaults
   await pool.query(`
@@ -208,6 +213,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `SELECT key, value FROM system_settings WHERE key IN ('system_name', 'logo_url')`
       );
       const map = Object.fromEntries(result.rows.map(r => [r.key, r.value]));
+      // Cache for 5 minutes — system name/logo rarely changes
+      res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
       res.json({ systemName: map.system_name || 'NOVIQ', logoUrl: map.logo_url || '' });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -466,6 +473,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/roles", requireAuth, requirePermission("roles.list.view"), async (req, res) => {
     try {
       const roles = await storage.getAllRoles();
+      // Roles change infrequently — cache privately for 2 minutes
+      res.set("Cache-Control", "private, max-age=120, stale-while-revalidate=30");
       res.json(roles);
     } catch (error) {
       res.status(500).json({ message: "Failed to get roles" });
@@ -504,6 +513,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/permissions", requireAuth, requirePermission("permissions.view"), async (req, res) => {
     try {
       const permissions = await storage.getAllPermissions();
+      // Permissions are essentially static — cache privately for 10 minutes
+      res.set("Cache-Control", "private, max-age=600, stale-while-revalidate=60");
       res.json(permissions);
     } catch (error) {
       res.status(500).json({ message: "Failed to get permissions" });

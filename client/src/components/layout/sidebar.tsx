@@ -10,6 +10,24 @@ import { useState } from "react";
 import { useSystemSettings } from "@/contexts/system-settings";
 import { useLanguage } from "@/contexts/language";
 import { useTranslation } from "react-i18next";
+import { prefetch } from "@/lib/queryClient";
+
+// Map route paths → API endpoints to warm on hover
+const PREFETCH_MAP: Record<string, string[]> = {
+  "/dashboard":           ["/api/users", "/api/work-orders"],
+  "/users":               ["/api/users", "/api/roles"],
+  "/roles":               ["/api/roles", "/api/permissions"],
+  "/technicians":         ["/api/technicians"],
+  "/technician-map":      ["/api/technicians"],
+  "/work-orders":         ["/api/work-orders"],
+  "/proposals":           ["/api/proposals", "/api/work-orders"],
+  "/parts-requests":      ["/api/parts-requests"],
+  "/payment-manager":     ["/api/payment-requests"],
+  "/technician-payments": ["/api/technicians"],
+  "/invoices":            ["/api/invoices/all"],
+  "/analytics":           [],
+  "/financial-analysis":  [],
+};
 
 interface SidebarProps {
   isOpen: boolean;
@@ -248,6 +266,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                                   : "text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/50 hover:to-slate-600/50 hover:text-white hover:shadow-md backdrop-blur-sm border border-transparent hover:border-slate-500/30"
                               )}
                               onClick={onClose}
+                              onMouseEnter={() => {
+                                (PREFETCH_MAP[item.href] ?? []).forEach(prefetch);
+                              }}
                             >
                               <Icon className="h-4 w-4 flex-shrink-0" />
                               <span className={cn(

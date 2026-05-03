@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./seed";
@@ -7,9 +8,24 @@ import { seedDatabase } from "./seed";
 seedDatabase();
 
 const app = express();
+
+// ── Gzip / Brotli compression ─────────────────────────────────────────────
+// Compress all responses over 1 KB. Reduces payload sizes by ~70%.
+app.use(compression({
+  level: 6,           // balanced speed/ratio (1=fastest, 9=smallest)
+  threshold: 1024,    // only compress responses ≥ 1 KB
+  filter: (req, res) => {
+    // Don't compress image uploads or already-compressed files
+    const ct = res.getHeader("Content-Type") as string | undefined;
+    if (ct && /image\/(png|jpg|jpeg|gif|webp|svg)/.test(ct)) return false;
+    return compression.filter(req, res);
+  },
+}));
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 
+// ── Request timing logger (API only) ─────────────────────────────────────
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -17,7 +33,6 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      // Do NOT log response bodies — they may contain sensitive user data (passwords, emails, SSNs)
       const logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       log(logLine);
     }
@@ -32,23 +47,16 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = 5000;
   server.listen({
     port,
