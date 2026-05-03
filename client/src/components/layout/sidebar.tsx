@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp, Upload, Database } from "lucide-react";
+import { Shield, BarChart3, Users, UserCheck, Settings, Cog, LogOut, X, Map, ClipboardList, FileText, Package, DollarSign, TrendingUp, Upload, Database, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -62,6 +62,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       items: [
         { name: "Data Import (CSV)", href: "/data-import", icon: Upload, permission: "sidebar.user_management" },
         { name: "Database Import", href: "/database-import", icon: Database, permission: "sidebar.user_management" },
+        { name: "Database Export", href: "/database-export", icon: Download, permission: "sidebar.user_management" },
       ]
     }
   ];

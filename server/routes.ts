@@ -4,6 +4,7 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import OpenAI from "openai";
 import { storage } from "./storage";
+import { pool } from "./db";
 import { requireAuth } from "./middleware/auth";
 import { requirePermission, requireAnyPermission } from "./middleware/rbac";
 import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, loginSchema } from "@shared/schema";
@@ -3396,6 +3397,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalFailed = summary.reduce((s, t) => s + t.failed, 0);
 
       res.json({ totalImported, totalSkipped, totalFailed, tables: summary });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // DATABASE EXPORT ENDPOINTS
+  // ═══════════════════════════════════════════════════════
+
+  const EXPORT_TABLES = [
+    { name: "technicians",                   label: "Technicians",           group: "core",   sensitive: [] as string[] },
+    { name: "work_orders",                   label: "Work Orders",           group: "core",   sensitive: [] as string[] },
+    { name: "work_order_proposals",          label: "Proposals",             group: "core",   sensitive: [] as string[] },
+    { name: "work_order_parts_requests",     label: "Parts Requests",        group: "core",   sensitive: [] as string[] },
+    { name: "work_order_invoices",           label: "Invoices",              group: "core",   sensitive: [] as string[] },
+    { name: "work_order_technician_payments",label: "Technician Payments",   group: "core",   sensitive: [] as string[] },
+    { name: "technician_ratings",            label: "Technician Ratings",    group: "core",   sensitive: [] as string[] },
+    { name: "users",                         label: "Users",                 group: "system", sensitive: ["password"] },
+    { name: "roles",                         label: "Roles",                 group: "system", sensitive: [] as string[] },
+    { name: "permissions",                   label: "Permissions",           group: "system", sensitive: [] as string[] },
+    { name: "user_roles",                    label: "User–Role Assignments", group: "system", sensitive: [] as string[] },
+    { name: "role_permissions",              label: "Role Permissions",      group: "system", sensitive: [] as string[] },
+    { name: "notifications",                 label: "Notifications",         group: "system", sensitive: [] as string[] },
+  ];
+
+  function sqlEscapeValue(val: unknown): string {
+    if (val === null || val === undefined) return "NULL";
+    if (typeof val === "boolean") return val ? "TRUE" : "FALSE";
+    if (typeof val === "number") return String(val);
+    if (val instanceof Date) return `'${val.toISOString()}'`;
+    return `'${String(val).replace(/\\/g, "\\\\").replace(/'/g, "''")}'`;
+  }
+
+  function csvEscapeValue(val: unknown): string {
+    if (val === null || val === undefined) return "";
+    const s = String(val);
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
+  // GET /api/db-export/stats — row counts for every exportable table
+  app.get("/api/db-export/stats", requireAuth, requireAnyPermission(["technicians.create", "workorders.create"]), async (_req, res) => {
+    try {
+      const counts = await Promise.all(
+        EXPORT_TABLES.map(async t => {
+          try {
+            const r = await pool.query(`SELECT COUNT(*) AS count FROM ${t.name}`);
+            return { name: t.name, label: t.label, group: t.group, rowCount: parseInt(r.rows[0].count), hasSensitive: t.sensitive.length > 0 };
+          } catch {
+            return { name: t.name, label: t.label, group: t.group, rowCount: 0, hasSensitive: t.sensitive.length > 0 };
+          }
+        })
+      );
+      res.json({ tables: counts });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // POST /api/db-export/download — stream the export file
+  app.post("/api/db-export/download", requireAuth, requireAnyPermission(["technicians.create", "workorders.create"]), async (req, res) => {
+    try {
+      const { format, tables: requested } = req.body as { format: "sql" | "csv" | "json"; tables: string[] };
+      if (!["sql", "csv", "json"].includes(format)) return res.status(400).json({ message: "Invalid format" });
+
+      const validNames = new Set(EXPORT_TABLES.map(t => t.name));
+      const toExport = (requested || []).filter(n => validNames.has(n));
+      if (!toExport.length) return res.status(400).json({ message: "No valid tables selected" });
+
+      const stamp = new Date().toISOString().slice(0, 10);
+
+      // Fetch rows for each table
+      type TablePayload = { meta: typeof EXPORT_TABLES[0]; columns: string[]; rows: Record<string, unknown>[] };
+      const payloads: TablePayload[] = [];
+      for (const tname of toExport) {
+        const meta = EXPORT_TABLES.find(t => t.name === tname)!;
+        const result = await pool.query(`SELECT * FROM ${tname} ORDER BY id`);
+        let columns = result.fields.map(f => f.name);
+        let rows = result.rows as Record<string, unknown>[];
+        if (meta.sensitive.length) {
+          const sens = new Set(meta.sensitive);
+          columns = columns.filter(c => !sens.has(c));
+          rows = rows.map(r => Object.fromEntries(Object.entries(r).filter(([k]) => !sens.has(k))));
+        }
+        payloads.push({ meta, columns, rows });
+      }
+
+      // ── JSON ──────────────────────────────────────────────
+      if (format === "json") {
+        const out: Record<string, unknown[]> = {};
+        for (const { meta, rows } of payloads) out[meta.name] = rows;
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Content-Disposition", `attachment; filename="noviq-export-${stamp}.json"`);
+        return res.json(out);
+      }
+
+      // ── SQL ───────────────────────────────────────────────
+      if (format === "sql") {
+        const lines: string[] = [
+          `-- NOVIQ Database Export`,
+          `-- Generated: ${new Date().toISOString()}`,
+          `-- Tables: ${toExport.join(", ")}`,
+          "",
+        ];
+        for (const { meta, columns, rows } of payloads) {
+          lines.push(`-- ── ${meta.label} (${rows.length.toLocaleString()} rows) ──`);
+          if (!rows.length) { lines.push(""); continue; }
+          const colList = columns.map(c => `"${c}"`).join(", ");
+          for (let i = 0; i < rows.length; i += 500) {
+            const batch = rows.slice(i, i + 500);
+            const vals = batch.map(r => `(${columns.map(c => sqlEscapeValue(r[c])).join(", ")})`).join(",\n  ");
+            lines.push(`INSERT INTO ${meta.name} (${colList}) VALUES`);
+            lines.push(`  ${vals};`);
+          }
+          lines.push("");
+        }
+        res.setHeader("Content-Type", "text/plain");
+        res.setHeader("Content-Disposition", `attachment; filename="noviq-export-${stamp}.sql"`);
+        return res.send(lines.join("\n"));
+      }
+
+      // ── CSV ZIP ───────────────────────────────────────────
+      const zip = new AdmZip();
+      for (const { meta, columns, rows } of payloads) {
+        const csvLines = [
+          columns.join(","),
+          ...rows.map(r => columns.map(c => csvEscapeValue(r[c])).join(",")),
+        ];
+        zip.addFile(`${meta.name}.csv`, Buffer.from(csvLines.join("\n"), "utf8"));
+      }
+      const manifest = [
+        `NOVIQ Database Export`,
+        `Generated: ${new Date().toISOString()}`,
+        ``,
+        ...payloads.map(({ meta, rows }) => `${meta.name.padEnd(36)} ${rows.length.toLocaleString()} rows`),
+      ].join("\n");
+      zip.addFile("_manifest.txt", Buffer.from(manifest, "utf8"));
+
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", `attachment; filename="noviq-export-${stamp}.zip"`);
+      return res.send(zip.toBuffer());
+
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
