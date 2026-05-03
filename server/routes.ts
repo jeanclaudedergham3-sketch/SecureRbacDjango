@@ -3429,7 +3429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  app.post("/api/db-export/full-backup", requireAuth, requirePermission("users.manage"), async (_req, res) => {
+  app.post("/api/db-export/full-backup", requireAuth, requireAnyPermission(["technicians.create", "workorders.create"]), async (_req, res) => {
     try {
       const lines: string[] = [];
       const stamp = new Date().toISOString();
