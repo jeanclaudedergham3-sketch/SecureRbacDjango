@@ -15,10 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Edit, Trash2, Receipt, Search, Filter, Lock, Download } from "lucide-react";
+import { Edit, Trash2, Receipt, Search, Filter, Lock, Download, Printer } from "lucide-react";
 import { exportToCSV } from "@/lib/export";
 import { CreateInvoiceModal } from "@/components/modals/create-invoice-modal";
 import { PageGuard, ButtonGuard } from "@/components/rbac/advanced-permission-guard";
+import { printInvoice } from "@/lib/print-utils";
+import { useSystemSettings } from "@/contexts/system-settings";
 import type { WorkOrderInvoice, WorkOrder } from "@shared/schema";
 
 interface InvoiceWithWorkOrder extends WorkOrderInvoice {
@@ -34,6 +36,7 @@ export default function Invoices() {
   const [editingInvoice, setEditingInvoice] = useState<InvoiceWithWorkOrder | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { systemName, logoUrl } = useSystemSettings();
 
   // Fetch all invoices with work order details
   const { data: invoices = [], isLoading } = useQuery<InvoiceWithWorkOrder[]>({
@@ -390,6 +393,14 @@ export default function Invoices() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            title="Print / Save as PDF"
+                            onClick={() => printInvoice({ systemName, logoUrl, invoice })}
+                          >
+                            <Printer className="h-4 w-4" />
+                          </Button>
                           <ButtonGuard permission="invoices.edit">
                             <Button
                               variant="outline"

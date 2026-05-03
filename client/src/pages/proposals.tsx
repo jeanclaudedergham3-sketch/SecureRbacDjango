@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Eye, CheckCircle, XCircle, Clock, Filter, FileText, Plus, User, MapPin, Calendar, DollarSign, AlertCircle, Info, Users, Building, Wrench } from "lucide-react";
+import { Search, Eye, CheckCircle, XCircle, Clock, Filter, FileText, Plus, User, MapPin, Calendar, DollarSign, AlertCircle, Info, Users, Building, Wrench, Printer } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,12 +13,15 @@ import { AdvancedPermissionGuard, PageGuard } from "@/components/rbac/advanced-p
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { printProposal } from "@/lib/print-utils";
+import { useSystemSettings } from "@/contexts/system-settings";
 import type { WorkOrderWithUsers, WorkOrderProposal } from "@shared/schema";
 
 export default function Proposals() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { systemName, logoUrl } = useSystemSettings();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -543,6 +546,22 @@ export default function Proposals() {
                               </AdvancedPermissionGuard>
                             </div>
                           )}
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 gap-1.5"
+                              onClick={() => printProposal({
+                                systemName,
+                                logoUrl,
+                                proposal,
+                                workOrder: proposal.workOrder,
+                              })}
+                            >
+                              <Printer className="h-4 w-4" />
+                              Print / PDF
+                            </Button>
+                          </div>
 
                           <div className="flex gap-2 pt-2">
                             <Button
