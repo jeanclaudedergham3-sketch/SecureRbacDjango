@@ -24,6 +24,22 @@ export const requirePermission = (permissionName: string) => {
   };
 };
 
+export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  try {
+    const userPermissions = await storage.getUserPermissions(req.user.id);
+    const isAdmin = userPermissions.some(perm => perm.name === "system.admin");
+    if (!isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    next();
+  } catch (error) {
+    res.status(500).json({ message: "Permission check error" });
+  }
+};
+
 export const requireAnyPermission = (permissionNames: string[]) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {

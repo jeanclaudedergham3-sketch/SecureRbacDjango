@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 
-type DataType = "technicians" | "work-orders";
+type DataType = "technicians" | "work-orders" | "payments" | "invoices";
 
 interface FieldSuggestion {
   noviqField: string | null;
@@ -169,12 +169,13 @@ export default function DataImport() {
     onSuccess: (data) => {
       setConfirmResult(data);
       setStep(4);
-      // Invalidate cache so the relevant list page shows fresh data immediately
       queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });
       queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
-    onError: () => toast({ title: "Import failed", variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Import failed", description: e.message, variant: "destructive" }),
   });
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -339,6 +340,8 @@ export default function DataImport() {
               {[
                 { type: "technicians" as DataType, title: "Technicians", desc: "Import your technician roster — names, contact info, specializations, rates, and payment details.", icon: "👷" },
                 { type: "work-orders" as DataType, title: "Work Orders", desc: "Import historical work orders — status, client info, dates, NTE, and location data.", icon: "📋" },
+                { type: "payments" as DataType, title: "Technician Payments", desc: "Import payment records for technicians — amounts requested, approved, paid, and linked work orders.", icon: "💳" },
+                { type: "invoices" as DataType, title: "Invoices", desc: "Import work order invoices — labor, material, tax, and total amounts linked to existing work orders.", icon: "🧾" },
               ].map(opt => (
                 <button
                   key={opt.type}
@@ -672,7 +675,9 @@ export default function DataImport() {
                       <div className="col-span-1">#</div>
                       <div className="col-span-1">Status</div>
                       <div className="col-span-2">Confidence</div>
-                      <div className="col-span-3">{dataType === "technicians" ? "Name / Email" : "Title / WO#"}</div>
+                      <div className="col-span-3">
+                        {dataType === "technicians" ? "Name / Email" : dataType === "work-orders" ? "Title / WO#" : dataType === "payments" ? "WO# / Tech Email" : "Invoice# / WO#"}
+                      </div>
                       <div className="col-span-4">Issues / Notes</div>
                     </div>
                     {filteredRows.length === 0 && (
@@ -709,10 +714,20 @@ export default function DataImport() {
                               </p>
                               <p className="text-xs text-gray-400 truncate">{row.mappedRow.email || ""}</p>
                             </>
-                          ) : (
+                          ) : dataType === "work-orders" ? (
                             <>
                               <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{row.mappedRow.title || "—"}</p>
                               <p className="text-xs text-gray-400 truncate">{row.mappedRow.clientWorkOrderNumber ? `WO# ${row.mappedRow.clientWorkOrderNumber}` : ""}</p>
+                            </>
+                          ) : dataType === "payments" ? (
+                            <>
+                              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{row.mappedRow.workOrderNumber || "—"}</p>
+                              <p className="text-xs text-gray-400 truncate">{row.mappedRow.technicianEmail || ""}</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{row.mappedRow.invoiceNumber || "—"}</p>
+                              <p className="text-xs text-gray-400 truncate">{row.mappedRow.workOrderNumber ? `WO# ${row.mappedRow.workOrderNumber}` : ""}</p>
                             </>
                           )}
                         </div>
@@ -812,14 +827,18 @@ export default function DataImport() {
             {confirmResult.imported > 0 && (
               <div className="text-center p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
                 <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">
-                  {confirmResult.imported} {dataType === "technicians" ? "technician" : "work order"}{confirmResult.imported !== 1 ? "s" : ""} added to your database
+                  {confirmResult.imported}{" "}
+                  {dataType === "technicians" ? "technician" : dataType === "work-orders" ? "work order" : dataType === "payments" ? "payment record" : "invoice"}
+                  {confirmResult.imported !== 1 ? "s" : ""} added to your database
                 </p>
-                <a
-                  href={dataType === "technicians" ? "/technicians" : "/work-orders"}
-                  className="inline-flex items-center gap-2 mt-2 text-sm text-emerald-600 dark:text-emerald-400 underline underline-offset-2 hover:text-emerald-800 font-medium"
-                >
-                  View {dataType === "technicians" ? "Technician List" : "Work Orders"} →
-                </a>
+                {(dataType === "technicians" || dataType === "work-orders") && (
+                  <a
+                    href={dataType === "technicians" ? "/technicians" : "/work-orders"}
+                    className="inline-flex items-center gap-2 mt-2 text-sm text-emerald-600 dark:text-emerald-400 underline underline-offset-2 hover:text-emerald-800 font-medium"
+                  >
+                    View {dataType === "technicians" ? "Technician List" : "Work Orders"} →
+                  </a>
+                )}
               </div>
             )}
             {confirmResult.imported === 0 && (
@@ -870,11 +889,11 @@ export default function DataImport() {
               <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700">
                 <ShieldAlert className="h-4 w-4 text-amber-600" />
                 <AlertDescription className="text-amber-800 dark:text-amber-300 text-sm">
-                  <strong>Advanced users only.</strong> Paste or upload PostgreSQL <code className="font-mono bg-amber-100 dark:bg-amber-900/40 px-1 rounded">INSERT INTO</code> statements exported from your old system.
-                  Statements are executed inside a single transaction — if any statement fails, the <strong>entire batch is rolled back automatically</strong>.
+                  <strong>Admin-only. Append-only.</strong> Paste or upload PostgreSQL <code className="font-mono bg-amber-100 dark:bg-amber-900/40 px-1 rounded">INSERT INTO</code> statements exported from your old system.
+                  All statements run inside a single transaction — if any fails, the <strong>entire batch is rolled back automatically</strong>.
                   <br /><span className="mt-1 block text-xs text-amber-700 dark:text-amber-400">
-                    Allowed: <code className="font-mono">INSERT</code>, <code className="font-mono">COPY</code>, <code className="font-mono">UPDATE</code> &nbsp;·&nbsp;
-                    Blocked: <code className="font-mono">DROP</code>, <code className="font-mono">DELETE</code>, <code className="font-mono">TRUNCATE</code>, <code className="font-mono">ALTER</code>
+                    Allowed: <code className="font-mono">INSERT</code> only &nbsp;·&nbsp;
+                    Blocked: <code className="font-mono">UPDATE</code>, <code className="font-mono">DELETE</code>, <code className="font-mono">DROP</code>, <code className="font-mono">TRUNCATE</code>, <code className="font-mono">ALTER</code>, <code className="font-mono">COPY</code>
                   </span>
                 </AlertDescription>
               </Alert>

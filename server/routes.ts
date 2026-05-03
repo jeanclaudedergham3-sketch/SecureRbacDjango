@@ -6,7 +6,7 @@ import OpenAI from "openai";
 import { storage } from "./storage";
 import { pool } from "./db";
 import { requireAuth } from "./middleware/auth";
-import { requirePermission, requireAnyPermission } from "./middleware/rbac";
+import { requirePermission, requireAnyPermission, requireAdmin } from "./middleware/rbac";
 import { insertUserSchema, insertTechnicianSchema, insertRatingSchema, insertWorkOrderSchema, insertWorkOrderProposalSchema, insertWorkOrderPartsRequestSchema, insertWorkOrderFileSchema, insertWorkOrderChatSchema, insertWorkOrderTechnicianPaymentSchema, loginSchema } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -2450,7 +2450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Heuristic AI field mapping: accepts column names, returns best NOVIQ field matches
   app.post("/api/import/analyze-columns", requireAuth, requireAnyPermission(["technicians.create", "workorders.create"]), async (req, res) => {
     try {
-      const { columns, dataType } = req.body as { columns: string[]; dataType: "technicians" | "work-orders" };
+      const { columns, dataType } = req.body as { columns: string[]; dataType: "technicians" | "work-orders" | "payments" | "invoices" };
 
       // Check cache first (keyed by sorted column list + dataType)
       const cacheKey = `${dataType}::${[...columns].sort().join(",")}`;
@@ -2509,7 +2509,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         technicianEmail:        { aliases: ["technician_email","tech_email","assigned_tech_email","worker_email","assignee_email","tech"], required: false, label: "Technician Email (for linking)" },
       };
 
-      const fieldDefs = dataType === "technicians" ? technicianFields : workOrderFields;
+      const paymentFields: Record<string, { aliases: string[]; required: boolean; label: string; transform?: string }> = {
+        workOrderNumber:  { aliases: ["work_order_number","wo_number","order_number","job_number","wo_id","external_id","ref_number"], required: true, label: "Work Order Number" },
+        technicianEmail:  { aliases: ["technician_email","tech_email","assignee_email","worker_email","email"], required: true, label: "Technician Email" },
+        paymentMethod:    { aliases: ["payment_method","payment","method","pay_method","pay_type"], required: true, label: "Payment Method" },
+        amountRequested:  { aliases: ["amount_requested","amount","requested_amount","total","pay_amount","cost","charge"], required: true, label: "Amount Requested ($)" },
+        amountApproved:   { aliases: ["amount_approved","approved_amount","approved"], required: false, label: "Amount Approved ($)" },
+        amountPaid:       { aliases: ["amount_paid","paid_amount","paid"], required: false, label: "Amount Paid ($)" },
+        status:           { aliases: ["status","payment_status","state","pay_status"], required: false, label: "Status (pending/approved/paid/rejected)" },
+        description:      { aliases: ["description","notes","memo","note","detail"], required: false, label: "Description" },
+      };
+
+      const invoiceFields: Record<string, { aliases: string[]; required: boolean; label: string; transform?: string }> = {
+        workOrderNumber:  { aliases: ["work_order_number","wo_number","order_number","job_number","wo_id","external_id","ref_number"], required: true, label: "Work Order Number" },
+        invoiceNumber:    { aliases: ["invoice_number","invoice_no","inv_number","invoice_id","inv_no","invoice"], required: true, label: "Invoice Number (must be unique)" },
+        laborCost:        { aliases: ["labor_cost","labour_cost","labor","labour","labor_amount"], required: true, label: "Labor Cost ($)" },
+        materialCost:     { aliases: ["material_cost","materials","parts_cost","material","materials_amount"], required: true, label: "Material Cost ($)" },
+        additionalCosts:  { aliases: ["additional_costs","additional","other_costs","extra","misc_costs"], required: false, label: "Additional Costs ($)" },
+        taxRate:          { aliases: ["tax_rate","tax","vat_rate","gst_rate","tax_percent"], required: false, label: "Tax Rate (e.g. 0.1 = 10%)" },
+        notes:            { aliases: ["notes","memo","description","note","comments"], required: false, label: "Notes" },
+        status:           { aliases: ["status","invoice_status","state","inv_status"], required: false, label: "Status (draft/pending_approval/approved/sent/paid)" },
+      };
+
+      const fieldDefs = dataType === "technicians" ? technicianFields
+        : dataType === "payments" ? paymentFields
+        : dataType === "invoices" ? invoiceFields
+        : workOrderFields;
 
       // Normalize a string for comparison
       const normalize = (s: string) => s.toLowerCase().replace(/[\s\-\.\/]/g, "_").replace(/[^a-z0-9_]/g, "");
@@ -2630,7 +2655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { rows, fieldMapping, dataType } = req.body as {
         rows: Record<string, string>[];
         fieldMapping: Record<string, string | null>; // oldColumn -> noviqField
-        dataType: "technicians" | "work-orders";
+        dataType: "technicians" | "work-orders" | "payments" | "invoices";
       };
 
       if (!Array.isArray(rows) || rows.length === 0) {
@@ -2729,13 +2754,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get existing emails/WO numbers for duplicate checking
       let existingEmails = new Set<string>();
       let existingWoNumbers = new Set<string>();
-      // For work-order cross-reference: collect technician emails in this import batch
       let existingTechEmails = new Set<string>();
+      let existingInvoiceNumbers = new Set<string>();
       try {
         if (dataType === "technicians") {
           const techs = await storage.getAllTechnicians();
           techs.forEach(t => existingEmails.add(t.email.toLowerCase()));
-        } else {
+        } else if (dataType === "work-orders") {
           const [orders, techs] = await Promise.all([
             storage.getAllWorkOrders(),
             storage.getAllTechnicians(),
@@ -2745,6 +2770,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             existingWoNumbers.add(o.workOrderNumber.toLowerCase());
           });
           techs.forEach(t => existingTechEmails.add(t.email.toLowerCase()));
+        } else {
+          // payments or invoices: need work order numbers and technician emails
+          const [orders, techs] = await Promise.all([
+            storage.getAllWorkOrders(),
+            storage.getAllTechnicians(),
+          ]);
+          orders.forEach(o => {
+            if (o.clientWorkOrderNumber) existingWoNumbers.add(o.clientWorkOrderNumber.toLowerCase());
+            existingWoNumbers.add(o.workOrderNumber.toLowerCase());
+          });
+          techs.forEach(t => existingTechEmails.add(t.email.toLowerCase()));
+          if (dataType === "invoices") {
+            const { rows: invRows } = await pool.query("SELECT invoice_number FROM work_order_invoices");
+            invRows.forEach((r: any) => existingInvoiceNumbers.add(String(r.invoice_number).toLowerCase()));
+          }
         }
       } catch (e) { /* non-fatal */ }
 
@@ -2803,7 +2843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!mappedRow.experience) mappedRow.experience = "0";
           if (!mappedRow.hourlyRate) mappedRow.hourlyRate = "0";
 
-        } else {
+        } else if (dataType === "work-orders") {
           // Work orders
           if (!mappedRow.title?.trim()) { issues.push("Missing title"); confidence -= 30; }
           if (!mappedRow.description?.trim()) { warnings.push("Missing description — will use title"); confidence -= 10; }
@@ -2890,6 +2930,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Defaults
           if (!mappedRow.category) mappedRow.category = "General";
           if (!mappedRow.description) mappedRow.description = mappedRow.title || "";
+
+        } else if (dataType === "payments") {
+          // Required fields
+          if (!mappedRow.workOrderNumber?.trim()) { issues.push("Missing work order number"); confidence -= 30; }
+          else if (existingWoNumbers.size > 0 && !existingWoNumbers.has(mappedRow.workOrderNumber.trim().toLowerCase())) {
+            warnings.push(`Work order "${mappedRow.workOrderNumber}" not found in NOVIQ`); confidence -= 20;
+          }
+          if (!mappedRow.technicianEmail?.trim()) { issues.push("Missing technician email"); confidence -= 25; }
+          else if (existingTechEmails.size > 0 && !existingTechEmails.has(mappedRow.technicianEmail.trim().toLowerCase())) {
+            warnings.push(`Technician email "${mappedRow.technicianEmail}" not found in NOVIQ`); confidence -= 20;
+          }
+          if (!mappedRow.paymentMethod?.trim()) { issues.push("Missing payment method"); confidence -= 20; }
+          if (!mappedRow.amountRequested?.trim()) { issues.push("Missing amount requested"); confidence -= 25; }
+          else {
+            const amt = parseFloat(mappedRow.amountRequested.replace(/[^0-9.]/g, ""));
+            if (isNaN(amt) || amt < 0) { issues.push("Amount requested must be a positive number"); confidence -= 20; }
+          }
+          const validPayStatuses = new Set(["pending","approved","paid","rejected"]);
+          if (mappedRow.status && !validPayStatuses.has(mappedRow.status.toLowerCase())) {
+            warnings.push(`Unknown status "${mappedRow.status}" — will default to "pending"`); confidence -= 5;
+          }
+          if (!mappedRow.status) mappedRow.status = "pending";
+          if (!mappedRow.amountApproved) mappedRow.amountApproved = "0";
+          if (!mappedRow.amountPaid) mappedRow.amountPaid = "0";
+
+        } else if (dataType === "invoices") {
+          // Required fields
+          const invWoNum = mappedRow.workOrderNumber?.trim();
+          if (!invWoNum) { issues.push("Missing work order number"); confidence -= 30; }
+          else if (existingWoNumbers.size > 0 && !existingWoNumbers.has(invWoNum.toLowerCase())) {
+            warnings.push(`Work order "${invWoNum}" not found in NOVIQ`); confidence -= 20;
+          }
+          const invNum = mappedRow.invoiceNumber?.trim();
+          if (!invNum) { issues.push("Missing invoice number"); confidence -= 25; }
+          else if (existingInvoiceNumbers.has(invNum.toLowerCase())) {
+            issues.push(`Invoice number "${invNum}" already exists — will be skipped`); confidence -= 30;
+          }
+          const laborCostVal = parseFloat((mappedRow.laborCost || "0").replace(/[^0-9.]/g, ""));
+          const materialCostVal = parseFloat((mappedRow.materialCost || "0").replace(/[^0-9.]/g, ""));
+          if (!mappedRow.laborCost?.trim()) { issues.push("Missing labor cost"); confidence -= 20; }
+          else if (isNaN(laborCostVal)) { issues.push("Labor cost must be a number"); confidence -= 15; }
+          if (!mappedRow.materialCost?.trim()) { issues.push("Missing material cost"); confidence -= 20; }
+          else if (isNaN(materialCostVal)) { issues.push("Material cost must be a number"); confidence -= 15; }
+          const addlCosts = parseFloat((mappedRow.additionalCosts || "0").replace(/[^0-9.]/g, "")) || 0;
+          const taxRate = parseFloat((mappedRow.taxRate || "0.1").replace(/[^0-9.]/g, "")) || 0.1;
+          const subtotal = laborCostVal + materialCostVal + addlCosts;
+          const taxAmount = subtotal * taxRate;
+          const totalAmount = subtotal + taxAmount;
+          // Compute and store calculated fields so they can be used in confirm
+          mappedRow._subtotal = subtotal.toFixed(2);
+          mappedRow._taxAmount = taxAmount.toFixed(2);
+          mappedRow._totalAmount = totalAmount.toFixed(2);
+          mappedRow._taxRate = taxRate.toFixed(4);
+          if (!mappedRow.status) mappedRow.status = "draft";
+          const validInvStatuses = new Set(["draft","pending_approval","approved","rejected","sent","paid"]);
+          if (!validInvStatuses.has(mappedRow.status.toLowerCase())) {
+            warnings.push(`Unknown status "${mappedRow.status}" — will default to "draft"`); confidence -= 5;
+            mappedRow.status = "draft";
+          }
         }
 
         confidence = Math.max(0, Math.min(100, confidence));
@@ -2949,158 +3048,294 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/import/confirm", requireAuth, requireAnyPermission(["technicians.create", "workorders.create"]), async (req, res) => {
     try {
       const { rows, dataType } = req.body as {
-        rows: Array<{ mappedRow: Record<string, string>; status: string }>;
-        dataType: "technicians" | "work-orders";
+        rows: Array<{ mappedRow: Record<string, string>; status: string; rowIndex?: number }>;
+        dataType: "technicians" | "work-orders" | "payments" | "invoices";
       };
 
       if (!Array.isArray(rows) || rows.length === 0) {
         return res.status(400).json({ message: "No rows provided" });
       }
 
-      const importResults: Array<{ rowIndex: number; status: "imported" | "skipped" | "failed"; reason?: string }> = [];
-      let imported = 0;
-      let skipped = 0;
-      let failed = 0;
+      // ── Phase 1: Pre-transaction validation & deduplication ──────────
+      // Determine which rows to skip vs. insert before touching the DB.
+      type RowDecision =
+        | { action: "skip"; rowIndex: number; reason: string }
+        | { action: "insert"; rowIndex: number; mappedRow: Record<string, string> };
 
-      const validStatuses: Set<string> = new Set(["available", "unavailable", "on_job"]);
-      const validPriorities: Set<string> = new Set(["low", "medium", "high", "urgent"]);
-      const validWoStatuses: Set<string> = new Set(["pending", "in_progress", "completed", "cancelled", "on_hold"]);
+      const decisions: RowDecision[] = [];
+
+      const validTechStatuses = new Set(["available", "unavailable", "on_job"]);
+      const validPriorities   = new Set(["low", "medium", "high", "urgent"]);
+      const validWoStatuses   = new Set(["pending", "in_progress", "completed", "cancelled", "on_hold"]);
 
       if (dataType === "technicians") {
         const existing = await storage.getAllTechnicians();
         const existingEmails = new Set(existing.map(t => t.email.toLowerCase()));
+        const emailsSeen = new Set<string>();
 
         for (let i = 0; i < rows.length; i++) {
-          const { mappedRow, status, rowIndex: origRowIndex } = rows[i];
-          // Error rows are NEVER imported — skip them
-          if (status === "error") {
-            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Row has validation errors" });
-            skipped++;
-            continue;
-          }
-          if (!mappedRow.email?.trim() || !mappedRow.firstName?.trim()) {
-            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Missing required fields (email or first name)" });
-            skipped++;
-            continue;
-          }
-          if (existingEmails.has(mappedRow.email.toLowerCase())) {
-            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Email already exists in NOVIQ" });
-            skipped++;
-            continue;
-          }
-          try {
-            const availability = validStatuses.has(mappedRow.availability ?? "") ? mappedRow.availability : "available";
-            await storage.createTechnician({
-              firstName: mappedRow.firstName.trim(),
-              lastName: mappedRow.lastName?.trim() || "",
-              email: mappedRow.email.trim(),
-              phone: mappedRow.phone?.trim() || "",
-              specialization: mappedRow.specialization?.trim() || "General",
-              experience: parseInt(mappedRow.experience || "0") || 0,
-              hourlyRate: (mappedRow.hourlyRate || "0").replace(/[^0-9.]/g, "") || "0",
-              availability,
-              location: mappedRow.location?.trim() || "",
-              paymentMethods: mappedRow.paymentMethods?.trim() || "check",
-              bankAccount: mappedRow.bankAccount?.trim() || null,
-              routingNumber: mappedRow.routingNumber?.trim() || null,
-              bankName: mappedRow.bankName?.trim() || null,
-              paypalEmail: mappedRow.paypalEmail?.trim() || null,
-              venmoHandle: mappedRow.venmoHandle?.trim() || null,
-              cashappHandle: mappedRow.cashappHandle?.trim() || null,
-              zelleInfo: mappedRow.zelleInfo?.trim() || null,
-              mailingAddress: mappedRow.mailingAddress?.trim() || null,
-              latitude: mappedRow.latitude ? mappedRow.latitude.replace(/[^0-9.-]/g, "") : null,
-              longitude: mappedRow.longitude ? mappedRow.longitude.replace(/[^0-9.-]/g, "") : null,
-              w9Status: null,
-              w9FilePath: null,
-              w9FileName: null,
-              w9SubmittedAt: null,
-            });
-            existingEmails.add(mappedRow.email.toLowerCase());
-            importResults.push({ rowIndex: origRowIndex, status: "imported" });
-            imported++;
-          } catch (err: any) {
-            importResults.push({ rowIndex: origRowIndex, status: "failed", reason: err.message });
-            failed++;
-          }
+          const { mappedRow, status } = rows[i];
+          const rowIndex = rows[i].rowIndex ?? i;
+          if (status === "error") { decisions.push({ action: "skip", rowIndex, reason: "Row has validation errors" }); continue; }
+          if (!mappedRow.email?.trim() || !mappedRow.firstName?.trim()) { decisions.push({ action: "skip", rowIndex, reason: "Missing required fields (email or first name)" }); continue; }
+          const emailLower = mappedRow.email.toLowerCase();
+          if (existingEmails.has(emailLower) || emailsSeen.has(emailLower)) { decisions.push({ action: "skip", rowIndex, reason: "Email already exists" }); continue; }
+          emailsSeen.add(emailLower);
+          decisions.push({ action: "insert", rowIndex, mappedRow });
         }
-      } else {
-        // Work orders — use the authenticated user as requestedBy
+
+      } else if (dataType === "work-orders") {
         const requestedBy: number = req.user.id;
         const existing = await storage.getAllWorkOrders();
         const existingWoNums = new Set<string>([
           ...existing.map(o => o.workOrderNumber.toLowerCase()),
           ...existing.filter(o => o.clientWorkOrderNumber).map(o => o.clientWorkOrderNumber!.toLowerCase()),
         ]);
+        const woNumsSeen = new Set<string>();
 
         for (let i = 0; i < rows.length; i++) {
-          const { mappedRow, status, rowIndex: origRowIndex } = rows[i];
-          // Error rows are NEVER imported
-          if (status === "error") {
-            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Row has validation errors" });
-            skipped++;
-            continue;
-          }
-          if (!mappedRow.title?.trim()) {
-            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Missing required title" });
-            skipped++;
-            continue;
-          }
+          const { mappedRow, status } = rows[i];
+          const rowIndex = rows[i].rowIndex ?? i;
+          if (status === "error") { decisions.push({ action: "skip", rowIndex, reason: "Row has validation errors" }); continue; }
+          if (!mappedRow.title?.trim()) { decisions.push({ action: "skip", rowIndex, reason: "Missing required title" }); continue; }
           const clientWoNum = mappedRow.clientWorkOrderNumber?.trim() || null;
-          if (clientWoNum && existingWoNums.has(clientWoNum.toLowerCase())) {
-            importResults.push({ rowIndex: origRowIndex, status: "skipped", reason: "Work order number already exists in NOVIQ" });
-            skipped++;
-            continue;
+          if (clientWoNum) {
+            const lower = clientWoNum.toLowerCase();
+            if (existingWoNums.has(lower) || woNumsSeen.has(lower)) { decisions.push({ action: "skip", rowIndex, reason: "Work order number already exists" }); continue; }
+            woNumsSeen.add(lower);
           }
-          try {
-            const priority = validPriorities.has(mappedRow.priority ?? "") ? mappedRow.priority : "medium";
-            const woStatus = validWoStatuses.has(mappedRow.status ?? "") ? mappedRow.status : "pending";
-            await storage.createWorkOrder({
-              title: mappedRow.title.trim(),
-              description: mappedRow.description?.trim() || mappedRow.title.trim(),
-              priority,
-              status: woStatus,
-              category: mappedRow.category?.trim() || "General",
-              location: mappedRow.location?.trim() || "",
-              requestedBy,
-              assignedTo: null,
-              technicianId: null,
-              clientName: mappedRow.clientName?.trim() || null,
-              clientPhone: mappedRow.clientPhone?.trim() || null,
-              clientEmail: mappedRow.clientEmail?.trim() || null,
-              country: mappedRow.country?.trim() || null,
-              city: mappedRow.city?.trim() || null,
-              street: mappedRow.street?.trim() || null,
-              zipCode: mappedRow.zipCode?.trim() || null,
-              nte: mappedRow.nte ? mappedRow.nte.replace(/[^0-9.]/g, "") : null,
-              tnte: null,
-              estimatedHours: mappedRow.estimatedHours?.trim() || null,
-              actualHours: null,
-              scheduledDate: mappedRow.scheduledDate?.trim() || null,
-              startDate: mappedRow.startDate?.trim() || null,
-              endDate: mappedRow.endDate?.trim() || null,
-              completedDate: null,
-              urgency: null,
-              equipmentType: mappedRow.equipmentType?.trim() || null,
-              problemDescription: mappedRow.problemDescription?.trim() || null,
-              specialInstructions: mappedRow.specialInstructions?.trim() || null,
-              accessInstructions: null,
-              safetyRequirements: null,
-              assignedUserIds: null,
-              clientWorkOrderNumber: clientWoNum,
-              isLocked: false,
-            });
-            if (clientWoNum) existingWoNums.add(clientWoNum.toLowerCase());
-            importResults.push({ rowIndex: origRowIndex, status: "imported" });
-            imported++;
-          } catch (err: any) {
-            importResults.push({ rowIndex: origRowIndex, status: "failed", reason: err.message });
-            failed++;
-          }
+          decisions.push({ action: "insert", rowIndex, mappedRow: { ...mappedRow, _requestedBy: String(requestedBy) } });
+        }
+
+      } else if (dataType === "payments") {
+        for (let i = 0; i < rows.length; i++) {
+          const { mappedRow, status } = rows[i];
+          const rowIndex = rows[i].rowIndex ?? i;
+          if (status === "error") { decisions.push({ action: "skip", rowIndex, reason: "Row has validation errors" }); continue; }
+          if (!mappedRow.workOrderNumber?.trim()) { decisions.push({ action: "skip", rowIndex, reason: "Missing work order number" }); continue; }
+          if (!mappedRow.technicianEmail?.trim()) { decisions.push({ action: "skip", rowIndex, reason: "Missing technician email" }); continue; }
+          if (!mappedRow.paymentMethod?.trim()) { decisions.push({ action: "skip", rowIndex, reason: "Missing payment method" }); continue; }
+          if (!mappedRow.amountRequested?.trim()) { decisions.push({ action: "skip", rowIndex, reason: "Missing amount requested" }); continue; }
+          decisions.push({ action: "insert", rowIndex, mappedRow });
+        }
+
+      } else if (dataType === "invoices") {
+        const { rows: existingInvRows } = await pool.query("SELECT invoice_number FROM work_order_invoices");
+        const existingInvNums = new Set(existingInvRows.map((r: any) => String(r.invoice_number).toLowerCase()));
+        const invNumsSeen = new Set<string>();
+
+        for (let i = 0; i < rows.length; i++) {
+          const { mappedRow, status } = rows[i];
+          const rowIndex = rows[i].rowIndex ?? i;
+          if (status === "error") { decisions.push({ action: "skip", rowIndex, reason: "Row has validation errors" }); continue; }
+          if (!mappedRow.workOrderNumber?.trim()) { decisions.push({ action: "skip", rowIndex, reason: "Missing work order number" }); continue; }
+          if (!mappedRow.invoiceNumber?.trim()) { decisions.push({ action: "skip", rowIndex, reason: "Missing invoice number" }); continue; }
+          const invLower = mappedRow.invoiceNumber.trim().toLowerCase();
+          if (existingInvNums.has(invLower) || invNumsSeen.has(invLower)) { decisions.push({ action: "skip", rowIndex, reason: "Invoice number already exists" }); continue; }
+          if (!mappedRow.laborCost?.trim()) { decisions.push({ action: "skip", rowIndex, reason: "Missing labor cost" }); continue; }
+          if (!mappedRow.materialCost?.trim()) { decisions.push({ action: "skip", rowIndex, reason: "Missing material cost" }); continue; }
+          invNumsSeen.add(invLower);
+          decisions.push({ action: "insert", rowIndex, mappedRow });
         }
       }
 
-      res.json({ imported, skipped, failed, total: rows.length, results: importResults });
+      const toSkip   = decisions.filter(d => d.action === "skip");
+      const toInsert = decisions.filter(d => d.action === "insert") as Array<{ action: "insert"; rowIndex: number; mappedRow: Record<string, string> }>;
+      let imported = 0;
+      const skipped = toSkip.length;
+      const importResults: Array<{ rowIndex: number; status: "imported" | "skipped" | "failed"; reason?: string }> = [
+        ...toSkip.map(d => ({ rowIndex: d.rowIndex, status: "skipped" as const, reason: d.reason })),
+      ];
+
+      if (toInsert.length === 0) {
+        return res.json({ imported: 0, skipped, failed: 0, total: rows.length, results: importResults });
+      }
+
+      // ── Phase 2: Transactional inserts ──────────────────────────────
+      // All rows inserted in a single BEGIN/COMMIT. Any DB error → ROLLBACK entire batch.
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+
+        if (dataType === "technicians") {
+          for (const { rowIndex, mappedRow } of toInsert) {
+            const avail = validTechStatuses.has(mappedRow.availability ?? "") ? mappedRow.availability : "available";
+            await client.query(
+              `INSERT INTO technicians
+                 (first_name, last_name, email, phone, specialization, experience, hourly_rate,
+                  availability, location, payment_methods, bank_account, routing_number, bank_name,
+                  paypal_email, venmo_handle, cashapp_handle, zelle_info, mailing_address, latitude, longitude)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+              [
+                mappedRow.firstName.trim(),
+                mappedRow.lastName?.trim() || "",
+                mappedRow.email.trim(),
+                mappedRow.phone?.trim() || "",
+                mappedRow.specialization?.trim() || "General",
+                parseInt(mappedRow.experience || "0") || 0,
+                (mappedRow.hourlyRate || "0").replace(/[^0-9.]/g, "") || "0",
+                avail,
+                mappedRow.location?.trim() || "",
+                mappedRow.paymentMethods?.trim() || "check",
+                mappedRow.bankAccount?.trim() || null,
+                mappedRow.routingNumber?.trim() || null,
+                mappedRow.bankName?.trim() || null,
+                mappedRow.paypalEmail?.trim() || null,
+                mappedRow.venmoHandle?.trim() || null,
+                mappedRow.cashappHandle?.trim() || null,
+                mappedRow.zelleInfo?.trim() || null,
+                mappedRow.mailingAddress?.trim() || null,
+                mappedRow.latitude ? mappedRow.latitude.replace(/[^0-9.-]/g, "") || null : null,
+                mappedRow.longitude ? mappedRow.longitude.replace(/[^0-9.-]/g, "") || null : null,
+              ]
+            );
+            importResults.push({ rowIndex, status: "imported" });
+            imported++;
+          }
+
+        } else if (dataType === "work-orders") {
+          // Generate WO numbers: get current count once, then number sequentially
+          const { rows: [{ count }] } = await client.query("SELECT COUNT(*) AS count FROM work_orders");
+          const baseCount = parseInt(count) || 0;
+          const currentYear = new Date().getFullYear();
+          let woOffset = 0;
+
+          for (const { rowIndex, mappedRow } of toInsert) {
+            const woNumber = `WO-${currentYear}-${String(baseCount + woOffset + 1).padStart(3, "0")}`;
+            woOffset++;
+            const priority = validPriorities.has(mappedRow.priority ?? "") ? mappedRow.priority : "medium";
+            const woStatus = validWoStatuses.has(mappedRow.status ?? "") ? mappedRow.status : "pending";
+            const clientWoNum = mappedRow.clientWorkOrderNumber?.trim() || null;
+            const requestedBy = parseInt(mappedRow._requestedBy || "1");
+            await client.query(
+              `INSERT INTO work_orders
+                 (work_order_number, title, description, priority, status, category, location,
+                  requested_by, client_name, client_phone, client_email, country, city, street, zip_code,
+                  nte, estimated_hours, scheduled_date, start_date, end_date, equipment_type,
+                  problem_description, special_instructions, client_work_order_number, is_locked)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
+              [
+                woNumber,
+                mappedRow.title.trim(),
+                mappedRow.description?.trim() || mappedRow.title.trim(),
+                priority,
+                woStatus,
+                mappedRow.category?.trim() || "General",
+                mappedRow.location?.trim() || "",
+                requestedBy,
+                mappedRow.clientName?.trim() || null,
+                mappedRow.clientPhone?.trim() || null,
+                mappedRow.clientEmail?.trim() || null,
+                mappedRow.country?.trim() || null,
+                mappedRow.city?.trim() || null,
+                mappedRow.street?.trim() || null,
+                mappedRow.zipCode?.trim() || null,
+                mappedRow.nte ? mappedRow.nte.replace(/[^0-9.]/g, "") || null : null,
+                mappedRow.estimatedHours?.trim() || null,
+                mappedRow.scheduledDate?.trim() || null,
+                mappedRow.startDate?.trim() || null,
+                mappedRow.endDate?.trim() || null,
+                mappedRow.equipmentType?.trim() || null,
+                mappedRow.problemDescription?.trim() || null,
+                mappedRow.specialInstructions?.trim() || null,
+                clientWoNum,
+                false,
+              ]
+            );
+            importResults.push({ rowIndex, status: "imported" });
+            imported++;
+          }
+
+        } else if (dataType === "payments") {
+          for (const { rowIndex, mappedRow } of toInsert) {
+            const woResult = await client.query(
+              `SELECT id FROM work_orders WHERE LOWER(work_order_number) = LOWER($1) OR LOWER(client_work_order_number) = LOWER($1) LIMIT 1`,
+              [mappedRow.workOrderNumber.trim()]
+            );
+            if (woResult.rows.length === 0) {
+              await client.query("ROLLBACK");
+              return res.status(400).json({ message: `Row ${rowIndex + 1}: Work order "${mappedRow.workOrderNumber}" not found — entire import rolled back.` });
+            }
+            const techResult = await client.query(
+              `SELECT id FROM technicians WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+              [mappedRow.technicianEmail.trim()]
+            );
+            if (techResult.rows.length === 0) {
+              await client.query("ROLLBACK");
+              return res.status(400).json({ message: `Row ${rowIndex + 1}: Technician "${mappedRow.technicianEmail}" not found — entire import rolled back.` });
+            }
+            await client.query(
+              `INSERT INTO work_order_technician_payments
+                 (work_order_id, technician_id, payment_method, amount_requested, amount_approved, amount_paid, status, description)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+              [
+                woResult.rows[0].id,
+                techResult.rows[0].id,
+                mappedRow.paymentMethod.trim(),
+                parseFloat(mappedRow.amountRequested.replace(/[^0-9.]/g, "")) || 0,
+                parseFloat((mappedRow.amountApproved || "0").replace(/[^0-9.]/g, "")) || 0,
+                parseFloat((mappedRow.amountPaid || "0").replace(/[^0-9.]/g, "")) || 0,
+                mappedRow.status || "pending",
+                mappedRow.description?.trim() || null,
+              ]
+            );
+            importResults.push({ rowIndex, status: "imported" });
+            imported++;
+          }
+
+        } else if (dataType === "invoices") {
+          for (const { rowIndex, mappedRow } of toInsert) {
+            const woResult = await client.query(
+              `SELECT id FROM work_orders WHERE LOWER(work_order_number) = LOWER($1) OR LOWER(client_work_order_number) = LOWER($1) LIMIT 1`,
+              [mappedRow.workOrderNumber.trim()]
+            );
+            if (woResult.rows.length === 0) {
+              await client.query("ROLLBACK");
+              return res.status(400).json({ message: `Row ${rowIndex + 1}: Work order "${mappedRow.workOrderNumber}" not found — entire import rolled back.` });
+            }
+            const laborCost    = parseFloat((mappedRow.laborCost    || "0").replace(/[^0-9.]/g, "")) || 0;
+            const materialCost = parseFloat((mappedRow.materialCost || "0").replace(/[^0-9.]/g, "")) || 0;
+            const addlCosts    = parseFloat((mappedRow.additionalCosts || "0").replace(/[^0-9.]/g, "")) || 0;
+            const taxRate      = parseFloat((mappedRow.taxRate || "0.1").replace(/[^0-9.]/g, "")) || 0.1;
+            const subtotal     = parseFloat(mappedRow._subtotal     || String(laborCost + materialCost + addlCosts));
+            const taxAmount    = parseFloat(mappedRow._taxAmount    || String(subtotal * taxRate));
+            const totalAmount  = parseFloat(mappedRow._totalAmount  || String(subtotal + taxAmount));
+            await client.query(
+              `INSERT INTO work_order_invoices
+                 (work_order_id, invoice_number, labor_cost, material_cost, additional_costs,
+                  subtotal, tax_rate, tax_amount, total_amount, status, notes, requested_by)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+              [
+                woResult.rows[0].id,
+                mappedRow.invoiceNumber.trim(),
+                laborCost,
+                materialCost,
+                addlCosts,
+                subtotal,
+                taxRate,
+                taxAmount,
+                totalAmount,
+                mappedRow.status || "draft",
+                mappedRow.notes?.trim() || null,
+                req.user.id,
+              ]
+            );
+            importResults.push({ rowIndex, status: "imported" });
+            imported++;
+          }
+        }
+
+        await client.query("COMMIT");
+      } catch (txErr: any) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          message: `Import failed and was fully rolled back: ${txErr.message}`,
+        });
+      } finally {
+        client.release();
+      }
+
+      res.json({ imported, skipped, failed: 0, total: rows.length, results: importResults });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -3114,7 +3349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/import/sql",
     requireAuth,
-    requirePermission("technicians.create"),
+    requireAdmin,
     sqlUpload.single("file"),
     async (req, res) => {
       try {
@@ -3130,11 +3365,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "No SQL provided." });
         }
 
-        // Safety gate: reject statements that delete/drop/truncate
-        const dangerPattern = /\b(DROP|TRUNCATE|DELETE\s+FROM|ALTER\s+TABLE|CREATE\s+TABLE|CREATE\s+INDEX|GRANT|REVOKE|VACUUM|REINDEX)\b/i;
+        // Safety gate: only INSERT is allowed — reject everything else
+        const dangerPattern = /\b(DROP|TRUNCATE|DELETE|ALTER\s+TABLE|CREATE\s+TABLE|CREATE\s+INDEX|GRANT|REVOKE|VACUUM|REINDEX|UPDATE|COPY|MERGE|UPSERT)\b/i;
         if (dangerPattern.test(sqlText)) {
           return res.status(400).json({
-            message: "Disallowed SQL statement detected. Only INSERT, COPY, and SELECT statements are permitted for safety.",
+            message: "Disallowed SQL detected. Only INSERT statements are permitted for append-only migration safety.",
           });
         }
 
@@ -3200,11 +3435,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const statements = splitStatements(sqlText).filter(s => {
           const upper = s.toUpperCase().trimStart();
-          return upper.startsWith("INSERT") || upper.startsWith("COPY") || upper.startsWith("UPDATE");
+          return upper.startsWith("INSERT");
         });
 
         if (statements.length === 0) {
-          return res.status(400).json({ message: "No INSERT, COPY, or UPDATE statements found in the provided SQL." });
+          return res.status(400).json({ message: "No INSERT statements found in the provided SQL. Only INSERT statements are accepted." });
         }
 
         // Execute all statements in a single transaction
