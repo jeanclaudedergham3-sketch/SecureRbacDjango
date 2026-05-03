@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Shield, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { useSystemSettings } from "@/contexts/system-settings";
 
 export default function Login() {
+  const { systemName, logoUrl } = useSystemSettings();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -40,10 +42,10 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 bg-primary rounded-lg flex items-center justify-center">
-            <Shield className="h-6 w-6 text-white" />
+          <div className="mx-auto h-12 w-12 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
+            {logoUrl ? <img src={logoUrl} alt="logo" className="w-8 h-8 object-contain" /> : <Shield className="h-6 w-6 text-white" />}
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">NOVIQ</h2>
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">{systemName}</h2>
           <p className="mt-2 text-sm text-gray-600">Sign in to your account</p>
         </div>
 

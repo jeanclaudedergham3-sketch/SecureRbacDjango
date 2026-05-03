@@ -22,6 +22,27 @@ declare module 'express-session' {
   }
 }
 
+// Logo upload middleware
+const logoStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.join(process.cwd(), 'uploads', 'logo');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    cb(null, `logo${path.extname(file.originalname).toLowerCase()}`);
+  },
+});
+const uploadLogo = multer({
+  storage: logoStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.svg', '.webp', '.gif'];
+    if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true);
+    else cb(new Error('Only image files are allowed for the logo'));
+  },
+});
+
 // Setup file upload middleware
 const storage_multer = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -91,6 +112,77 @@ const uploadW9 = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Serve uploads directory as static (logos, W9s, work order files)
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
+  // Initialize system_settings table and seed defaults
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key VARCHAR(255) PRIMARY KEY,
+      value TEXT NOT NULL DEFAULT ''
+    )
+  `);
+  await pool.query(`INSERT INTO system_settings (key, value) VALUES ('system_name', 'NOVIQ') ON CONFLICT DO NOTHING`);
+  await pool.query(`INSERT INTO system_settings (key, value) VALUES ('logo_url', '') ON CONFLICT DO NOTHING`);
+
+  // ── System Settings endpoints ──────────────────────────────────────────────
+  app.get("/api/settings/system", async (_req, res) => {
+    try {
+      const result = await pool.query<{ key: string; value: string }>(
+        `SELECT key, value FROM system_settings WHERE key IN ('system_name', 'logo_url')`
+      );
+      const map = Object.fromEntries(result.rows.map(r => [r.key, r.value]));
+      res.json({ systemName: map.system_name || 'NOVIQ', logoUrl: map.logo_url || '' });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/settings/system", requireAuth, async (req, res) => {
+    try {
+      const { systemName, logoUrl } = req.body;
+      if (systemName !== undefined) {
+        const name = String(systemName).trim() || 'NOVIQ';
+        await pool.query(`INSERT INTO system_settings (key, value) VALUES ('system_name', $1) ON CONFLICT (key) DO UPDATE SET value = $1`, [name]);
+      }
+      if (logoUrl !== undefined) {
+        await pool.query(`INSERT INTO system_settings (key, value) VALUES ('logo_url', $1) ON CONFLICT (key) DO UPDATE SET value = $1`, [logoUrl]);
+      }
+      const result = await pool.query<{ key: string; value: string }>(`SELECT key, value FROM system_settings WHERE key IN ('system_name', 'logo_url')`);
+      const map = Object.fromEntries(result.rows.map(r => [r.key, r.value]));
+      res.json({ systemName: map.system_name || 'NOVIQ', logoUrl: map.logo_url || '' });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/settings/logo", requireAuth, uploadLogo.single('logo'), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+      const logoUrl = `/uploads/logo/${req.file.filename}`;
+      await pool.query(`INSERT INTO system_settings (key, value) VALUES ('logo_url', $1) ON CONFLICT (key) DO UPDATE SET value = $1`, [logoUrl]);
+      res.json({ logoUrl });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/settings/logo", requireAuth, async (_req, res) => {
+    try {
+      // Remove file if it exists
+      const result = await pool.query<{ value: string }>(`SELECT value FROM system_settings WHERE key = 'logo_url'`);
+      const oldUrl = result.rows[0]?.value;
+      if (oldUrl && oldUrl.startsWith('/uploads/')) {
+        const filePath = path.join(process.cwd(), oldUrl);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
+      await pool.query(`INSERT INTO system_settings (key, value) VALUES ('logo_url', '') ON CONFLICT (key) DO UPDATE SET value = ''`);
+      res.json({ logoUrl: '' });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // Trust Replit's reverse proxy so HTTPS cookies work correctly in production
   app.set('trust proxy', 1);
 

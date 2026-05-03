@@ -7,6 +7,7 @@ import { SidebarGuard } from "@/components/rbac/advanced-permission-guard";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useState } from "react";
+import { useSystemSettings } from "@/contexts/system-settings";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, role, logout, permissions } = useAuth();
   const { hasPermission } = usePermissions();
   const [isHovered, setIsHovered] = useState(false);
+  const { systemName, logoUrl } = useSystemSettings();
 
   const navigationSections = [
     {
@@ -63,6 +65,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         { name: "Data Import (CSV)", href: "/data-import", icon: Upload, permission: "sidebar.user_management" },
         { name: "Database Import", href: "/database-import", icon: Database, permission: "sidebar.user_management" },
         { name: "Database Export", href: "/database-export", icon: Download, permission: "sidebar.user_management" },
+        { name: "System Settings", href: "/settings", icon: Settings, permission: "sidebar.user_management" },
       ]
     }
   ];
@@ -94,10 +97,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           {/* Mobile close button */}
           <div className="flex items-center justify-between px-4 lg:hidden">
             <div className="flex items-center">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Shield className="h-4 w-4 text-white" />
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
+                {logoUrl ? <img src={logoUrl} alt="logo" className="w-5 h-5 object-contain" /> : <Shield className="h-4 w-4 text-white" />}
               </div>
-              <h1 className="ml-3 text-xl font-semibold text-white">AdminPanel</h1>
+              <h1 className="ml-3 text-xl font-semibold text-white">{systemName}</h1>
             </div>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-5 w-5 text-white" />
@@ -109,13 +112,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             "hidden lg:flex items-center flex-shrink-0 mb-8 transition-all duration-500",
             isHovered ? "px-4" : "px-3 justify-center"
           )}>
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-blue-400/20 flex-shrink-0">
-              <Shield className="h-5 w-5 text-white" />
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-blue-400/20 flex-shrink-0 overflow-hidden">
+              {logoUrl ? <img src={logoUrl} alt="logo" className="w-6 h-6 object-contain" /> : <Shield className="h-5 w-5 text-white" />}
             </div>
             <h1 className={cn(
               "ml-4 text-xl font-bold text-white transition-all duration-500 bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent",
               isHovered ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"
-            )}>NOVIQ</h1>
+            )}>{systemName}</h1>
           </div>
 
           {/* User Info */}

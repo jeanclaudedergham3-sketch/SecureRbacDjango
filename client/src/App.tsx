@@ -5,12 +5,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { SystemSettingsProvider } from "@/contexts/system-settings";
 import { MainLayout } from "@/components/layout/main-layout";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Users from "@/pages/users";
 import Roles from "@/pages/roles";
-
 import Technicians from "@/pages/technicians";
 import TechnicianMap from "@/pages/technician-map";
 import WorkOrders from "@/pages/work-orders";
@@ -24,6 +24,7 @@ import Analytics from "@/pages/analytics";
 import DataImport from "@/pages/data-import";
 import DatabaseImport from "@/pages/database-import";
 import DatabaseExport from "@/pages/database-export";
+import SystemSettings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -93,6 +94,7 @@ function Router() {
       <Route path="/data-import" component={() => <ProtectedRoute component={DataImport} />} />
       <Route path="/database-import" component={() => <ProtectedRoute component={DatabaseImport} />} />
       <Route path="/database-export" component={() => <ProtectedRoute component={DatabaseExport} />} />
+      <Route path="/settings" component={() => <ProtectedRoute component={SystemSettings} />} />
       <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
     </Switch>
@@ -104,10 +106,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <AuthProvider>
-            <Toaster />
-            <Router />
-          </AuthProvider>
+          <SystemSettingsProvider>
+            <AuthProvider>
+              <Toaster />
+              <Router />
+            </AuthProvider>
+          </SystemSettingsProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
