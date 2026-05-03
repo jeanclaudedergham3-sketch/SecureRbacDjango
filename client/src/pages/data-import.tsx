@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 
 type DataType = "technicians" | "work-orders";
@@ -117,7 +117,14 @@ export default function DataImport() {
   const confirmMutation = useMutation({
     mutationFn: (data: { rows: RowResult[]; dataType: DataType }) =>
       apiRequest("POST", "/api/import/confirm", data).then(r => r.json()) as Promise<ConfirmResponse>,
-    onSuccess: (data) => { setConfirmResult(data); setStep(4); },
+    onSuccess: (data) => {
+      setConfirmResult(data);
+      setStep(4);
+      // Invalidate cache so the relevant list page shows fresh data immediately
+      queryClient.invalidateQueries({ queryKey: ["/api/technicians"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+    },
     onError: () => toast({ title: "Import failed", variant: "destructive" }),
   });
 
@@ -751,6 +758,27 @@ export default function DataImport() {
                   </div>
                 </CardContent>
               </Card>
+            )}
+
+            {confirmResult.imported > 0 && (
+              <div className="text-center p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">
+                  {confirmResult.imported} {dataType === "technicians" ? "technician" : "work order"}{confirmResult.imported !== 1 ? "s" : ""} added to your database
+                </p>
+                <a
+                  href={dataType === "technicians" ? "/technicians" : "/work-orders"}
+                  className="inline-flex items-center gap-2 mt-2 text-sm text-emerald-600 dark:text-emerald-400 underline underline-offset-2 hover:text-emerald-800 font-medium"
+                >
+                  View {dataType === "technicians" ? "Technician List" : "Work Orders"} →
+                </a>
+              </div>
+            )}
+            {confirmResult.imported === 0 && (
+              <div className="text-center p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                  No new records were added. All rows were either skipped (already exist) or had errors.
+                </p>
+              </div>
             )}
 
             <div className="flex gap-3 justify-center">
