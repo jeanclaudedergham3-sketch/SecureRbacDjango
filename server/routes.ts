@@ -2935,11 +2935,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Required fields
           if (!mappedRow.workOrderNumber?.trim()) { issues.push("Missing work order number"); confidence -= 30; }
           else if (existingWoNumbers.size > 0 && !existingWoNumbers.has(mappedRow.workOrderNumber.trim().toLowerCase())) {
-            warnings.push(`Work order "${mappedRow.workOrderNumber}" not found in NOVIQ`); confidence -= 20;
+            issues.push(`Work order "${mappedRow.workOrderNumber}" not found in NOVIQ — import will fail`); confidence -= 40;
           }
           if (!mappedRow.technicianEmail?.trim()) { issues.push("Missing technician email"); confidence -= 25; }
           else if (existingTechEmails.size > 0 && !existingTechEmails.has(mappedRow.technicianEmail.trim().toLowerCase())) {
-            warnings.push(`Technician email "${mappedRow.technicianEmail}" not found in NOVIQ`); confidence -= 20;
+            issues.push(`Technician email "${mappedRow.technicianEmail}" not found in NOVIQ — import will fail`); confidence -= 40;
           }
           if (!mappedRow.paymentMethod?.trim()) { issues.push("Missing payment method"); confidence -= 20; }
           if (!mappedRow.amountRequested?.trim()) { issues.push("Missing amount requested"); confidence -= 25; }
@@ -2960,7 +2960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const invWoNum = mappedRow.workOrderNumber?.trim();
           if (!invWoNum) { issues.push("Missing work order number"); confidence -= 30; }
           else if (existingWoNumbers.size > 0 && !existingWoNumbers.has(invWoNum.toLowerCase())) {
-            warnings.push(`Work order "${invWoNum}" not found in NOVIQ`); confidence -= 20;
+            issues.push(`Work order "${invWoNum}" not found in NOVIQ — import will fail`); confidence -= 40;
           }
           const invNum = mappedRow.invoiceNumber?.trim();
           if (!invNum) { issues.push("Missing invoice number"); confidence -= 25; }
@@ -3142,6 +3142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const toSkip   = decisions.filter(d => d.action === "skip");
       const toInsert = decisions.filter(d => d.action === "insert") as Array<{ action: "insert"; rowIndex: number; mappedRow: Record<string, string> }>;
       let imported = 0;
+      let failed = 0;
       const skipped = toSkip.length;
       const importResults: Array<{ rowIndex: number; status: "imported" | "skipped" | "failed"; reason?: string }> = [
         ...toSkip.map(d => ({ rowIndex: d.rowIndex, status: "skipped" as const, reason: d.reason })),
@@ -3253,16 +3254,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
               [mappedRow.workOrderNumber.trim()]
             );
             if (woResult.rows.length === 0) {
+              const reason = `Work order "${mappedRow.workOrderNumber}" not found`;
+              importResults.push({ rowIndex, status: "failed", reason });
+              failed += toInsert.length - imported;
               await client.query("ROLLBACK");
-              return res.status(400).json({ message: `Row ${rowIndex + 1}: Work order "${mappedRow.workOrderNumber}" not found — entire import rolled back.` });
+              return res.status(400).json({ imported, skipped, failed, total: rows.length, results: importResults, error: `Row ${rowIndex + 1}: ${reason} — entire import rolled back.` });
             }
             const techResult = await client.query(
               `SELECT id FROM technicians WHERE LOWER(email) = LOWER($1) LIMIT 1`,
               [mappedRow.technicianEmail.trim()]
             );
             if (techResult.rows.length === 0) {
+              const reason = `Technician email "${mappedRow.technicianEmail}" not found`;
+              importResults.push({ rowIndex, status: "failed", reason });
+              failed += toInsert.length - imported;
               await client.query("ROLLBACK");
-              return res.status(400).json({ message: `Row ${rowIndex + 1}: Technician "${mappedRow.technicianEmail}" not found — entire import rolled back.` });
+              return res.status(400).json({ imported, skipped, failed, total: rows.length, results: importResults, error: `Row ${rowIndex + 1}: ${reason} — entire import rolled back.` });
             }
             await client.query(
               `INSERT INTO work_order_technician_payments
@@ -3290,8 +3297,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               [mappedRow.workOrderNumber.trim()]
             );
             if (woResult.rows.length === 0) {
+              const reason = `Work order "${mappedRow.workOrderNumber}" not found`;
+              importResults.push({ rowIndex, status: "failed", reason });
+              failed += toInsert.length - imported;
               await client.query("ROLLBACK");
-              return res.status(400).json({ message: `Row ${rowIndex + 1}: Work order "${mappedRow.workOrderNumber}" not found — entire import rolled back.` });
+              return res.status(400).json({ imported, skipped, failed, total: rows.length, results: importResults, error: `Row ${rowIndex + 1}: ${reason} — entire import rolled back.` });
             }
             const laborCost    = parseFloat((mappedRow.laborCost    || "0").replace(/[^0-9.]/g, "")) || 0;
             const materialCost = parseFloat((mappedRow.materialCost || "0").replace(/[^0-9.]/g, "")) || 0;
@@ -3328,14 +3338,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await client.query("COMMIT");
       } catch (txErr: any) {
         await client.query("ROLLBACK");
+        const remaining = toInsert.length - imported;
+        failed += remaining;
         return res.status(400).json({
-          message: `Import failed and was fully rolled back: ${txErr.message}`,
+          imported,
+          skipped,
+          failed,
+          total: rows.length,
+          results: importResults,
+          error: `Import failed and was fully rolled back: ${txErr.message}`,
         });
       } finally {
         client.release();
       }
 
-      res.json({ imported, skipped, failed: 0, total: rows.length, results: importResults });
+      res.json({ imported, skipped, failed, total: rows.length, results: importResults });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

@@ -68,6 +68,7 @@ interface ConfirmResponse {
   failed: number;
   total: number;
   results: Array<{ rowIndex: number; status: "imported" | "skipped" | "failed"; reason?: string }>;
+  error?: string;
 }
 
 const STEPS = ["Choose Type", "Upload CSV", "Map Fields", "Preview", "Import"];
@@ -164,8 +165,23 @@ export default function DataImport() {
   });
 
   const confirmMutation = useMutation({
-    mutationFn: (data: { rows: RowResult[]; dataType: DataType }) =>
-      apiRequest("POST", "/api/import/confirm", data).then(r => r.json()) as Promise<ConfirmResponse>,
+    mutationFn: async (data: { rows: RowResult[]; dataType: DataType }): Promise<ConfirmResponse> => {
+      const res = await fetch("/api/import/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      const json: ConfirmResponse = await res.json();
+      if (!res.ok) {
+        if (json.results) {
+          setConfirmResult(json);
+          setStep(4);
+        }
+        throw new Error(json.error ?? `HTTP ${res.status}`);
+      }
+      return json;
+    },
     onSuccess: (data) => {
       setConfirmResult(data);
       setStep(4);
@@ -175,7 +191,7 @@ export default function DataImport() {
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
-    onError: (e: Error) => toast({ title: "Import failed", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Import rolled back", description: e.message, variant: "destructive" }),
   });
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -783,12 +799,31 @@ export default function DataImport() {
         {step === 4 && confirmResult && (
           <div className="space-y-6">
             <div className="text-center py-4">
-              <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="h-8 w-8 text-emerald-600" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Import Complete</h2>
-              <p className="text-gray-500 dark:text-gray-400 mt-1">Your data has been saved to NOVIQ</p>
+              {confirmResult.error ? (
+                <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <XCircle className="h-8 w-8 text-red-600" />
+                </div>
+              ) : (
+                <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                </div>
+              )}
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {confirmResult.error ? "Import Rolled Back" : "Import Complete"}
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 mt-1">
+                {confirmResult.error ? "No records were saved — the entire batch was rolled back." : "Your data has been saved to NOVIQ"}
+              </p>
             </div>
+
+            {confirmResult.error && (
+              <Alert className="border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-700">
+                <XCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-800 dark:text-red-300 text-sm">
+                  <strong>Rollback reason:</strong> {confirmResult.error}
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Result cards */}
             <div className="grid grid-cols-3 gap-4">
