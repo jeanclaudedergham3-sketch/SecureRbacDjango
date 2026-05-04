@@ -42,7 +42,7 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  // ✅ ROOT ROUTE (مهم جداً ليحل مشكلة 404)
+  // ✅ ROOT ROUTE (always works)
   app.get("/", (req, res) => {
     res.send("Server is working 🚀");
   });
@@ -59,10 +59,11 @@ app.use((req, res, next) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
+    // serve static AFTER root route
     serveStatic(app);
   }
 
-  // ✅ IMPORTANT: use env port (Coolify requirement)
+  // ✅ IMPORTANT: dynamic port for Coolify
   const port = process.env.PORT || 3000;
 
   server.listen({
