@@ -8,7 +8,6 @@ seedDatabase();
 
 const app = express();
 
-// ── Compression ─────────────────────────────────────────────
 app.use(compression({
   level: 6,
   threshold: 1024,
@@ -22,7 +21,6 @@ app.use(compression({
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 
-// ── Logger ─────────────────────────────────────────────────
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -40,27 +38,26 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  // ── Error handler ─────────────────────────────────────────
+  // ✅ ROOT ALWAYS WORKS (حتى لو static موجود)
+  app.use("/", (req, res, next) => {
+    if (req.path === "/") {
+      return res.send("Server is working 🚀");
+    }
+    next();
+  });
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     res.status(status).json({ message });
   });
 
-  // ── Frontend / Root Fix ───────────────────────────────────
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    // ✅ مهم جداً: خلي root قبل static
-    app.get("/", (req, res) => {
-      res.send("Server is working 🚀");
-    });
-
-    // static files
     serveStatic(app);
   }
 
-  // ── Port Fix (Coolify) ───────────────────────────────────
   const port = process.env.PORT || 3000;
 
   server.listen({
