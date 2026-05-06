@@ -3,7 +3,10 @@ import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./seed";
+import { runMigrations } from "./migrate";
 
+// Create tables then seed on startup
+runMigrations().then(() => seedDatabase()).catch(console.error);
 // Seed database on startup
 seedDatabase();
 
