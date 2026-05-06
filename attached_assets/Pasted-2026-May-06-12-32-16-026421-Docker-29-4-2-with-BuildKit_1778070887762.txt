@@ -1,0 +1,166 @@
+2026-May-06 12:32:16.026421 Docker 29.4.2 with BuildKit and Buildx detected on deployment server (dead-deer-i24w2obnnmhrcjnjcnv5k0wq).
+2026-May-06 12:32:16.032674 Starting deployment of jeanclaudedergham3-sketch/SecureRbacDjango:main to dead-deer-i24w2obnnmhrcjnjcnv5k0wq.
+2026-May-06 12:32:16.227983 Preparing container with helper image: ghcr.io/coollabsio/coolify-helper:1.0.13
+2026-May-06 12:32:16.343588 [DEBUG] [CMD]: docker stop -t 30 ah63ujgemnkevu6pfs1klopk
+2026-May-06 12:32:16.343588 [DEBUG] Error response from daemon: No such container: ah63ujgemnkevu6pfs1klopk
+2026-May-06 12:32:16.510933 [DEBUG] [CMD]: docker run -d --network 'coolify' --name ah63ujgemnkevu6pfs1klopk  --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/coollabsio/coolify-helper:1.0.13
+2026-May-06 12:32:16.510933 [DEBUG] c3e74d9561dc233f3825be272a6a365b3dbd42b97dc3808a29895fbce46a2160
+2026-May-06 12:32:17.624816 [DEBUG] [CMD]: docker exec ah63ujgemnkevu6pfs1klopk bash -c 'GIT_SSH_COMMAND="ssh -o ConnectTimeout=30 -p 22 -o Port=22 -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git ls-remote https://github.com/jeanclaudedergham3-sketch/SecureRbacDjango refs/heads/main'
+2026-May-06 12:<REDACTED>@\(.*\):#https://\1/#g" '\''/artifacts/ah63ujgemnkevu6pfs1klopk'\''/.gitmodules || true && git submodule sync && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git submodule update --init --recursive --depth=1; fi && cd '\''/artifacts/ah63ujgemnkevu6pfs1klopk'\'' && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git lfs pull'
+2026-May-06 12:<REDACTED>@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de
+2026-May-06 12:32:24.347646 [DEBUG] #5 resolve ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de 0.2s done
+2026-May-06 12:32:24.347646 [DEBUG] #5 DONE 0.2s
+2026-May-06 12:32:24.347646 [DEBUG] 
+2026-May-06 12:32:24.347646 [DEBUG] #6 [stage-0  6/16] RUN nix-env -if .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix && nix-collect-garbage -d
+2026-May-06 12:32:24.347646 [DEBUG] #6 CACHED
+2026-May-06 12:32:24.347646 [DEBUG] 
+2026-May-06 12:32:24.347646 [DEBUG] #7 [stage-0  4/16] RUN nix-env -if .nixpacks/nixpkgs-ba913eda2df8eb72147259189d55932012df6301.nix && nix-collect-garbage -d
+2026-May-06 12:32:24.347646 [DEBUG] #7 CACHED
+2026-May-06 12:32:24.347646 [DEBUG] 
+2026-May-06 12:32:24.347646 [DEBUG] #8 [stage-0  7/16] RUN sudo apt-get update && sudo apt-get install -y --no-install-recommends curl wget
+2026-May-06 12:32:24.347646 [DEBUG] #8 CACHED
+2026-May-06 12:32:24.347646 [DEBUG] 
+2026-May-06 12:32:24.347646 [DEBUG] #9 [stage-0  2/16] WORKDIR /app/
+2026-May-06 12:32:24.347646 [DEBUG] #9 CACHED
+2026-May-06 12:32:24.347646 [DEBUG] 
+2026-May-06 12:32:24.347646 [DEBUG] #10 [stage-0  3/16] COPY .nixpacks/nixpkgs-ba913eda2df8eb72147259189d55932012df6301.nix .nixpacks/nixpkgs-ba913eda2df8eb72147259189d55932012df6301.nix
+2026-May-06 12:32:24.347646 [DEBUG] #10 CACHED
+2026-May-06 12:32:24.347646 [DEBUG] 
+2026-May-06 12:32:24.347646 [DEBUG] #11 [stage-0  5/16] COPY .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix
+2026-May-06 12:32:24.347646 [DEBUG] #11 CACHED
+2026-May-06 12:32:24.347646 [DEBUG] 
+2026-May-06 12:32:24.347646 [DEBUG] #12 [stage-0  8/16] COPY .nixpacks/assets /assets/
+2026-May-06 12:32:24.347646 [DEBUG] #12 CACHED
+2026-May-06 12:32:24.347646 [DEBUG] 
+2026-May-06 12:32:24.347646 [DEBUG] #13 [stage-0  9/16] COPY . /app/.
+2026-May-06 12:32:24.347646 [DEBUG] #13 DONE 0.1s
+2026-May-06 12:32:24.503453 [DEBUG] #14 [stage-0 10/16] RUN  caddy fmt --overwrite /assets/Caddyfile
+2026-May-06 12:32:24.745677 [DEBUG] #14 DONE 0.4s
+2026-May-06 12:32:24.993865 [DEBUG] #15 [stage-0 11/16] COPY . /app/.
+2026-May-06 12:32:24.993865 [DEBUG] #15 DONE 0.1s
+2026-May-06 12:32:24.993865 [DEBUG] 
+2026-May-06 12:32:24.993865 [DEBUG] #16 [stage-0 12/16] RUN --mount=type=cache,id=n62g4k2srh68uka508a359hv-/root/npm,target=/root/.npm npm ci
+2026-May-06 12:32:25.075487 [DEBUG] #16 0.232 npm warn config production Use `--omit=dev` instead.
+2026-May-06 12:32:34.564913 [DEBUG] #16 9.722 npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+2026-May-06 12:<REDACTED>@esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+2026-May-06 12:<REDACTED>@1.0.0 build
+2026-May-06 12:32:47.807095 [DEBUG] #18 0.487 > vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2026-May-06 12:32:47.807095 [DEBUG] #18 0.487
+2026-May-06 12:32:47.963865 [DEBUG] #18 0.794 vite v5.4.19 building for production...
+2026-May-06 12:32:48.174180 [DEBUG] #18 0.854 transforming...
+2026-May-06 12:32:48.178610 [DEBUG] 
+2026-May-06 12:32:48.716050 [DEBUG] #18 1.546 Browserslist: browsers data (caniuse-lite) is 19 months old. Please run:
+2026-May-06 12:32:48.716050 [DEBUG] #18 1.546   npx update-browserslist-db@latest
+2026-May-06 12:32:48.716050 [DEBUG] #18 1.546   Why you should do it regularly: https://github.com/browserslist/update-db#readme
+2026-May-06 12:32:48.721491 [DEBUG] 
+2026-May-06 12:33:10.253126 [DEBUG] #18 23.08 ✓ 3037 modules transformed.
+2026-May-06 12:33:12.644176 [DEBUG] #18 25.47 rendering chunks...
+2026-May-06 12:33:14.982269 [DEBUG] #18 27.81 computing gzip size...
+2026-May-06 12:33:15.331049 [DEBUG] #18 28.16 ../dist/public/index.html                                      0.93 kB │ gzip:   0.51 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/leaflet-Dgihpmma.css                    15.04 kB │ gzip:   6.38 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/index-CW7_b6-P.css                     106.79 kB │ gzip:  17.11 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/index-DntnHqXV.js                        0.23 kB │ gzip:   0.17 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/chevron-right-6gmF7Dyz.js                0.30 kB │ gzip:   0.25 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/plus-CPrdRWAG.js                         0.32 kB │ gzip:   0.26 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/filter-Cys0o6Jt.js                       0.33 kB │ gzip:   0.27 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/circle-check-CzSxfoLI.js                 0.35 kB │ gzip:   0.27 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/clock-JUr9SCWM.js                        0.35 kB │ gzip:   0.27 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/user-y35xTZDb.js                         0.37 kB │ gzip:   0.28 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/rotate-ccw-DIZx7DrS.js                   0.37 kB │ gzip:   0.28 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/circle-x-Bo0Y9655.js                     0.38 kB │ gzip:   0.28 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/trending-down-Ba_Id3Sb.js                0.38 kB │ gzip:   0.28 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/star-C2AG17ol.js                         0.38 kB │ gzip:   0.29 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/activity-DLxXwmUC.js                     0.40 kB │ gzip:   0.30 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/map-pin-DwmSS-aK.js                      0.43 kB │ gzip:   0.32 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/triangle-alert-CkCnxpYQ.js               0.43 kB │ gzip:   0.31 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/image-cVX9i7hv.js                        0.44 kB │ gzip:   0.32 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/square-pen-BMyBazu3.js                   0.49 kB │ gzip:   0.34 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/refresh-cw-BcOc5mXl.js                   0.49 kB │ gzip:   0.32 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/textarea-DYMuA2zA.js                     0.50 kB │ gzip:   0.32 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/trash-2-CZMJt0xH.js                      0.53 kB │ gzip:   0.35 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/chevron-up-1sCwyqeG.js                   0.54 kB │ gzip:   0.28 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/export-DEq4N0B_.js                       0.57 kB │ gzip:   0.40 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/not-found-sYOVHZir.js                    0.59 kB │ gzip:   0.34 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/separator-BZCgL1fM.js                    0.67 kB │ gzip:   0.40 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/zap-i-9so1Nw.js                          0.68 kB │ gzip:   0.35 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/calculator-OvWxj8Qt.js                   0.70 kB │ gzip:   0.38 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/table-2-D_9lvXAV.js                      0.76 kB │ gzip:   0.38 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/phone-Y0c59cGK.js                        0.90 kB │ gzip:   0.45 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/advanced-permission-guard-BWpTGfEd.js    1.21 kB │ gzip:   0.46 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/table-D07BjMAJ.js                        1.49 kB │ gzip:   0.52 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/progress-QO5d_PqA.js                     1.90 kB │ gzip:   0.94 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/dialog-BHTHuIjS.js                       1.96 kB │ gzip:   0.77 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/checkbox-BgYt8nHO.js                     2.79 kB │ gzip:   1.38 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/avatar-9R9spis3.js                       3.92 kB │ gzip:   1.72 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/create-invoice-modal-szfhCYLO.js         4.85 kB │ gzip:   1.63 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/tabs-881PTI6U.js                         6.43 kB │ gzip:   2.56 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/technician-payments-CfWEBEer.js          8.18 kB │ gzip:   2.10 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/dashboard-DbWb5t7w.js                    8.42 kB │ gzip:   2.35 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/invoices-Du3PLFAy.js                     9.06 kB │ gzip:   2.92 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/financial-analysis-DZhLKJfn.js          10.81 kB │ gzip:   2.58 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/roles-DIiAghOJ.js                       11.50 kB │ gzip:   3.59 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/work-order-proposal-modal-DVc6DlsD.js   12.70 kB │ gzip:   3.60 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/settings-DfVWmGEu.js                    12.83 kB │ gzip:   3.95 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/technician-map-CxyxX1aJ.js              15.20 kB │ gzip:   5.05 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/print-utils-BjI1mAFb.js                 15.32 kB │ gzip:   4.29 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/proposals-BLyI-t7k.js                   16.25 kB │ gzip:   3.98 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/database-export-DkR0ZC_m.js             16.93 kB │ gzip:   4.87 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/parts-requests-B3dw6j9D.js              18.91 kB │ gzip:   4.93 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/select-D8ia0Y8M.js                      21.10 kB │ gzip:   7.30 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/technicians-CrWhuCVf.js                 25.44 kB │ gzip:   6.46 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/database-import-AmwvNK_F.js             28.21 kB │ gzip:   7.91 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/payment-manager-Bm8_1P8N.js             28.28 kB │ gzip:   6.07 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/data-import-CKtrXB_2.js                 55.24 kB │ gzip:  16.21 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/users-QLbJ7VCL.js                       67.21 kB │ gzip:  18.77 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/types-Dni2xoTT.js                       87.70 kB │ gzip:  24.27 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/work-orders-GWxwM1fS.js                131.75 kB │ gzip:  27.86 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.16 ../dist/public/assets/leaflet-B88xez9E.js                    149.59 kB │ gzip:  43.29 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.17 ../dist/public/assets/analytics-CHRfnR64.js                  434.77 kB │ gzip: 115.39 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.17 ../dist/public/assets/index-wNCzTEsr.js                      446.64 kB │ gzip: 141.97 kB
+2026-May-06 12:33:15.487751 [DEBUG] #18 28.17 ✓ built in 27.34s
+2026-May-06 12:33:15.750181 [DEBUG] #18 28.58
+2026-May-06 12:33:15.750181 [DEBUG] #18 28.58   dist/index.js  254.2kb
+2026-May-06 12:33:15.750181 [DEBUG] #18 28.58
+2026-May-06 12:33:15.750181 [DEBUG] #18 28.58 ⚡ Done in 105ms
+2026-May-06 12:33:15.854158 [DEBUG] #18 DONE 28.7s
+2026-May-06 12:33:16.022277 [DEBUG] #19 [stage-0 15/16] RUN printf '\nPATH=/app/node_modules/.bin:$PATH' >> /root/.profile
+2026-May-06 12:33:16.281013 [DEBUG] #19 DONE 0.4s
+2026-May-06 12:33:16.443178 [DEBUG] #20 [stage-0 16/16] COPY . /app
+2026-May-06 12:33:16.513448 [DEBUG] #20 DONE 0.2s
+2026-May-06 12:33:16.695083 [DEBUG] #21 exporting to image
+2026-May-06 12:33:16.695083 [DEBUG] #21 exporting layers
+2026-May-06 12:33:44.622485 [DEBUG] #21 exporting layers 28.1s done
+2026-May-06 12:33:44.622485 [DEBUG] #21 exporting manifest sha256:3d6e81361e2c9f6bd0e237bf86d9df4ecaf56e08984e309465168bd16cccebc6
+2026-May-06 12:33:44.822503 [DEBUG] #21 exporting manifest sha256:3d6e81361e2c9f6bd0e237bf86d9df4ecaf56e08984e309465168bd16cccebc6 0.0s done
+2026-May-06 12:33:44.822503 [DEBUG] #21 exporting config sha256:7df56993ccb7abb75066e62dd711c9e77cb51d4b4069871cf2501fdf58ab5bf4 done
+2026-May-06 12:33:44.822503 [DEBUG] #21 exporting attestation manifest sha256:ba7c1e8b996bd825460f1d1b585a0b803efa67d33b5e226dd6e8e6ba6eac5dd4 0.0s done
+2026-May-06 12:33:44.822503 [DEBUG] #21 exporting manifest list sha256:f94405d8249d7e3cd57fc4ee3dd8bec3f83d4a9476440af72d92463f40c549fd done
+2026-May-06 12:33:44.822503 [DEBUG] #21 naming to docker.io/library/n62g4k2srh68uka508a359hv:3315d07afa1747fa0f89df72ca9ef835d2f03f41 done
+2026-May-06 12:33:44.822503 [DEBUG] #21 unpacking to docker.io/library/n62g4k2srh68uka508a359hv:3315d07afa1747fa0f89df72ca9ef835d2f03f41
+2026-May-06 12:33:54.548381 [DEBUG] #21 unpacking to docker.io/library/n62g4k2srh68uka508a359hv:3315d07afa1747fa0f89df72ca9ef835d2f03f41 9.9s done
+2026-May-06 12:33:54.749161 [DEBUG] #21 DONE 38.1s
+2026-May-06 12:33:54.802195 [DEBUG] 3 warnings found (use docker --debug to expand):
+2026-May-06 12:33:54.802195 [DEBUG] - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "SESSION_SECRET") (line 14)
+2026-May-06 12:33:54.802195 [DEBUG] - UndefinedVar: Usage of undefined variable '$NIXPACKS_PATH' (line 24)
+2026-May-06 12:33:54.802195 [DEBUG] - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "SESSION_SECRET") (line 13)
+2026-May-06 12:33:55.015107 Building docker image completed.
+2026-May-06 12:33:55.058092 [DEBUG] Creating .env file with runtime variables for container.
+2026-May-06 12:33:55.503820 ----------------------------------------
+2026-May-06 12:33:55.511149 Rolling update started.
+2026-May-06 12:33:56.531479 [DEBUG] [CMD]: docker exec ah63ujgemnkevu6pfs1klopk bash -c 'COOLIFY_URL=http://n62g4k2srh68uka508a359hv.185.230.64.171.sslip.io COOLIFY_FQDN=n62g4k2srh68uka508a359hv.185.230.64.171.sslip.io COOLIFY_BRANCH=main COOLIFY_RESOURCE_UUID=n62g4k2srh68uka508a359hv  docker compose --project-name n62g4k2srh68uka508a359hv --project-directory /artifacts/ah63ujgemnkevu6pfs1klopk -f /artifacts/ah63ujgemnkevu6pfs1klopk/docker-compose.yaml up --build -d'
+2026-May-06 12:33:56.531479 [DEBUG] time="2026-05-06T12:33:56Z" level=warning msg="Found orphan containers ([n62g4k2srh68uka508a359hv-122656608347]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+2026-May-06 12:33:56.542390 [DEBUG] Container n62g4k2srh68uka508a359hv-123215103514  Creating
+2026-May-06 12:33:56.825885 [DEBUG] n62g4k2srh68uka508a359hv-123215103514 Your kernel does not support memory swappiness capabilities or the cgroup is not mounted. Memory swappiness discarded.
+2026-May-06 12:33:56.825885 [DEBUG] Container n62g4k2srh68uka508a359hv-123215103514  Created
+2026-May-06 12:33:56.854168 [DEBUG] Container n62g4k2srh68uka508a359hv-123215103514  Starting
+2026-May-06 12:33:57.102734 [DEBUG] Container n62g4k2srh68uka508a359hv-123215103514  Started
+2026-May-06 12:33:57.154317 New container started.
+2026-May-06 12:33:57.187386 Removing old containers.
+2026-May-06 12:33:58.317121 [DEBUG] [CMD]: docker stop -t 30 n62g4k2srh68uka508a359hv-122656608347
+2026-May-06 12:33:58.317121 [DEBUG] n62g4k2srh68uka508a359hv-122656608347
+2026-May-06 12:34:01.169459 [DEBUG] [CMD]: docker rm -f n62g4k2srh68uka508a359hv-122656608347
+2026-May-06 12:34:01.169459 [DEBUG] n62g4k2srh68uka508a359hv-122656608347
+2026-May-06 12:34:01.183262 Rolling update completed.
+2026-May-06 12:34:03.001393 Gracefully shutting down build container: ah63ujgemnkevu6pfs1klopk
+2026-May-06 12:34:04.103275 [DEBUG] [CMD]: docker stop -t 30 ah63ujgemnkevu6pfs1klopk
+2026-May-06 12:34:04.103275 [DEBUG] ah63ujgemnkevu6pfs1klopk
